@@ -119,12 +119,17 @@ Pour que plusieurs postes RH partagent une **même base centralisée** :
 1. Installer PostgreSQL sur un serveur du réseau, créer une base `cvagent`.
 2. Générer **une** valeur secrète partagée :
    `python -c "import secrets; print(secrets.token_hex(32))"`
-3. Sur **chaque** poste, définir les **deux** variables (identiques partout) :
+3. Sur **chaque** poste, définir les **deux** variables (identiques partout ;
+   `/M` = niveau machine, requiert une invite admin) :
    ```powershell
-   setx CV_AGENT_DB_URL "postgresql://user:pw@SERVEUR:5432/cvagent"
-   setx CV_AGENT_SECRET "<la_valeur_générée_à_l_étape_2>"
+   setx /M CV_AGENT_DB_URL "postgresql://user:pw@SERVEUR:5432/cvagent"
+   setx /M CV_AGENT_SECRET "<la_valeur_générée_à_l_étape_2>"
    ```
-4. Au premier démarrage, créer l'admin via `/setup` puis saisir les réglages
+4. Provisionner la base **une fois** (crée base + schéma + réglages par défaut) :
+   ```powershell
+   .\.venv\Scripts\python.exe init_postgres.py
+   ```
+5. Au premier démarrage, créer l'admin via `/setup` puis saisir les réglages
    (IMAP, SMTP, clé API) dans **Administration → Paramètres**. Les secrets sont
    alors chiffrés en `enc:v2:` (portable) et lisibles depuis tous les postes.
 
