@@ -1,0 +1,13 @@
+{% if can_write %}
+<select name="statut"
+        class="status-select status-{{ (c.statut or 'Nouveau')|replace(' ', '_') }}"
+        hx-post="/candidate/{{ c.id }}/update"
+        hx-trigger="change"
+        hx-swap="outerHTML">
+  {% for s in statuts %}
+  <option value="{{ s }}" {% if c.statut == s %}selected{% endif %}>{{ s }}</option>
+  {% endfor %}
+</select>
+{% else %}
+<span class="badge status-{{ (c.statut or 'Nouveau')|replace(' ', '_') }}">{{ c.statut }}</span>
+{% endif %}

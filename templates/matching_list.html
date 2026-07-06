@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Matching IA{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Matching IA</h1>
+  <p class="muted small">Score de correspondance entre chaque offre et vos candidats (calcul local, hors-ligne).</p>
+</div>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Offre</th>
+      <th>Statut</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for o in offres %}
+    <tr>
+      <td><strong>{{ o.titre }}</strong></td>
+      <td><span class="badge status-{{ (o.statut or 'Brouillon')|replace(' ', '_') }}">{{ o.statut }}</span></td>
+      <td><a href="/matching/{{ o.id }}" class="btn small">Voir le matching</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="3" class="empty">Aucune offre. Créez d'abord une offre d'emploi.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

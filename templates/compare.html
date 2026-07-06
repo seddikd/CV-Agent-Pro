@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Comparaison de candidats{% endblock %}
+{% block content %}
+
+<style>
+  /* Styles scopés au module Comparaison. */
+  .cmp-wrap { overflow-x: auto; }
+  .cmp-table { width: 100%; border-collapse: collapse; }
+  .cmp-table th, .cmp-table td {
+    border: 1px solid var(--border, #ccc);
+    padding: .5rem .7rem;
+    vertical-align: top;
+    text-align: left;
+  }
+  .cmp-table thead th { text-align: center; }
+  .cmp-crit { white-space: nowrap; font-weight: 600; }
+  .cmp-best { font-weight: 700; color: #1a7f37; }
+  :root[data-theme="dark"] .cmp-best { color: #4ade80; }
+  .cmp-form label.cmp-check {
+    display: inline-flex; align-items: center; gap: .4rem;
+    margin: .15rem 0; width: 100%;
+  }
+  .cmp-list { list-style: none; padding: 0; margin: .5rem 0 1rem; }
+</style>
+
+<div class="page-head">
+  <h1>Comparaison de candidats</h1>
+</div>
+
+{% if candidats %}
+  <p class="muted small">{{ candidats|length }} candidats comparés.
+    <a href="/comparer" class="cand-link">Modifier la sélection</a>
+  </p>
+
+  <div class="card cmp-wrap">
+    <table class="table cmp-table">
+      <thead>
+        <tr>
+          <th>Critère</th>
+          {% for c in candidats %}
+          <th>
+            <a href="/candidate/{{ c.id }}" class="cand-link">
+              {{ c.nom_complet or ('#' ~ c.id) }}
+            </a>
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for libelle, cle in criteres %}
+        <tr>
+          <td class="cmp-crit">{{ libelle }}</td>
+          {% for c in candidats %}
+          {% set val = c[cle] %}
+          {% if cle == 'annees_experience' and c.id in best_exp_ids %}
+          <td class="cmp-best">{{ val if val is not none else '—' }}</td>
+          {% else %}
+          <td>{{ val if val is not none and val != '' else '—' }}</td>
+          {% endif %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% else %}
+  <div class="card">
+    <p class="muted">Sélectionnez de {{ min_candidats }} à {{ max_candidats }}
+      candidats à comparer, puis validez.</p>
+
+    {% if tous %}
+    <form method="get" action="/comparer" class="cmp-form">
+      <ul class="cmp-list">
+        {% for c in tous %}
+        <li>
+          <label class="cmp-check">
+            <input type="checkbox" name="ids" value="{{ c.id }}"
+                   {% if c.id in selection %}checked{% endif %}>
+            <span>
+              <strong>{{ c.prenom or '' }} {{ c.nom or '' }}</strong>
+              <span class="muted small">
+                (#{{ c.id }}{% if c.poste_recherche %} — {{ c.poste_recherche }}{% endif %})
+              </span>
+            </span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+      <button type="submit" class="btn primary">Comparer</button>
+    </form>
+    {% else %}
+    <p class="muted">Aucun candidat disponible pour la comparaison.</p>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% endblock %}

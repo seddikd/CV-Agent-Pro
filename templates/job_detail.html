@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ offre.titre }}{% endblock %}
+{% block content %}
+
+<a href="/offres" class="back">← Retour aux offres</a>
+
+<div class="card">
+  <div class="page-head">
+    <h2>{{ offre.titre }}
+      <span class="badge status-{{ (offre.statut or 'Brouillon')|replace(' ', '_') }}">{{ offre.statut }}</span>
+    </h2>
+    <div class="actions">
+      <a href="/offres/{{ offre.id }}/modifier" class="btn">✏️ Modifier</a>
+
+      {% if offre.statut != 'Publiée' %}
+      <form method="post" action="/offres/{{ offre.id }}/statut" style="display:inline">
+        <input type="hidden" name="statut" value="Publiée">
+        <button type="submit" class="btn primary">📢 Publier</button>
+      </form>
+      {% endif %}
+
+      {% if offre.statut != 'Archivée' %}
+      <form method="post" action="/offres/{{ offre.id }}/statut" style="display:inline">
+        <input type="hidden" name="statut" value="Archivée">
+        <button type="submit" class="btn ghost">🗄️ Archiver</button>
+      </form>
+      {% endif %}
+
+      <form method="post" action="/offres/{{ offre.id }}/delete" style="display:inline"
+            onsubmit="return confirm('Supprimer définitivement cette offre ?');">
+        <button type="submit" class="btn ghost">🗑️ Supprimer</button>
+      </form>
+    </div>
+  </div>
+
+  <dl class="info">
+    <dt>Département</dt><dd>{{ offre.departement or '—' }}</dd>
+    <dt>Lieu</dt><dd>{{ offre.lieu or '—' }}</dd>
+    <dt>Expérience minimale</dt>
+    <dd>{{ offre.experience_min if offre.experience_min is not none else '—' }}{% if offre.experience_min is not none %} an(s){% endif %}</dd>
+    <dt>Niveau d'étude</dt><dd>{{ offre.niveau_etude or '—' }}</dd>
+    <dt>Compétences requises</dt><dd>{{ offre.competences_requises or '—' }}</dd>
+    <dt>Description</dt><dd>{{ offre.description or '—' }}</dd>
+    <dt>Créée le</dt><dd class="muted">{{ (offre.created_at or '')[:10] }}</dd>
+    <dt>Mise à jour</dt><dd class="muted">{{ (offre.updated_at or '')[:10] }}</dd>
+  </dl>
+</div>
+
+{% endblock %}

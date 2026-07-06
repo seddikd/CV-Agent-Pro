@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Pipeline de recrutement{% endblock %}
+{% block content %}
+
+<style>
+  /* Styles scopés au tableau kanban du pipeline. */
+  .kanban {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    align-items: flex-start;
+  }
+  .kanban-col {
+    flex: 0 0 220px;
+    min-width: 220px;
+    background: var(--panel, rgba(127, 127, 127, 0.06));
+    border: 1px solid var(--border, rgba(127, 127, 127, 0.25));
+    border-radius: 10px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .kanban-col-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 2px 4px;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  /* Zone de dépôt : hauteur minimale pour rester ciblable même vide. */
+  .kanban-dropzone {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 60px;
+    border-radius: 8px;
+    transition: background 0.12s ease, outline 0.12s ease;
+  }
+  /* Surbrillance quand une carte survole la colonne pendant le glisser. */
+  .kanban-dropzone.drag-over {
+    background: rgba(80, 140, 255, 0.12);
+    outline: 2px dashed rgba(80, 140, 255, 0.5);
+    outline-offset: -2px;
+  }
+  .kanban-card {
+    cursor: grab;
+    padding: 8px 10px;
+  }
+  .kanban-card:active { cursor: grabbing; }
+  .kanban-card.dragging { opacity: 0.5; }
+  .kanban-card .cand-nom { font-weight: 600; }
+  .kanban-card .cand-poste { margin-top: 2px; }
+  .kanban-card .cand-link { margin-top: 6px; display: inline-block; }
+  .kanban-empty { padding: 8px 4px; font-style: italic; }
+</style>
+
+<div class="page-head">
+  <h1>Pipeline de recrutement</h1>
+</div>
+
+<div class="kanban" id="kanban">
+  {% for etape in etapes %}
+  <div class="kanban-col">
+    <div class="kanban-col-head">
+      <span>{{ etape }}</span>
+      <span class="badge" data-count>{{ colonnes[etape]|length }}</span>
+    </div>
+    <!-- data-stage porte l'étape cible utilisée lors du dépôt. -->
+    <div class="kanban-dropzone" data-stage="{{ etape }}">
+      {% for c in colonnes[etape] %}
+      <div class="card kanban-card" draggable="true" data-cid="{{ c.id }}">
+        <div class="cand-nom">{{ c.prenom or '' }} {{ c.nom or '' }}</div>
+        <div class="cand-poste small muted">{{ c.poste_recherche or '—' }}</div>
+        <a href="/candidate/{{ c.id }}" class="btn small cand-link">Voir la fiche</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+  // ---------------------------------------------------------------------------
+  // Glisser-déposer natif (HTML5 drag & drop), sans dépendance externe.
+  // Chaque carte est déplaçable ; chaque colonne est une zone de dépôt.
+  // Au dépôt : appel POST /pipeline/{cid}/stage, puis déplacement dans le DOM.
+  // ---------------------------------------------------------------------------
+  (function () {
+    var kanban = document.getElementById('kanban');
+    if (!kanban) return;
+
+    var carteEnCours = null; // carte actuellement glissée
+
+    // Recalcule les compteurs affichés en tête de chaque colonne.
+    function majCompteurs() {
+      kanban.querySelectorAll('.kanban-col').forEach(function (col) {
+        var zone = col.querySelector('.kanban-dropzone');
+        var badge = col.querySelector('[data-count]');
+        if (zone && badge) {
+          badge.textContent = zone.querySelectorAll('.kanban-card').length;
+        }
+      });
+    }
+
+    // --- Événements sur les cartes (délégation depuis le conteneur) ---
+    kanban.addEventListener('dragstart', function (e) {
+      var carte = e.target.closest('.kanban-card');
+      if (!carte) return;
+      carteEnCours = carte;
+      carte.classList.add('dragging');
+      // Nécessaire pour autoriser le déplacement sous Firefox.
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', carte.dataset.cid);
+      }
+    });
+
+    kanban.addEventListener('dragend', function () {
+      if (carteEnCours) carteEnCours.classList.remove('dragging');
+      carteEnCours = null;
+      // Nettoyage de toute surbrillance résiduelle.
+      kanban.querySelectorAll('.drag-over').forEach(function (z) {
+        z.classList.remove('drag-over');
+      });
+    });
+
+    // --- Événements sur les zones de dépôt ---
+    kanban.querySelectorAll('.kanban-dropzone').forEach(function (zone) {
+      // Autoriser le dépôt (par défaut, une zone refuse le drop).
+      zone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        zone.classList.add('drag-over');
+      });
+      zone.addEventListener('dragleave', function (e) {
+        // Ne retirer la surbrillance qu'en quittant réellement la zone.
+        if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+      });
+      zone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        if (!carteEnCours) return;
+
+        var carte = carteEnCours;
+        var origine = carte.parentNode;             // colonne d'origine
+        var etapeCible = zone.dataset.stage;         // nouvelle étape
+        var cid = carte.dataset.cid;
+
+        // Rien à faire si la carte est relâchée dans sa colonne d'origine.
+        if (origine === zone) return;
+
+        // 1) Déplacement optimiste dans le DOM.
+        zone.appendChild(carte);
+        majCompteurs();
+
+        // 2) Persistance côté serveur.
+        fetch('/pipeline/' + cid + '/stage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ stage: etapeCible })
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+        }).catch(function () {
+          // 3) Échec : rollback visuel puis avertissement.
+          origine.appendChild(carte);
+          majCompteurs();
+          alert('Échec du déplacement du candidat. Veuillez réessayer.');
+        });
+      });
+    });
+  })();
+</script>
+
+{% endblock %}

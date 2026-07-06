@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Recherche IA{% endblock %}
+{% block content %}
+
+<style>
+  .ia-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 5rem;
+    resize: vertical;
+    font: inherit;
+    padding: .6rem;
+  }
+  .ia-form .actions { margin-top: .75rem; }
+  .ia-filtres { margin: 1rem 0; }
+  .ia-filtres .badge { margin: 0 .25rem .35rem 0; }
+  .ia-filtres .flabel { font-size: .8em; color: var(--muted, #888); display: inline-block; min-width: 8rem; }
+  .ia-filtres .frow { margin-bottom: .4rem; }
+  .ia-erreur { margin-top: 1rem; }
+</style>
+
+<div class="page-head">
+  <h1>Recherche IA</h1>
+</div>
+
+<p class="muted small">
+  Décrivez le profil recherché en langage naturel : l'IA le traduit en filtres puis interroge la base.
+</p>
+
+<form method="post" action="/recherche-ia" class="card ia-form">
+  <textarea name="q" placeholder="Trouve-moi un ingénieur réseau Cisco avec plus de 5 ans d'expérience parlant anglais…">{{ q }}</textarea>
+  <div class="actions">
+    <button type="submit" class="btn primary">✨ Rechercher</button>
+    <a href="/recherche-ia" class="btn ghost">Réinitialiser</a>
+  </div>
+</form>
+
+{% if erreur %}
+  <div class="card ia-erreur">
+    <p class="muted">⚠️ {{ erreur }}</p>
+  </div>
+{% endif %}
+
+{% if filtres is not none %}
+  <div class="card ia-filtres">
+    <p class="small muted">Filtres interprétés par l'IA :</p>
+
+    {% if filtres.poste %}
+      <div class="frow"><span class="flabel">Poste</span><span class="badge">{{ filtres.poste }}</span></div>
+    {% endif %}
+    {% if filtres.specialite %}
+      <div class="frow"><span class="flabel">Spécialité</span><span class="badge">{{ filtres.specialite }}</span></div>
+    {% endif %}
+    {% if filtres.experience_min is not none %}
+      <div class="frow"><span class="flabel">Expérience min.</span><span class="badge">{{ filtres.experience_min }} an(s)</span></div>
+    {% endif %}
+    {% if filtres.niveau_etude %}
+      <div class="frow"><span class="flabel">Niveau d'étude</span><span class="badge">{{ filtres.niveau_etude }}</span></div>
+    {% endif %}
+    {% if filtres.competences %}
+      <div class="frow"><span class="flabel">Compétences</span>{% for v in filtres.competences %}<span class="badge">{{ v }}</span>{% endfor %}</div>
+    {% endif %}
+    {% if filtres.langues %}
+      <div class="frow"><span class="flabel">Langues</span>{% for v in filtres.langues %}<span class="badge">{{ v }}</span>{% endfor %}</div>
+    {% endif %}
+    {% if filtres.certifications %}
+      <div class="frow"><span class="flabel">Certifications</span>{% for v in filtres.certifications %}<span class="badge">{{ v }}</span>{% endfor %}</div>
+    {% endif %}
+
+    {% if aucun_filtre %}
+      <p class="muted small">Aucun critère exploitable n'a pu être extrait de votre requête.</p>
+    {% endif %}
+  </div>
+
+  {% if not aucun_filtre %}
+    <p class="small muted">
+      {{ nb_resultats }} résultat(s){% if nb_resultats == 500 %} (limité à 500){% endif %}.
+    </p>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Candidat</th>
+          <th>Poste</th>
+          <th>Spécialité</th>
+          <th>Exp.</th>
+          <th>Compétences</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in rows %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td>
+            <a href="/candidate/{{ c.id }}" class="cand-link">
+              <strong>{{ (c.prenom or '') }} {{ (c.nom or '') }}</strong>
+            </a><br>
+            <span class="small muted">{{ c.email or '' }}</span>
+          </td>
+          <td class="small">{{ c.poste_recherche or '—' }}</td>
+          <td class="small">{{ c.specialite or '—' }}</td>
+          <td>{{ c.annees_experience if c.annees_experience is not none else '—' }}</td>
+          <td class="small">{{ (c.competences or '')[:80] }}{% if c.competences and c.competences|length > 80 %}…{% endif %}</td>
+          <td>{{ c.statut or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="empty">Aucun candidat ne correspond à ces critères.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endif %}
+
+{% endblock %}

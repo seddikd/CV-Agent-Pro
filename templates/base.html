@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CV Agent — {% block title %}{% endblock %}</title>
+<script>
+  // Appliquer le thème choisi AVANT le rendu (évite tout clignotement).
+  (function () {
+    try {
+      var t = localStorage.getItem('cvagent-theme');
+      if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="icon" href="/static/app.ico" type="image/x-icon">
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+{% if user %}
+<nav class="topbar">
+  <a href="/" class="brand">📨 CV Agent</a>
+  <a href="/dashboard" class="nav-link">Tableau de bord</a>
+  <a href="/" class="nav-link">Candidats</a>
+  <a href="/recherche" class="nav-link">Recherche</a>
+  <a href="/offres" class="nav-link">Offres</a>
+  <a href="/comparer" class="nav-link">Comparer</a>
+  <a href="/doublons" class="nav-link">Doublons</a>
+  <a href="/pipeline" class="nav-link">Pipeline</a>
+  <a href="/matching" class="nav-link">Matching</a>
+  <a href="/alertes" class="nav-link">Alertes</a>
+  <a href="/recherche-ia" class="nav-link">Recherche IA</a>
+  <a href="/statistiques" class="nav-link">Stats</a>
+  <a href="/admin/runs" class="nav-link">Cycles</a>
+  {% if user.role == 'admin' %}
+  <a href="/admin/users" class="nav-link">Utilisateurs</a>
+  <a href="/admin/settings/mail" class="nav-link">Param. Mail</a>
+  <a href="/admin/settings/llm" class="nav-link">Param. LLM</a>
+  {% endif %}
+  <span class="spacer"></span>
+  <button type="button" class="theme-toggle" id="theme-toggle" title="Thème clair / sombre" aria-label="Basculer le thème clair ou sombre">🌗</button>
+  <span class="user-info">👤 {{ user.name }} <em class="role role-{{ user.role }}">{{ user.role }}</em></span>
+  <a href="/logout" class="nav-link logout">Se déconnecter</a>
+</nav>
+{% endif %}
+
+<main class="container">
+{% block content %}{% endblock %}
+</main>
+
+<script>
+  (function () {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    function currentTheme() {
+      return document.documentElement.getAttribute('data-theme')
+        || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+    function updateIcon() { btn.textContent = currentTheme() === 'dark' ? '☀️' : '🌙'; }
+    updateIcon();
+    btn.addEventListener('click', function () {
+      var next = currentTheme() === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('cvagent-theme', next); } catch (e) {}
+      updateIcon();
+    });
+  })();
+</script>
+</body>
+</html>

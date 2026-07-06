@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Cycles{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Cycles d'exécution</h1>
+  <div class="actions">
+    <form method="post" action="/run-now" style="display:inline"
+          onsubmit="return !this.reset_all.checked || confirm('Recommencer à zéro EFFACERA tous les candidats et ré-analysera tous les emails de la fenêtre. Continuer ?');">
+      <label style="font-size:.85em;margin-right:.5rem">
+        <input type="checkbox" name="reset_all" value="on"> Recommencer à zéro
+      </label>
+      <button type="submit" class="btn primary" {% if running %}disabled{% endif %}>
+        ▶ Lancer un cycle maintenant
+      </button>
+    </form>
+    {% if running %}
+    <form method="post" action="/admin/runs/stop" style="display:inline">
+      <button type="submit" class="btn" style="background:#c1121f;color:#fff">
+        ■ Arrêter le cycle
+      </button>
+    </form>
+    {% endif %}
+    {% if user and user.role == 'admin' %}
+    <form method="post" action="/admin/runs/clear" style="display:inline"
+          onsubmit="return confirm('Vider TOUT l\'historique des cycles ET tous les candidats ?\n\nLes emails seront ré-analysés au prochain cycle. Action irréversible.');">
+      <button type="submit" class="btn" style="background:#8b0000;color:#fff">
+        🗑 Vider historique + candidats
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if msg %}<div class="alert info">{{ msg }}</div>{% endif %}
+
+{% if running %}
+<div class="alert warning">⏳ Un cycle est en cours d'exécution…</div>
+{% elif last %}
+<div class="alert info">✅ Dernier cycle réussi : {{ last.finished_at }} —
+  {{ last.emails_fetched }} email(s) lus, {{ last.cvs_detected }} CV détecté(s)</div>
+{% else %}
+<div class="alert warning">Aucun cycle réussi à ce jour.</div>
+{% endif %}
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>#</th><th>Démarré</th><th>Fini</th>
+      <th>Source</th><th>Emails</th><th>CV</th><th>Statut</th><th>Erreur</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in runs %}
+    <tr>
+      <td>{{ r.id }}</td>
+      <td class="small">{{ r.started_at }}</td>
+      <td class="small">{{ r.finished_at or '—' }}</td>
+      <td class="small">{{ r.triggered_by }}</td>
+      <td>{{ r.emails_fetched }}</td>
+      <td>{{ r.cvs_detected }}</td>
+      <td><span class="badge run-{{ r.status }}">{{ r.status }}</span></td>
+      <td class="small error-text">{{ (r.error or '')[:120] }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

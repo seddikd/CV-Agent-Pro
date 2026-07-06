@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="page-head"><h1>{{ title }}</h1></div>
+
+<div class="stats" style="margin-bottom:16px">
+  <a class="stat" href="/admin/settings/mail" style="{% if section=='mail' %}border-color:var(--primary);color:var(--primary){% endif %}">📧 Paramètres Mail</a>
+  <a class="stat" href="/admin/settings/llm" style="{% if section=='llm' %}border-color:var(--primary);color:var(--primary){% endif %}">🤖 Paramètres LLM</a>
+</div>
+
+{% if msg %}<div class="alert info">{{ msg }}</div>{% endif %}
+
+{% set provider = values.get('llm.provider', 'ollama') %}
+
+<div class="card">
+  <p class="muted">Modifications appliquées immédiatement. Pour les mots de passe, laissez vide pour conserver l'actuel.</p>
+  <form method="post" action="{{ action }}" class="form">
+    {% for key, label, kind in fields %}
+      {% if key.startswith('ollama.') %}{% set group = 'ollama' %}
+      {% elif key.startswith('openrouter.') %}{% set group = 'openrouter' %}
+      {% else %}{% set group = '' %}{% endif %}
+    <label
+      {% if group %}class="llm-field" data-provider="{{ group }}"
+        {% if group != provider %}style="display:none"{% endif %}
+      {% endif %}>
+      {{ label }}
+      <small class="muted">({{ key }})</small>
+      {% if kind == 'select' and key == 'llm.provider' %}
+      <select name="{{ key }}" id="llm-provider">
+        <option value="ollama" {% if provider == 'ollama' %}selected{% endif %}>💻 Local (Ollama)</option>
+        <option value="openrouter" {% if provider == 'openrouter' %}selected{% endif %}>☁️ Cloud (OpenRouter / Gemini / OpenAI…)</option>
+      </select>
+      {% elif kind == 'select' and key == 'smtp.security' %}
+      {% set sec = values.get('smtp.security', 'TLS') %}
+      <select name="{{ key }}">
+        <option value="TLS" {% if sec == 'TLS' %}selected{% endif %}>TLS / STARTTLS (port 587)</option>
+        <option value="SSL" {% if sec == 'SSL' %}selected{% endif %}>SSL (port 465)</option>
+        <option value="None" {% if sec == 'None' %}selected{% endif %}>Aucune (port 25)</option>
+      </select>
+      {% elif kind == 'password' %}
+      <input type="password" name="{{ key }}" placeholder="(inchangé si vide)">
+      {% else %}
+      <input type="{{ kind }}" name="{{ key }}" value="{{ values[key] }}">
+      {% endif %}
+    </label>
+    {% endfor %}
+
+    {% if section == 'mail' %}
+    <div style="margin-top:.4rem">
+      <button type="button" class="btn"
+              hx-post="/admin/settings/test-imap"
+              hx-include="[name='imap.host'],[name='imap.port'],[name='imap.user'],[name='imap.password'],[name='imap.folder']"
+              hx-target="#imap-test-result" hx-swap="innerHTML">
+        📬 Tester la connexion à la boîte mail
+      </button>
+      <span id="imap-test-result" style="margin-left:.6rem"></span>
+    </div>
+    <div style="margin-top:.4rem">
+      <button type="button" class="btn"
+              hx-post="/admin/settings/test-smtp"
+              hx-include="[name='smtp.host'],[name='smtp.port'],[name='smtp.security'],[name='smtp.user'],[name='smtp.password'],[name='smtp.from'],[name='notify.recipients']"
+              hx-target="#smtp-test-result" hx-swap="innerHTML">
+        ✉️ Tester SMTP (envoie un test aux destinataires si renseignés)
+      </button>
+      <span id="smtp-test-result" style="margin-left:.6rem"></span>
+    </div>
+    {% endif %}
+
+    {% if section == 'llm' %}
+    <div class="llm-field" data-provider="ollama"{% if provider != 'ollama' %} style="display:none"{% endif %}>
+      <button type="button" class="btn" style="margin-top:.4rem"
+              hx-post="/admin/settings/test-ollama"
+              hx-include="[name='ollama.model'],[name='ollama.host']"
+              hx-target="#ollama-test-result" hx-swap="innerHTML">
+        🔌 Tester Ollama (serveur + modèle)
+      </button>
+      <span id="ollama-test-result" style="margin-left:.6rem"></span>
+    </div>
+    <div class="llm-field" data-provider="openrouter"{% if provider != 'openrouter' %} style="display:none"{% endif %}>
+      <button type="button" class="btn" style="margin-top:.4rem"
+              hx-post="/admin/settings/test-openrouter"
+              hx-include="[name='openrouter.base_url'],[name='openrouter.model'],[name='openrouter.api_key']"
+              hx-target="#or-test-result" hx-swap="innerHTML">
+        🔌 Tester la connexion cloud
+      </button>
+      <span id="or-test-result" style="margin-left:.6rem"></span>
+    </div>
+    {% endif %}
+
+    <button type="submit" class="btn primary">💾 Enregistrer</button>
+  </form>
+</div>
+
+<script>
+  (function () {
+    var sel = document.getElementById('llm-provider');
+    if (!sel) return;
+    function toggle() {
+      var v = sel.value;
+      document.querySelectorAll('.llm-field').forEach(function (el) {
+        el.style.display = (el.dataset.provider === v) ? '' : 'none';
+      });
+    }
+    sel.addEventListener('change', toggle);
+    toggle();
+  })();
+</script>
+
+{% endblock %}

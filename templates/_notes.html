@@ -1,0 +1,36 @@
+<h3>Notes internes</h3>
+
+<style scoped>
+  .note-item { padding: .6rem 0; border-bottom: 1px solid rgba(128,128,128,.2); }
+  .note-item:last-of-type { border-bottom: none; }
+  .note-meta { margin-bottom: .25rem; }
+  .note-body { white-space: pre-wrap; }
+  .note-form textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 4rem; }
+</style>
+
+<div class="notes-list">
+  {% if notes %}
+    {% for n in notes %}
+    <div class="note-item">
+      <div class="note-meta small muted">
+        {{ n.author_name or "Utilisateur inconnu" }} — {{ n.created_at }}
+      </div>
+      <div class="note-body">{{ n.body }}</div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="muted small">Aucune note pour l'instant.</p>
+  {% endif %}
+</div>
+
+<form class="note-form"
+      hx-post="/candidate/{{ cid }}/notes"
+      hx-target="#notes-internes"
+      hx-swap="innerHTML"
+      hx-on::after-request="this.reset()"
+      style="margin-top:.8rem;">
+  <textarea name="body" placeholder="Ajouter une note interne…" required></textarea>
+  <div style="margin-top:.5rem;">
+    <button type="submit" class="btn primary">Ajouter</button>
+  </div>
+</form>

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Offres d'emploi{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Offres d'emploi</h1>
+  <div class="actions">
+    <a href="/offres/nouveau" class="btn primary">➕ Nouvelle offre</a>
+  </div>
+</div>
+
+<form method="get" action="/offres" class="filters">
+  <select name="statut" onchange="this.form.submit()">
+    <option value="">Tous statuts</option>
+    {% for s in statuts %}
+    <option value="{{ s }}" {% if statut == s %}selected{% endif %}>{{ s }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn">Filtrer</button>
+  <a href="/offres" class="btn ghost">Réinitialiser</a>
+</form>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Titre</th>
+      <th>Département</th>
+      <th>Lieu</th>
+      <th>Statut</th>
+      <th>Mise à jour</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for o in offres %}
+    <tr>
+      <td><a href="/offres/{{ o.id }}" class="cand-link"><strong>{{ o.titre }}</strong></a></td>
+      <td>{{ o.departement or '—' }}</td>
+      <td>{{ o.lieu or '—' }}</td>
+      <td><span class="badge status-{{ (o.statut or 'Brouillon')|replace(' ', '_') }}">{{ o.statut }}</span></td>
+      <td class="small muted">{{ (o.updated_at or '')[:10] }}</td>
+      <td><a href="/offres/{{ o.id }}" class="btn small">Voir</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="empty">Aucune offre pour ce filtre.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Utilisateurs{% endblock %}
+{% block content %}
+
+<div class="page-head"><h1>Gestion des utilisateurs</h1></div>
+
+{% if msg %}<div class="alert info">{{ msg }}</div>{% endif %}
+
+<div class="card">
+  <h3>➕ Créer un utilisateur</h3>
+  <form method="post" action="/admin/users/create" class="form inline">
+    <input type="email" name="email" placeholder="email" required>
+    <input type="text" name="name" placeholder="Nom complet" required>
+    <input type="password" name="password" placeholder="Mot de passe" required>
+    <select name="role" required>
+      <option value="rh">rh</option>
+      <option value="manager">manager</option>
+      <option value="lecture">lecture seule</option>
+      <option value="admin">admin</option>
+    </select>
+    <button type="submit" class="btn primary">Créer</button>
+  </form>
+</div>
+
+<table class="table">
+  <thead>
+    <tr><th>Email</th><th>Édition</th></tr>
+  </thead>
+  <tbody>
+  {% for u in users %}
+    <tr>
+      <td><code>{{ u.email }}</code></td>
+      <td>
+        <form method="post" action="/admin/users/{{ u.id }}/update" class="user-row-form">
+          <input type="text" name="name" value="{{ u.name }}" required placeholder="Nom">
+          <select name="role">
+            <option value="rh" {% if u.role == 'rh' %}selected{% endif %}>rh</option>
+            <option value="manager" {% if u.role == 'manager' %}selected{% endif %}>manager</option>
+            <option value="lecture" {% if u.role == 'lecture' %}selected{% endif %}>lecture seule</option>
+            <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>admin</option>
+          </select>
+          <select name="active">
+            <option value="1" {% if u.active %}selected{% endif %}>actif</option>
+            <option value="0" {% if not u.active %}selected{% endif %}>désactivé</option>
+          </select>
+          <input type="password" name="password" placeholder="Nouveau MdP (vide = inchangé)">
+          <button type="submit" class="btn small primary">💾 Modifier</button>
+        </form>
+        <form method="post" action="/admin/users/{{ u.id }}/delete"
+              onsubmit="return confirm('Supprimer {{ u.email }} ?')"
+              class="user-row-form" style="margin-top:6px">
+          <button type="submit" class="btn small danger">🗑 Supprimer</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

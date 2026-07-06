@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Statistiques RH{% endblock %}
+{% block content %}
+
+<style>
+  .kpi-row { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+  .kpi {
+    flex: 1 1 160px; padding: 1rem 1.2rem; border-radius: 10px;
+    background: var(--card-bg, #fff); border: 1px solid var(--border, #e2e2e2);
+  }
+  .kpi .num { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+  .kpi .unit { font-size: 1rem; font-weight: 600; opacity: .7; }
+  .kpi .lbl { font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; opacity: .7; }
+  .kpi.accent .num { color: var(--accent, #2563eb); }
+  .kpi.ok .num { color: #16a34a; }
+  .kpi.ko .num { color: #dc2626; }
+
+  .stat-badges { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 1.6rem; }
+  .stat-badge {
+    display: inline-flex; align-items: baseline; gap: .4rem;
+    padding: .35rem .7rem; border-radius: 999px; font-size: .85rem;
+    border: 1px solid var(--border, #e2e2e2);
+  }
+  .stat-badge strong { font-size: 1rem; }
+
+  .charts-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.2rem;
+  }
+  .charts-grid .card h3 { margin: 0 0 .9rem; font-size: 1rem; }
+  .charts-grid .card.wide { grid-column: 1 / -1; }
+
+  .bars { display: flex; flex-direction: column; gap: .5rem; }
+  .bar-row { display: grid; grid-template-columns: 130px 1fr 2.5rem; align-items: center; gap: .5rem; }
+  .bar-row .bar-lbl {
+    font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bar-track { background: var(--track, #eef0f4); border-radius: 6px; height: 16px; overflow: hidden; }
+  .bar-fill {
+    height: 100%; border-radius: 6px; min-width: 2px;
+    background: linear-gradient(90deg, var(--accent, #2563eb), var(--accent2, #60a5fa));
+  }
+  .bar-row .bar-num { font-size: .82rem; font-weight: 600; text-align: right; }
+  .chart-empty { font-size: .85rem; opacity: .6; padding: .5rem 0; }
+
+  html[data-theme="dark"] .kpi,
+  html[data-theme="dark"] .stat-badge { background: var(--card-bg, #1e2330); }
+  html[data-theme="dark"] .bar-track { background: var(--track, #2a3040); }
+</style>
+
+<div class="page-head">
+  <h1>Statistiques RH</h1>
+  <div class="actions">
+    <a href="/dashboard" class="btn ghost">Tableau de bord</a>
+    <a href="/" class="btn ghost">Voir les candidats</a>
+  </div>
+</div>
+
+{% if total == 0 %}
+  <div class="card">
+    <p class="muted">Aucun candidat pour le moment. Les statistiques de recrutement apparaîtront ici dès qu'un premier CV aura été analysé.</p>
+  </div>
+{% else %}
+
+<div class="kpi-row">
+  <div class="kpi accent">
+    <div class="num">{{ temps_moyen_txt }}{% if temps_moyen_txt != 'N/A' %} <span class="unit">j</span>{% endif %}</div>
+    <div class="lbl">Temps moyen de recrutement</div>
+  </div>
+  <div class="kpi ok">
+    <div class="num">{{ taux_recrutement }} <span class="unit">%</span></div>
+    <div class="lbl">Taux de recrutement</div>
+  </div>
+  <div class="kpi ko">
+    <div class="num">{{ taux_refus }} <span class="unit">%</span></div>
+    <div class="lbl">Taux de refus</div>
+  </div>
+  <div class="kpi">
+    <div class="num">{{ total }}</div>
+    <div class="lbl">Candidats au total</div>
+  </div>
+</div>
+
+<div class="stat-badges">
+  {% for s in par_statut %}
+  <span class="stat-badge">{{ s.cat }} <strong>{{ s.n }}</strong></span>
+  {% endfor %}
+</div>
+
+{% macro barchart(titre, items, vide) %}
+<div class="card">
+  <h3>{{ titre }}</h3>
+  {% if items %}
+  <div class="bars">
+    {% for it in items %}
+    <div class="bar-row">
+      <span class="bar-lbl" title="{{ it.cat }}">{{ it.cat }}</span>
+      <span class="bar-track"><span class="bar-fill" style="width: {{ it.pct }}%"></span></span>
+      <span class="bar-num">{{ it.n }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="chart-empty">{{ vide }}</p>
+  {% endif %}
+</div>
+{% endmacro %}
+
+<div class="charts-grid">
+  <div class="card wide">
+    <h3>Évolution mensuelle des candidatures</h3>
+    {% if evolution %}
+    <div class="bars">
+      {% for it in evolution %}
+      <div class="bar-row">
+        <span class="bar-lbl" title="{{ it.cat }}">{{ it.cat }}</span>
+        <span class="bar-track"><span class="bar-fill" style="width: {{ it.pct }}%"></span></span>
+        <span class="bar-num">{{ it.n }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="chart-empty">Aucune date de candidature exploitable.</p>
+    {% endif %}
+  </div>
+
+  {{ barchart("Candidats par métier", par_metier, "Aucun poste renseigné.") }}
+  {{ barchart("Compétences les plus recherchées (offres)", competences, "Aucune offre avec compétences renseignées.") }}
+</div>
+
+{% endif %}
+
+{% endblock %}

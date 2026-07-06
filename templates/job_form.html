@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{% if offre %}Modifier l'offre{% else %}Nouvelle offre{% endif %}{% endblock %}
+{% block content %}
+
+<a href="{% if offre %}/offres/{{ offre.id }}{% else %}/offres{% endif %}" class="back">← Retour</a>
+
+<div class="page-head">
+  <h1>{% if offre %}Modifier l'offre{% else %}Nouvelle offre{% endif %}</h1>
+</div>
+
+<div class="card">
+  <form method="post"
+        action="{% if offre %}/offres/{{ offre.id }}/update{% else %}/offres{% endif %}"
+        class="edit-form">
+    <label>Titre *
+      <input type="text" name="titre" required value="{{ offre.titre if offre else '' }}">
+    </label>
+    <label>Département
+      <input type="text" name="departement" value="{{ offre.departement if offre else '' }}">
+    </label>
+    <label>Lieu
+      <input type="text" name="lieu" value="{{ offre.lieu if offre else '' }}">
+    </label>
+    <label>Description
+      <textarea name="description" rows="6">{{ offre.description if offre else '' }}</textarea>
+    </label>
+    <label>Compétences requises
+      <textarea name="competences_requises" rows="4">{{ offre.competences_requises if offre else '' }}</textarea>
+    </label>
+    <label>Expérience minimale (années)
+      <input type="number" name="experience_min" min="0"
+             value="{{ offre.experience_min if offre and offre.experience_min is not none else '' }}">
+    </label>
+    <label>Niveau d'étude
+      <input type="text" name="niveau_etude" value="{{ offre.niveau_etude if offre else '' }}">
+    </label>
+    <label>Statut
+      <select name="statut">
+        {% for s in statuts %}
+        <option value="{{ s }}" {% if offre and offre.statut == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="btn primary">💾 Enregistrer</button>
+  </form>
+</div>
+
+{% endblock %}

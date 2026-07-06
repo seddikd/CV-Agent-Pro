@@ -1,0 +1,93 @@
+<style>
+  #resume-ia .resume-ia-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .8rem; flex-wrap: wrap; margin: 0 0 .9rem;
+  }
+  #resume-ia .resume-ia-head h3 { margin: 0; font-size: 1rem; }
+  #resume-ia .resume-ia-erreur {
+    padding: .6rem .8rem; margin: 0 0 .9rem; border-radius: 8px;
+    font-size: .85rem;
+    background: var(--danger-bg, #fdecec); border: 1px solid var(--danger, #d9534f);
+    color: var(--danger, #b02a25);
+  }
+  #resume-ia .resume-ia-vide { margin: .2rem 0 0; }
+  #resume-ia .resume-ia-bloc { margin: 0 0 1rem; }
+  #resume-ia .resume-ia-bloc:last-child { margin-bottom: 0; }
+  #resume-ia .resume-ia-bloc h4 {
+    margin: 0 0 .35rem; font-size: .82rem; text-transform: uppercase;
+    letter-spacing: .03em; opacity: .7;
+  }
+  #resume-ia .resume-ia-bloc p { margin: 0; line-height: 1.5; }
+  #resume-ia .resume-ia-bloc ul { margin: 0; padding-left: 1.2rem; }
+  #resume-ia .resume-ia-bloc li { margin: .15rem 0; line-height: 1.45; }
+  #resume-ia .resume-ia-load { margin-left: .2rem; }
+  html[data-theme="dark"] #resume-ia .resume-ia-erreur {
+    background: var(--danger-bg, #3a2020);
+  }
+</style>
+
+<div class="card">
+  <div class="resume-ia-head">
+    <h3>Résumé IA</h3>
+    <button class="btn primary" type="button"
+            hx-post="/candidate/{{ cid }}/resume-ia/generate"
+            hx-target="#resume-ia" hx-swap="innerHTML"
+            hx-disabled-elt="this">
+      {% if fiche %}Régénérer{% else %}Générer la fiche IA{% endif %}
+      <span class="htmx-indicator resume-ia-load small">Génération en cours…</span>
+    </button>
+  </div>
+
+  {% if erreur %}
+  <p class="resume-ia-erreur">{{ erreur }}</p>
+  {% endif %}
+
+  {% if fiche %}
+    {% if fiche.resume_pro %}
+    <div class="resume-ia-bloc">
+      <h4>Résumé professionnel</h4>
+      <p>{{ fiche.resume_pro }}</p>
+    </div>
+    {% endif %}
+
+    {% if fiche.experience_totale %}
+    <div class="resume-ia-bloc">
+      <h4>Expérience totale</h4>
+      <p>{{ fiche.experience_totale }}</p>
+    </div>
+    {% endif %}
+
+    {% if fiche.competences_cles %}
+    <div class="resume-ia-bloc">
+      <h4>Compétences clés</h4>
+      <ul>{% for c in fiche.competences_cles %}<li>{{ c }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    {% if fiche.forces %}
+    <div class="resume-ia-bloc">
+      <h4>Forces</h4>
+      <ul>{% for f in fiche.forces %}<li>{{ f }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    {% if fiche.axes_amelioration %}
+    <div class="resume-ia-bloc">
+      <h4>Axes d'amélioration</h4>
+      <ul>{% for a in fiche.axes_amelioration %}<li>{{ a }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    {% if fiche.recommandations %}
+    <div class="resume-ia-bloc">
+      <h4>Recommandations</h4>
+      <p>{{ fiche.recommandations }}</p>
+    </div>
+    {% endif %}
+  {% elif not erreur %}
+    <p class="muted resume-ia-vide small">
+      Aucune fiche générée pour ce candidat. Cliquez sur « Générer la fiche IA »
+      pour produire une synthèse à partir de son profil.
+    </p>
+  {% endif %}
+</div>

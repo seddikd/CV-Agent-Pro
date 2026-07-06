@@ -1,0 +1,43 @@
+# ─── Données & secrets — NE JAMAIS versionner ────────────────────────────────
+# Base SQLite (données candidats + secrets DPAPI chiffrés, machine-liés).
+state.db
+state.db-*
+*.sqlite
+*.sqlite3
+# Secret de session (généré au 1er lancement).
+session.secret
+# CV et pièces jointes reçus (données personnelles candidats).
+cv_pdfs/
+# Journaux d'exécution.
+logs/
+# Export Excel généré.
+output/
+# NB : config.yaml EST versionné — c'est le gabarit de premier lancement bundlé
+# dans l'exe (valeurs d'exemple uniquement, jamais de vrais identifiants).
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ─── Build / packaging (PyInstaller, Inno Setup) ─────────────────────────────
+build/
+dist/
+Output/
+*.manifest
+# Manuel PDF régénéré par build_pdf.py (le .md source, lui, est versionné).
+MANUEL_UTILISATION.pdf
+
+# ─── IDE / OS ────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

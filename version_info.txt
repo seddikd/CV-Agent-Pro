@@ -1,0 +1,31 @@
+# Ressource de version Windows embarquée dans CV-Agent.exe (PyInstaller).
+# Modifie les numéros ici + AppVersion dans installer.iss pour publier une nouvelle version.
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(1, 0, 0, 0),
+    prodvers=(1, 0, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0),
+  ),
+  kids=[
+    StringFileInfo([
+      StringTable(
+        '040c04b0',  # 040c = Français (France), 04b0 = Unicode
+        [
+          StringStruct('CompanyName', 'CLab Labs'),
+          StringStruct('FileDescription', 'CV Agent — assistant RH de tri de CV'),
+          StringStruct('FileVersion', '1.0.0.0'),
+          StringStruct('InternalName', 'CV-Agent'),
+          StringStruct('LegalCopyright', '© CLab Labs'),
+          StringStruct('OriginalFilename', 'CV-Agent.exe'),
+          StringStruct('ProductName', 'CV Agent'),
+          StringStruct('ProductVersion', '1.0.0.0'),
+        ])
+    ]),
+    VarFileInfo([VarStruct('Translation', [0x040c, 1200])])
+  ]
+)

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Recherche avancée{% endblock %}
+{% block content %}
+
+<style>
+  .recherche-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: .75rem;
+    margin-bottom: 1rem;
+  }
+  .recherche-grid label { display: block; }
+  .recherche-grid .lbl { font-size: .8em; color: var(--muted, #888); }
+  .recherche-grid input { width: 100%; box-sizing: border-box; }
+  .op-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .op-row .op-choices { display: flex; gap: 1rem; }
+  .op-row label { font-size: .9em; }
+</style>
+
+<div class="page-head">
+  <h1>Recherche avancée</h1>
+</div>
+
+<form method="get" action="/recherche" class="card">
+  <div class="recherche-grid">
+    {% for champ, colonne, libelle in text_fields %}
+    <label>
+      <span class="lbl">{{ libelle }}</span>
+      <input type="text" name="{{ champ }}" value="{{ valeurs[champ] }}"
+             placeholder="{{ libelle }}...">
+    </label>
+    {% endfor %}
+    <label>
+      <span class="lbl">Expérience min. (années)</span>
+      <input type="number" name="experience" min="0" step="1"
+             value="{{ experience }}" placeholder="0">
+    </label>
+  </div>
+
+  <div class="op-row">
+    <span class="lbl">Opérateur logique :</span>
+    <span class="op-choices">
+      {% for op in operateurs %}
+      <label>
+        <input type="radio" name="operateur" value="{{ op }}"
+               {% if operateur == op %}checked{% endif %}>
+        {{ op }}
+      </label>
+      {% endfor %}
+    </span>
+    <span class="small muted">
+      AND = tous les critères · OR = au moins un · NOT = exclut les correspondances
+    </span>
+  </div>
+
+  <button type="submit" class="btn">🔍 Rechercher</button>
+  <a href="/recherche" class="btn ghost">Réinitialiser</a>
+</form>
+
+{% if aucun_critere %}
+  <p class="muted" style="margin-top:1rem">
+    Saisissez au moins un critère puis lancez la recherche.
+  </p>
+{% else %}
+  <p class="small muted" style="margin-top:1rem">
+    {{ nb_resultats }} résultat(s){% if nb_resultats == 500 %} (limité à 500){% endif %}.
+  </p>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Candidat</th>
+        <th>Poste</th>
+        <th>Spécialité</th>
+        <th>Exp.</th>
+        <th>Compétences</th>
+        <th>Statut</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in rows %}
+      <tr>
+        <td>{{ c.id }}</td>
+        <td>
+          <a href="/candidate/{{ c.id }}" class="cand-link">
+            <strong>{{ (c.prenom or '') }} {{ (c.nom or '') }}</strong>
+          </a><br>
+          <span class="small muted">{{ c.email or '' }}</span>
+        </td>
+        <td class="small">{{ c.poste_recherche or '—' }}</td>
+        <td class="small">{{ c.specialite or '—' }}</td>
+        <td>{{ c.annees_experience if c.annees_experience is not none else '—' }}</td>
+        <td class="small">{{ (c.competences or '')[:80] }}{% if c.competences and c.competences|length > 80 %}…{% endif %}</td>
+        <td>{{ c.statut or '—' }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="empty">Aucun candidat ne correspond à ces critères.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Premier lancement{% endblock %}
+{% block content %}
+<div class="login-card">
+  <h1>📨 CV Agent</h1>
+  <p class="subtitle">Bienvenue — création du compte administrateur</p>
+  <p class="muted">Première utilisation : définissez le compte admin qui gérera l'application.</p>
+
+  {% if err %}<div class="alert error">{{ err }}</div>{% endif %}
+
+  <form method="post" action="/setup" class="form">
+    <label>Nom complet
+      <input type="text" name="name" required autofocus>
+    </label>
+    <label>Email
+      <input type="email" name="email" required autocomplete="email">
+    </label>
+    <label>Mot de passe <small class="muted">(min. 8 caractères)</small>
+      <input type="password" name="password" required minlength="8" autocomplete="new-password">
+    </label>
+    <label>Confirmer le mot de passe
+      <input type="password" name="password2" required minlength="8" autocomplete="new-password">
+    </label>
+    <button type="submit" class="btn primary">Créer le compte et démarrer</button>
+  </form>
+</div>
+{% endblock %}

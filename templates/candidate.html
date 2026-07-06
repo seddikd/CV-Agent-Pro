@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ c.prenom or '' }} {{ c.nom or '' }}{% endblock %}
+{% block content %}
+
+<a href="/" class="back">← Retour à la liste</a>
+
+<div class="cand-grid">
+  <div class="card">
+    <h2>{{ c.prenom or '' }} {{ c.nom or '' }}
+      <span class="badge status-{{ (c.statut or 'Nouveau')|replace(' ', '_') }}">{{ c.statut }}</span>
+    </h2>
+    <p class="muted">Candidature reçue le {{ c.received_at[:10] }} à {{ c.received_at[11:16] }}</p>
+
+    <dl class="info">
+      <dt>Expéditeur</dt><dd>{{ c.expediteur or '—' }}</dd>
+      <dt>Email</dt><dd>{% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% else %}—{% endif %}</dd>
+      <dt>Téléphone</dt><dd>{{ c.telephone or '—' }}</dd>
+      <dt>Poste recherché</dt><dd>{{ c.poste_recherche or '—' }}</dd>
+      <dt>Spécialité</dt><dd>{{ c.specialite or '—' }}</dd>
+      <dt>Wilaya / Ville</dt><dd>{{ c.wilaya or '—' }}</dd>
+      <dt>Années d'expérience</dt><dd>{{ c.annees_experience if c.annees_experience is not none else '—' }}</dd>
+      <dt>Disponibilité</dt><dd>{{ c.disponibilite or '—' }}</dd>
+      <dt>Salaire souhaité</dt><dd>{{ c.salaire_souhaite or '—' }}</dd>
+      <dt>Niveau d'étude</dt><dd>{{ c.niveau_etude or '—' }}</dd>
+      <dt>Diplôme</dt><dd>{{ c.diplome_plus_eleve or '—' }}</dd>
+      <dt>Université</dt><dd>{{ c.universite or '—' }}</dd>
+      <dt>Compétences techniques</dt><dd>{{ c.competences or '—' }}</dd>
+      <dt>Logiciels</dt><dd>{{ c.logiciels or '—' }}</dd>
+      <dt>Soft skills</dt><dd>{{ c.soft_skills or '—' }}</dd>
+      <dt>Langues</dt><dd>{{ c.langues or '—' }}</dd>
+      <dt>Certifications</dt><dd>{{ c.certifications or '—' }}</dd>
+      <dt>Entreprises</dt><dd>{{ c.entreprises or '—' }}</dd>
+      <dt>Permis</dt><dd>{{ c.permis or '—' }}</dd>
+      <dt>Résumé</dt><dd>{{ c.resume or '—' }}</dd>
+      <dt>Fichier</dt>
+      <dd>
+        <a href="/candidate/{{ c.id }}/pdf" target="_blank">📄 {{ c.pdf_filename }}</a>
+      </dd>
+    </dl>
+
+    {% if experiences %}
+    <h3 class="exp-title">Expériences professionnelles</h3>
+    <ul class="exp-list">
+      {% for e in experiences %}
+      <li class="exp-item">
+        <strong>{{ e.poste or '—' }}</strong>{% if e.entreprise %} — {{ e.entreprise }}{% endif %}
+        {% if e.duree %}<span class="muted small"> ({{ e.duree }})</span>{% endif %}
+        {% if e.description %}<div class="small muted">{{ e.description }}</div>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if can_write %}
+    <form method="post" action="/candidate/{{ c.id }}/update" class="edit-form">
+      <label>Statut
+        <select name="statut">
+          {% for s in statuts %}
+          <option value="{{ s }}" {% if c.statut == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Commentaires RH
+        <textarea name="commentaires" rows="6" placeholder="Vos notes...">{{ c.commentaires or '' }}</textarea>
+      </label>
+      <button type="submit" class="btn primary">💾 Enregistrer</button>
+    </form>
+    {% else %}
+    <dl class="info">
+      <dt>Statut</dt><dd>{{ c.statut }}</dd>
+      <dt>Commentaires RH</dt><dd>{{ c.commentaires or '—' }}</dd>
+    </dl>
+    {% endif %}
+
+    <!-- Module Résumé IA : fiche synthétique (chargée à la demande). -->
+    <section id="resume-ia" hx-get="/candidate/{{ c.id }}/resume-ia"
+             hx-trigger="load" hx-swap="innerHTML"></section>
+
+    <!-- Module Notes internes : fil de notes RH (chargé à la demande). -->
+    <section id="notes-internes" hx-get="/candidate/{{ c.id }}/notes"
+             hx-trigger="load" hx-swap="innerHTML"></section>
+
+    <!-- Module Gestion documentaire : pièces jointes (chargées à la demande). -->
+    <section id="documents" hx-get="/candidate/{{ c.id }}/documents"
+             hx-trigger="load" hx-swap="innerHTML"></section>
+  </div>
+
+  <div class="pdf-pane">
+    <iframe src="/candidate/{{ c.id }}/pdf" title="CV"></iframe>
+  </div>
+</div>
+
+{% endblock %}

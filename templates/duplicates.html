@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Détection de doublons{% endblock %}
+{% block content %}
+
+<style>
+  .dup-group { margin-bottom: 1.25rem; }
+  .dup-group .crit { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem; }
+  .dup-group .crit .valeur { font-family: monospace; }
+  .dup-orig { font-size: .75em; opacity: .8; }
+</style>
+
+<div class="page-head">
+  <h1>Détection de doublons</h1>
+</div>
+
+<p class="small muted">
+  Regroupement des candidats potentiellement en double par email, téléphone ou nom.
+  Le plus ancien candidat de chaque groupe (plus petit ID) est considéré comme l'original.
+</p>
+
+{% if nb_groupes == 0 %}
+  <p class="muted" style="margin-top:1rem">Aucun doublon potentiel détecté. 🎉</p>
+{% else %}
+  <p class="small muted" style="margin-top:1rem">
+    {{ nb_groupes }} groupe(s) de doublons potentiels.
+  </p>
+
+  {% for g in groupes %}
+  <div class="card dup-group">
+    <div class="crit">
+      <span class="badge">{{ g.critere }}</span>
+      <span class="valeur muted small">{{ g.valeur }}</span>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Candidat</th>
+          <th>Téléphone</th>
+          <th>Poste</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in g.membres %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td>
+            <a href="/candidate/{{ c.id }}" class="cand-link">
+              <strong>{{ (c.prenom or '') }} {{ (c.nom or '') }}</strong>
+            </a><br>
+            <span class="small muted">{{ c.email or '—' }}</span>
+          </td>
+          <td class="small">{{ c.telephone or '—' }}</td>
+          <td class="small">{{ c.poste_recherche or '—' }}</td>
+          <td class="small">{{ c.statut or '—' }}</td>
+          <td>
+            {% if c.id == g.original_id %}
+              <span class="dup-orig muted">Original</span>
+            {% elif c.duplicate_of %}
+              <span class="dup-orig muted">Marqué doublon de #{{ c.duplicate_of }}</span>
+            {% else %}
+              <form method="post" action="/doublons/{{ c.id }}/mark" style="margin:0">
+                <input type="hidden" name="original_id" value="{{ g.original_id }}">
+                <button type="submit" class="btn small">Marquer comme doublon de #{{ g.original_id }}</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+{% endif %}
+
+{% endblock %}

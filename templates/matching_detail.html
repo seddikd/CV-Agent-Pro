@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Matching — {{ offre.titre }}{% endblock %}
+{% block content %}
+
+<style scoped>
+  .match-bar { background: rgba(127,127,127,.18); border-radius: 6px; height: 8px; overflow: hidden; min-width: 90px; }
+  .match-bar > span { display: block; height: 100%; background: #2e7d32; }
+  .match-rang { font-weight: 700; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag-list .badge { font-size: .8em; }
+</style>
+
+<div class="page-head">
+  <h1>Matching — {{ offre.titre }}</h1>
+  <div class="actions">
+    <a href="/matching" class="btn ghost">← Toutes les offres</a>
+    <form method="post" action="/matching/{{ offre.id }}/recompute" style="display:inline">
+      <button type="submit" class="btn primary">↻ Recalculer</button>
+    </form>
+  </div>
+</div>
+
+<p class="muted small">
+  Compétences requises : {{ offre.competences_requises or '—' }}
+  {% if offre.experience_min %} · Expérience min. {{ offre.experience_min }} an(s){% endif %}
+  {% if offre.niveau_etude %} · Niveau {{ offre.niveau_etude }}{% endif %}
+</p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Candidat</th>
+      <th>Score</th>
+      <th>Compatibilité</th>
+      <th>Points forts</th>
+      <th>Compétences manquantes</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for c in classement %}
+    <tr>
+      <td class="match-rang">{{ c.rang }}</td>
+      <td>
+        <a href="/candidate/{{ c.candidate_id }}" class="cand-link">
+          <strong>{{ c.prenom }} {{ c.nom }}</strong>
+        </a>
+        {% if c.poste_recherche %}<div class="small muted">{{ c.poste_recherche }}</div>{% endif %}
+      </td>
+      <td><span class="stat">{{ c.score }}</span><span class="small muted">/100</span></td>
+      <td>
+        <div class="match-bar"><span style="width: {{ c.compatibilite if c.compatibilite is defined else c.score }}%"></span></div>
+        <span class="small muted">{{ c.score }} %</span>
+      </td>
+      <td>
+        {% if c.points_forts %}
+          <div class="tag-list">
+          {% for p in c.points_forts %}<span class="badge">{{ p }}</span>{% endfor %}
+          </div>
+        {% else %}<span class="muted small">—</span>{% endif %}
+      </td>
+      <td>
+        {% if c.competences_manquantes %}
+          <div class="tag-list">
+          {% for m in c.competences_manquantes %}<span class="badge">{{ m }}</span>{% endfor %}
+          </div>
+        {% else %}<span class="muted small">Aucune</span>{% endif %}
+      </td>
+      <td><a href="/candidate/{{ c.candidate_id }}" class="btn small">Voir</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="empty">Aucun candidat à comparer.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,54 @@
+imap:
+  host: imap.gmail.com
+  port: 993
+  user: votre.email@gmail.com
+  password: MOT_DE_PASSE_APPLICATION
+  folder: INBOX
+
+# Choix du moteur LLM selon la machine :
+#   provider: ollama     -> modèle local (PC performant, gratuit)
+#   provider: openrouter -> modèle cloud (PC modeste)
+llm:
+  provider: ollama
+
+ollama:
+  model: qwen2.5:14b
+  host: http://localhost:11434
+  timeout_seconds: 600
+
+openrouter:
+  # API cloud compatible OpenAI. Exemples d'URL de base :
+  #   OpenRouter : https://openrouter.ai/api/v1
+  #   Gemini     : https://generativelanguage.googleapis.com/v1beta/openai
+  #   OpenAI     : https://api.openai.com/v1
+  base_url: https://openrouter.ai/api/v1
+  model: meta-llama/llama-3.3-70b-instruct:free
+  # Laisser vide ici et exporter OPENROUTER_API_KEY dans l'environnement,
+  # ou coller la clé (récupérée sur https://openrouter.ai/keys).
+  api_key: ""
+  timeout_seconds: 120
+
+paths:
+  pdf_storage: cv_pdfs
+  excel_output: output/candidats.xlsx
+  state_db: state.db
+  log_file: logs/agent.log
+
+# Notifications email (optionnel) : prévenir des destinataires à chaque nouveau candidat.
+notify:
+  enabled: false
+  recipients: ""   # emails séparés par des virgules
+
+smtp:
+  host: ""
+  port: 587
+  security: TLS    # TLS (STARTTLS) | SSL | None
+  user: ""
+  password: ""
+  from: ""
+
+processing:
+  max_emails_per_run: 100
+  classification_confidence_threshold: 0.6
+  pdf_max_chars: 30000
+  fetch_since_days: 30
