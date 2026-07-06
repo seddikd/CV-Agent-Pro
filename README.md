@@ -108,9 +108,28 @@ ne doit **jamais** contenir de vrais identifiants (il est embarqué dans l'exe d
 | Variable | Effet |
 |---|---|
 | `CV_AGENT_DB_URL` | Bascule vers PostgreSQL (ex. `postgresql://user:pw@host:5432/cvagent`). Absente → SQLite. |
-| `CV_AGENT_SECRET` | Secret de session fixe (obligatoire pour un déploiement PostgreSQL partagé). |
+| `CV_AGENT_SECRET` | Secret partagé : (1) stabilise le cookie de session, (2) **active le chiffrement portable des secrets** (`enc:v2:`) déchiffrable par tous les postes qui partagent la même valeur. Obligatoire pour un déploiement PostgreSQL multi-postes. |
 | `CV_AGENT_HTTPS_ONLY` | `1` pose le drapeau `Secure` sur le cookie de session (à activer derrière un reverse-proxy HTTPS). |
 | `OPENROUTER_API_KEY` | Clé cloud (prioritaire sur la valeur stockée en base). |
+
+### Déploiement multi-postes (PostgreSQL partagé)
+
+Pour que plusieurs postes RH partagent une **même base centralisée** :
+
+1. Installer PostgreSQL sur un serveur du réseau, créer une base `cvagent`.
+2. Générer **une** valeur secrète partagée :
+   `python -c "import secrets; print(secrets.token_hex(32))"`
+3. Sur **chaque** poste, définir les **deux** variables (identiques partout) :
+   ```powershell
+   setx CV_AGENT_DB_URL "postgresql://user:pw@SERVEUR:5432/cvagent"
+   setx CV_AGENT_SECRET "<la_valeur_générée_à_l_étape_2>"
+   ```
+4. Au premier démarrage, créer l'admin via `/setup` puis saisir les réglages
+   (IMAP, SMTP, clé API) dans **Administration → Paramètres**. Les secrets sont
+   alors chiffrés en `enc:v2:` (portable) et lisibles depuis tous les postes.
+
+> ⚠️ Sans `CV_AGENT_SECRET`, les secrets sont chiffrés en DPAPI **lié à la machine**
+> et ne se déchiffrent que sur le poste d'origine — à réserver au mono-poste.
 
 ---
 
