@@ -496,12 +496,16 @@ Pour éviter de vous verrouiller hors de l'application, il est **impossible** de
 *Réservé au rôle **admin*** (menu **Param. Mail**). Toutes les modifications sont appliquées
 immédiatement. Pour les mots de passe, **laisser vide conserve** la valeur actuelle.
 
+> **Tout fournisseur IMAP est accepté** : Gmail, Outlook / Office 365, OVH, Zoho, ou un
+> serveur de messagerie interne — pas seulement Gmail.
+
 | Réglage | À renseigner |
 |---|---|
-| **Serveur IMAP** | Adresse du serveur de réception (ex. `imap.gmail.com`). |
-| **Port IMAP** | Généralement `993`. |
+| **Serveur IMAP** | Adresse du serveur de réception (ex. `imap.gmail.com`, `outlook.office365.com`, `ssl0.ovh.net`…). |
+| **Port IMAP** | Selon la sécurité : `993` en SSL, `143` en STARTTLS/Aucune. |
+| **Sécurité IMAP** | `SSL` (port 993, le plus courant) / `STARTTLS` (port 143) / `Aucune` (port 143, non chiffré — à éviter). |
 | **Utilisateur (email)** | L'adresse de la boîte de candidatures. |
-| **Mot de passe d'application** | Pour Gmail : un **mot de passe d'application** (pas le mot de passe habituel du compte). |
+| **Mot de passe** | Le mot de passe de la boîte. Certains fournisseurs (Gmail, Outlook) exigent un **mot de passe d'application** dédié, pas le mot de passe habituel du compte. |
 | **Dossier IMAP** | Dossier à relever (ex. `INBOX`). |
 | **Profondeur historique (jours)** | Ancienneté maximale des emails relevés. |
 | **Max emails / cycle** | Nombre maximal d'emails traités par synchronisation. |

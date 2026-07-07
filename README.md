@@ -1,12 +1,13 @@
 # CV Agent Pro
 
-> Outil RH **local, mono-poste** de tri et d'extraction automatiques des CV reçus par email.
-> Relève une boîte Gmail en IMAP, détecte et extrait les CV par LLM, stocke les candidats en
-> SQLite, et sert un tableau de bord web français (FastAPI + Jinja + HTMX) pour l'équipe RH.
+> Outil RH de tri et d'extraction automatiques des CV reçus par email.
+> Relève **toute boîte IMAP** (Gmail, Outlook/Office 365, OVH, Zoho, serveur interne…),
+> détecte et extrait les CV par LLM, stocke les candidats en **PostgreSQL**, et sert un
+> tableau de bord web français (FastAPI + Jinja + HTMX) pour l'équipe RH.
 
-**100 % local** — aucune donnée ne quitte la machine, sauf si le fournisseur LLM cloud
-`openrouter` est explicitement choisi. Livré en exécutable Windows (`.exe` : uvicorn sur la
-boucle locale + icône de la zone de notification).
+**100 % local** — aucune donnée ne quitte le réseau, sauf si le fournisseur LLM cloud
+`openrouter` est explicitement choisi. Déployable via **Docker** (recommandé) ou en
+exécutable Windows (`.exe` : uvicorn sur la boucle locale + icône de la zone de notification).
 
 ---
 
@@ -15,7 +16,7 @@ boucle locale + icône de la zone de notification).
 **Pipeline de traitement** (automatique toutes les 60 min, ou déclenché à la main) :
 
 ```
-[IMAP] → [PDF/DOCX → texte] → [LLM : est-ce un CV ?] → [LLM : extraction structurée] → [SQLite]
+[IMAP] → [PDF/DOCX → texte] → [LLM : est-ce un CV ?] → [LLM : extraction structurée] → [PostgreSQL]
 ```
 
 **Modules ATS** (chacun dans son routeur `mod_*.py`) :
@@ -38,16 +39,17 @@ boucle locale + icône de la zone de notification).
 
 ## Architecture
 
-- **SQLite (`state.db`) est l'unique source de vérité.** `config.yaml` n'est qu'un *gabarit de
+- **PostgreSQL est l'unique moteur de base** (source de vérité), défini par la variable
+  d'environnement **`CV_AGENT_DB_URL` (obligatoire)**. `config.yaml` n'est qu'un *gabarit de
   premier lancement* ; au runtime toute la configuration vit dans la table `settings`, éditée
   via l'interface d'administration.
-- **Backend base configurable.** SQLite par défaut (local, packagé, testé) ; PostgreSQL en option
-  via la variable d'environnement `CV_AGENT_DB_URL` (déploiement centralisé multi-postes).
+- **Toute boîte IMAP** est supportée via le réglage `imap.security` (`SSL` / `STARTTLS` / `None`) —
+  pas seulement Gmail.
 - **Fournisseur LLM au choix** (pas de bascule automatique) : Ollama (local) ou point d'accès
   compatible OpenAI (OpenRouter / Gemini / …), selon le réglage `llm.provider`.
-- **Secrets chiffrés au repos** (Windows DPAPI, portée machine) : mots de passe IMAP/SMTP et clé
-  API cloud.
-- **Un seul worker uvicorn** (APScheduler + écriture SQLite supposent un process unique).
+- **Secrets chiffrés au repos** : `enc:v2:` (Fernet portable, clé dérivée de `CV_AGENT_SECRET`) ou,
+  à défaut sous Windows, `enc:v1:` (DPAPI, lié à la machine) — mots de passe IMAP/SMTP et clé API cloud.
+- **Un seul worker uvicorn** (APScheduler + écriture base supposent un process unique).
 
 Détails complets dans **[`CLAUDE.md`](CLAUDE.md)** (guide de contribution) et le
 **[manuel utilisateur](MANUEL_UTILISATION.md)**.
@@ -56,8 +58,10 @@ Détails complets dans **[`CLAUDE.md`](CLAUDE.md)** (guide de contribution) et l
 
 ## Prérequis
 
-- Windows 10/11, Python 3.11+
-- Une boîte Gmail dédiée aux candidatures + un **mot de passe d'application** (IMAP activé)
+- **PostgreSQL** (fourni par Docker Compose, ou un serveur existant via `CV_AGENT_DB_URL`)
+- Docker (voie recommandée) **ou** Windows 10/11 + Python 3.11+ (déploiement natif)
+- Une boîte mail dédiée aux candidatures sur **n'importe quel serveur IMAP** ; selon le
+  fournisseur (Gmail, Outlook…), un **mot de passe d'application** peut être requis
 - Pour le LLM local : [Ollama](https://ollama.com) avec un modèle (ex. `qwen2.5:14b`)
   — *ou* une clé API cloud si vous choisissez le fournisseur `openrouter`
 
@@ -69,8 +73,13 @@ Détails complets dans **[`CLAUDE.md`](CLAUDE.md)** (guide de contribution) et l
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python bootstrap.py           # init BD, réglages par défaut, 1er admin (interactif)
+# PostgreSQL requis : pointez CV_AGENT_DB_URL vers votre base avant le bootstrap
+$env:CV_AGENT_DB_URL = "postgresql://cvagent:motdepasse@localhost:5432/cvagent"
+python bootstrap.py           # init schéma, réglages par défaut, 1er admin (interactif)
 ```
+
+> La base `cvagent` peut être provisionnée d'un coup avec `python init_postgres.py`
+> (crée la base si absente, puis le schéma et les réglages par défaut).
 
 ## Démarrage
 
@@ -103,23 +112,25 @@ docker compose up -d
 Générez le secret : `docker run --rm python:3.12-slim python -c "import secrets;print(secrets.token_hex(32))"`.
 Le schéma et les réglages par défaut se créent automatiquement au 1er démarrage.
 
-**Option 2 — conteneur unique avec SQLite (façon Uptime Kuma) :**
+**Option 2 — image seule, contre un PostgreSQL existant :**
 
 ```bash
 docker build -t cv-agent-pro:latest .
 docker run -d --name cv-agent -p 6060:6060 --restart unless-stopped \
   -e CV_AGENT_SECRET=<hex_généré> \
+  -e CV_AGENT_DB_URL=postgresql://cvagent:motdepasse@HOTE:5432/cvagent \
   -v cvagent-data:/data \
   cv-agent-pro:latest
 ```
 
 Dans les deux cas : ouvrez `http://<hôte>:6060/setup` pour créer l'admin, puis
-configurez IMAP/SMTP/LLM dans **Administration → Paramètres**. Les données
-persistent dans les volumes (`cvagent-data`, et `cvagent-db` pour PostgreSQL).
+configurez IMAP/SMTP/LLM dans **Administration → Paramètres**. Les données métier
+vivent dans PostgreSQL ; le volume `cvagent-data` ne porte que les fichiers (cv_pdfs, logs).
 
 > `CV_AGENT_SECRET` est **obligatoire** en conteneur : sous Linux le chiffrement
 > DPAPI (Windows) n'existe pas ; c'est le chiffrement portable `enc:v2:` qui
-> protège les secrets, et il dérive sa clé de cette variable.
+> protège les secrets, et il dérive sa clé de cette variable. `CV_AGENT_DB_URL` est
+> également **obligatoire** (fournie automatiquement par `docker compose`).
 >
 > **LLM** : le conteneur doit joindre Ollama (`ollama.host` = `http://host.docker.internal:11434`
 > pour un Ollama sur l'hôte) ou utiliser le fournisseur cloud OpenRouter.
@@ -139,12 +150,12 @@ Tout se règle depuis **Administration → Paramètres** dans l'interface (boît
 LLM, SMTP, notifications, planification…). `config.yaml` ne sert qu'au tout premier lancement et
 ne doit **jamais** contenir de vrais identifiants (il est embarqué dans l'exe distribué).
 
-### Variables d'environnement optionnelles
+### Variables d'environnement
 
 | Variable | Effet |
 |---|---|
-| `CV_AGENT_DB_URL` | Bascule vers PostgreSQL (ex. `postgresql://user:pw@host:5432/cvagent`). Absente → SQLite. |
-| `CV_AGENT_SECRET` | Secret partagé : (1) stabilise le cookie de session, (2) **active le chiffrement portable des secrets** (`enc:v2:`) déchiffrable par toute instance partageant la même valeur. Obligatoire seulement si **plusieurs instances serveur** partagent la même base PostgreSQL. |
+| `CV_AGENT_DB_URL` | **Obligatoire.** URL PostgreSQL (ex. `postgresql://cvagent:pw@host:5432/cvagent`). Absente → l'application refuse de démarrer avec un message clair. |
+| `CV_AGENT_SECRET` | Secret partagé : (1) stabilise le cookie de session, (2) **active le chiffrement portable des secrets** (`enc:v2:`) déchiffrable par toute instance partageant la même valeur. **Obligatoire en conteneur** (pas de DPAPI sous Linux) et pour plusieurs instances partageant la base. |
 | `CV_AGENT_HTTPS_ONLY` | `1` pose le drapeau `Secure` sur le cookie de session (à activer derrière un reverse-proxy HTTPS). |
 | `OPENROUTER_API_KEY` | Clé cloud (prioritaire sur la valeur stockée en base). |
 
@@ -192,15 +203,15 @@ Aucune installation, aucune variable, aucun accès IMAP côté client.
 
 ## Sécurité et confidentialité
 
-- Traitement **100 % local** par défaut ; le seul cas où des données sortent de la machine est
+- Traitement **100 % local** par défaut ; le seul cas où des données sortent du réseau est
   le choix explicite du fournisseur LLM cloud `openrouter`.
-- Secrets chiffrés au repos (DPAPI, liés à la machine) : une copie de `state.db` ne peut pas être
-  déchiffrée ailleurs.
+- Secrets chiffrés au repos : `enc:v2:` (Fernet portable via `CV_AGENT_SECRET`) ou `enc:v1:` (DPAPI
+  Windows, lié à la machine) — un blob indéchiffrable donne `""`, jamais un crash.
 - Requêtes SQL exclusivement paramétrées ; auto-échappement Jinja activé ; limitation anti-force
   brute au login.
-- ⚠️ **Ne versionnez jamais** `state.db`, `session.secret`, `cv_pdfs/`, `logs/` — ils contiennent
-  des données personnelles de candidats et des secrets. Ils sont déjà couverts par le
-  [`.gitignore`](.gitignore).
+- ⚠️ **Ne versionnez jamais** `.env`, `session.secret`, `cv_pdfs/`, `logs/` — ils contiennent
+  des secrets et des données personnelles de candidats. Ils sont déjà couverts par le
+  [`.gitignore`](.gitignore). (Les données candidats vivent dans PostgreSQL, à sauvegarder via `pg_dump`.)
 
 ---
 
@@ -218,17 +229,18 @@ llm_extractor.py     Extraction structurée
 llm_provider.py      Dispatch Ollama / cloud (compatible OpenAI)
 matching_core.py     Scoring déterministe offre ↔ candidat
 alerts_engine.py     Moteur d'alertes
-db.py                Abstraction SQLite / PostgreSQL
+db.py                Adaptateur PostgreSQL (connect(), insert_returning_id)
 state_db.py          Schéma, connexion, idempotence (dédup IMAP, compteur d'ids)
 web_db.py            Utilisateurs / candidats / réglages / cycles
-secret_store.py      Chiffrement des secrets au repos (DPAPI)
-app_paths.py         Résolution des chemins (compatible exe figé)
+secret_store.py      Chiffrement des secrets au repos (enc:v2 Fernet / enc:v1 DPAPI)
+app_paths.py         Résolution des chemins fichiers (compatible exe figé)
 desktop.py           Point d'entrée PyInstaller (systray + uvicorn loopback)
+init_postgres.py     Provisionne la base PostgreSQL (base + schéma + réglages)
 ```
 
 > Il n'y a **pas** de suite de tests automatisés : on valide en lançant un vrai cycle
-> (`python main.py`) sur la boîte configurée, ou en exerçant un module directement.
-> Voir `logs\agent.log` pour la sortie du pipeline.
+> (`python main.py`, avec `CV_AGENT_DB_URL` défini) sur la boîte configurée, ou en exerçant
+> un module directement. Voir `logs\agent.log` pour la sortie du pipeline.
 
 ---
 

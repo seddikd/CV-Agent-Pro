@@ -3,34 +3,33 @@
 > Public : la personne **IT** qui installe, configure et exploite l'application.
 > Pour l'usage quotidien par l'équipe RH, voir `MANUEL_UTILISATION.md`.
 
-CV Agent Pro est un outil RH qui relève une boîte Gmail en IMAP, détecte et extrait
-les CV par IA, stocke les candidats en base et sert un tableau de bord web (FastAPI +
-Jinja + HTMX, en français). Il fonctionne **100 % en local** : aucune donnée ne sort
-de la machine, sauf si le fournisseur LLM cloud `openrouter` est explicitement choisi.
+CV Agent Pro est un outil RH qui relève une **boîte mail (IMAP)**, détecte et extrait
+les CV par IA, stocke les candidats en base **PostgreSQL** et sert un tableau de bord
+web (FastAPI + Jinja + HTMX, en français). Il fonctionne **100 % en local** : aucune
+donnée ne sort du réseau, sauf si le fournisseur LLM cloud `openrouter` est explicitement choisi.
 
 ---
 
 ## Table des matières
 
 1. [Vue d'ensemble & architecture](#1-vue-densemble--architecture)
-2. [Choix de la base : SQLite ou PostgreSQL](#2-choix-de-la-base--sqlite-ou-postgresql)
+2. [Base de données : PostgreSQL (requise)](#2-base-de-données--postgresql-requise)
 3. [Prérequis](#3-prérequis)
 4. [Installation des dépendances](#4-installation-des-dépendances)
 5. [Déploiement Docker (recommandé)](#5-déploiement-docker-recommandé)
-6. [Déploiement A — SQLite (mono-poste bureau)](#6-déploiement-a--sqlite-mono-poste-bureau)
-7. [Déploiement B — PostgreSQL centralisé (serveur + clients navigateur)](#7-déploiement-b--postgresql-centralisé-serveur--clients-navigateur)
-8. [Exposition réseau (port applicatif 6060)](#8-exposition-réseau-port-applicatif-6060)
-9. [Postes clients](#9-postes-clients)
-10. [Démarrage automatique au boot](#10-démarrage-automatique-au-boot)
-11. [Modèle de sécurité des secrets](#11-modèle-de-sécurité-des-secrets)
-12. [HTTPS & durcissement](#12-https--durcissement)
-13. [Construction de l'exécutable Windows](#13-construction-de-lexécutable-windows)
-14. [Configuration LLM : Ollama vs OpenRouter](#14-configuration-llm--ollama-vs-openrouter)
-15. [Sauvegarde & restauration](#15-sauvegarde--restauration)
-16. [Invariants à respecter](#16-invariants-à-respecter)
-17. [Exploitation courante](#17-exploitation-courante)
-18. [Dépannage](#18-dépannage)
-19. [Annexes](#19-annexes)
+6. [Déploiement natif (serveur + PostgreSQL)](#6-déploiement-natif-serveur--postgresql)
+7. [Exposition réseau (port applicatif 6060)](#7-exposition-réseau-port-applicatif-6060)
+8. [Postes clients](#8-postes-clients)
+9. [Démarrage automatique au boot](#9-démarrage-automatique-au-boot)
+10. [Modèle de sécurité des secrets](#10-modèle-de-sécurité-des-secrets)
+11. [HTTPS & durcissement](#11-https--durcissement)
+12. [Construction de l'exécutable Windows](#12-construction-de-lexécutable-windows)
+13. [Configuration LLM : Ollama vs OpenRouter](#13-configuration-llm--ollama-vs-openrouter)
+14. [Sauvegarde & restauration](#14-sauvegarde--restauration)
+15. [Invariants à respecter](#15-invariants-à-respecter)
+16. [Exploitation courante](#16-exploitation-courante)
+17. [Dépannage](#17-dépannage)
+18. [Annexes](#18-annexes)
 
 ---
 
@@ -38,21 +37,21 @@ de la machine, sauf si le fournisseur LLM cloud `openrouter` est explicitement c
 
 L'application est une **seule** instance FastAPI (un seul worker uvicorn) qui porte
 à la fois l'interface web, le planificateur interne (APScheduler) et le pipeline de
-traitement des CV. Les postes RH y accèdent par un simple **navigateur**.
+traitement des CV. Les postes RH y accèdent par un simple **navigateur**. La base de
+données est **PostgreSQL** (obligatoire).
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  SERVEUR  (ex. 192.168.1.10)                                │
 │                                                               │
 │   ┌──────────────────────────────┐    ┌───────────────────┐   │
-│   │  Application CV Agent Pro     │    │  Base de données  │   │
-│   │  uvicorn 0.0.0.0:6060         │───▶│  SQLite (state.db)│   │
-│   │  (1 worker)                   │    │  OU PostgreSQL    │   │
-│   │                               │    │  (localhost:5432) │   │
+│   │  Application CV Agent Pro     │    │   PostgreSQL      │   │
+│   │  uvicorn 0.0.0.0:6060         │───▶│   (base cvagent)  │   │
+│   │  (1 worker)                   │    │                   │   │
 │   │  • Interface web (Jinja/HTMX) │    └───────────────────┘   │
 │   │  • Planificateur (APScheduler)│                            │
-│   │  • Pipeline IMAP → LLM → base │──▶ Gmail (IMAP) + Ollama   │
-│   └──────────────────────────────┘        ou OpenRouter       │
+│   │  • Pipeline IMAP → LLM → base │──▶ Boîte mail (IMAP)       │
+│   └──────────────────────────────┘     + Ollama ou OpenRouter │
 └───────────────────────┬──────────────────────────────────────┘
                         │  HTTP :6060 (LAN)
         ┌───────────────┼───────────────┐
@@ -65,36 +64,35 @@ Points clés :
 - **IMAP, pipeline LLM et planificateur tournent uniquement sur le serveur.** Les
   clients ne relèvent jamais la boîte mail eux-mêmes. Le bouton « Lancer maintenant »
   cliqué depuis un client déclenche la synchronisation **sur le serveur**.
-- **Un seul processus** écrit la base (contrainte SQLite + APScheduler). Ne lancez
-  jamais plusieurs instances qui relèvent la même boîte (voir [§16](#16-invariants-à-respecter)).
+- **Un seul processus** écrit la base (writer unique + APScheduler). Ne lancez jamais
+  plusieurs instances qui relèvent la même boîte (voir [§15](#15-invariants-à-respecter)).
 - Le flux d'un cycle : `mail_fetcher (IMAP)` → `pdf_extractor (PDF/DOCX → texte)` →
   `llm_classifier (est-ce un CV ?)` → `llm_extractor (champs structurés)` →
   insertion en base.
 
 ---
 
-## 2. Choix de la base : SQLite ou PostgreSQL
+## 2. Base de données : PostgreSQL (requise)
 
-Le moteur est choisi par la **seule** variable d'environnement `CV_AGENT_DB_URL`
-(voir `db.py`). Aucune modification de code n'est nécessaire pour basculer.
+Le moteur est **PostgreSQL**, défini par la variable d'environnement **`CV_AGENT_DB_URL`**
+(voir `db.py`). Elle est **obligatoire** : sans elle, l'application refuse de démarrer
+avec un message clair. Il n'y a **plus de repli SQLite** ni de fichier `state.db`.
 
-| Critère | **SQLite** (défaut) | **PostgreSQL** (optionnel) |
-|---|---|---|
-| Activation | `CV_AGENT_DB_URL` absente | `CV_AGENT_DB_URL="postgresql://…"` |
-| Fichier / serveur | fichier `state.db` local | serveur PostgreSQL |
-| Packagé dans l'exe | ✅ oui, testé | ❌ nécessite un serveur PG |
-| Idéal pour | poste unique / bureau | centralisation, sauvegardes SQL, outillage externe |
-| Administration | aucune | rôle, base, sauvegardes à gérer |
+```
+CV_AGENT_DB_URL="postgresql://cvagent:motdepasse@HOTE:5432/cvagent"
+```
 
-> **Important** : puisque l'architecture retenue est **un seul serveur applicatif**
-> (les clients sont de simples navigateurs), **SQLite suffit** parfaitement. Une seule
-> instance accède à la base. **PostgreSQL reste possible** si vous voulez des sauvegardes
-> centralisées, de l'outillage SQL externe, ou anticiper une évolutivité — mais ce n'est
-> pas une obligation. PostgreSQL n'apporte un gain fonctionnel que si vous faisiez tourner
-> **plusieurs** instances serveur sur la même base (cas non standard ici).
+Deux façons d'obtenir cette base :
 
-Les deux moteurs partagent le même schéma, produit de façon portable (placeholders
-`?`, clé primaire `{PK}` rendue en `AUTOINCREMENT`/`SERIAL`, upserts `ON CONFLICT`).
+- **Via Docker Compose** ([§5](#5-déploiement-docker-recommandé)) : un service PostgreSQL est
+  fourni et provisionné automatiquement — rien à installer côté base. **Recommandé.**
+- **Via un serveur PostgreSQL existant** ([§6](#6-déploiement-natif-serveur--postgresql)) : local
+  au serveur applicatif ou sur un serveur dédié du réseau.
+
+> Le schéma est produit automatiquement au premier démarrage (clés primaires `SERIAL`,
+> upserts `ON CONFLICT`). Les données métier (candidats, offres, réglages, utilisateurs…)
+> vivent **uniquement** dans PostgreSQL ; seuls les fichiers (`cv_pdfs/`, `logs/`) restent
+> sur disque.
 
 ---
 
@@ -102,12 +100,13 @@ Les deux moteurs partagent le même schéma, produit de façon portable (placeho
 
 | Élément | Détail |
 |---|---|
-| OS | Windows 10 / 11 (déploiement natif, DPAPI natif) — ou **n'importe quel OS via Docker** ([§5](#5-déploiement-docker-recommandé)) |
-| Python | 3.11 ou supérieur (si déploiement depuis les sources / venv, hors Docker) |
-| PostgreSQL | **17** (seulement pour le déploiement B natif ; en Docker il est fourni par l'image `postgres`) |
+| **PostgreSQL** | **Obligatoire** dans tous les cas. Fourni par l'image `postgres` en Docker, ou un serveur PostgreSQL **17** existant (natif). |
+| OS | Windows 10 / 11 (déploiement natif) — ou **n'importe quel OS via Docker** ([§5](#5-déploiement-docker-recommandé)) |
+| Python | 3.11 ou supérieur (déploiement depuis les sources / venv ; inutile en Docker) |
 | LLM local | [Ollama](https://ollama.com) + un modèle (ex. `qwen2.5:14b`) — recommandé, gratuit, 100 % local |
 | LLM cloud | *ou* une clé API OpenRouter (si la machine est trop modeste pour Ollama) |
-| Réseau | LAN entre le serveur et les postes RH ; une boîte Gmail dédiée avec **mot de passe d'application** (IMAP activé) |
+| Boîte mail | **Tout serveur IMAP** (Gmail, Outlook/Office 365, OVH, Zoho, serveur interne…). Certains fournisseurs exigent un **mot de passe d'application**. |
+| Réseau | LAN entre le serveur et les postes RH |
 
 ---
 
@@ -130,9 +129,9 @@ Ou via l'installateur fourni (crée le venv, installe, puis bootstrap interactif
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-> `requirements.txt` inclut désormais **`cryptography`** (chiffrement portable des
-> secrets `enc:v2`) et **`psycopg[binary]`** (pilote PostgreSQL). Si vous distribuez
-> un `.exe` déjà construit, **reconstruisez-le** après cet ajout (voir [§13](#13-construction-de-lexécutable-windows)).
+> `requirements.txt` inclut **`cryptography`** (chiffrement portable des secrets `enc:v2`)
+> et **`psycopg[binary]`** (pilote PostgreSQL). Si vous distribuez un `.exe` déjà construit,
+> **reconstruisez-le** après tout ajout de dépendance (voir [§12](#12-construction-de-lexécutable-windows)).
 
 ---
 
@@ -140,8 +139,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 La méthode la plus simple et la plus portable : tout est empaqueté dans une image
 (aucune dépendance à installer, fonctionne sous **Windows / Linux / macOS**). Les
-postes clients restent de simples navigateurs, et **un seul serveur applicatif**
-tourne — comme dans les déploiements natifs.
+postes clients restent de simples navigateurs, et **un seul serveur applicatif** tourne.
 
 ### 5.1 Prérequis Docker
 
@@ -158,7 +156,7 @@ Générez une valeur aléatoire :
 docker run --rm python:3.12-slim python -c "import secrets;print(secrets.token_hex(32))"
 ```
 
-### 5.3 Mode 1 — « batteries incluses » (application + PostgreSQL)
+### 5.3 « Batteries incluses » — application + PostgreSQL (recommandé)
 
 Une seule commande démarre l'application **et** une base PostgreSQL, via
 `docker-compose.yml` :
@@ -177,36 +175,39 @@ docker compose up -d
   appartient au rôle `cvagent`.
 - L'ordre de démarrage est géré : l'application attend que PostgreSQL soit *healthy*.
 
-### 5.4 Mode 2 — conteneur unique avec SQLite (façon Uptime Kuma)
+### 5.4 Image seule contre un PostgreSQL existant
 
-Sans PostgreSQL : une image, un volume, terminé.
+Si vous avez déjà un serveur PostgreSQL (hors compose), lancez l'image seule en lui
+passant `CV_AGENT_DB_URL` :
 
 ```bash
 docker build -t cv-agent-pro:latest .
 
 docker run -d --name cv-agent -p 6060:6060 --restart unless-stopped \
   -e CV_AGENT_SECRET=<hex_généré_en_5.2> \
+  -e CV_AGENT_DB_URL=postgresql://cvagent:motdepasse@HOTE:5432/cvagent \
   -v cvagent-data:/data \
   cv-agent-pro:latest
 ```
 
-Sans `CV_AGENT_DB_URL`, l'image utilise **SQLite** par défaut : la base vit dans
-`/data/state.db` (dans le volume).
+Le schéma se crée automatiquement au démarrage (la base cible doit exister et le rôle
+avoir les droits — voir [§6.1](#61-créer-le-rôle-applicatif-et-la-base)).
 
 ### 5.5 Accès, volumes et persistance
 
 - Ouvrez `http://<hôte>:6060/setup` pour créer le premier administrateur, puis
-  configurez IMAP / SMTP / LLM dans **Administration → Paramètres**.
+  configurez IMAP / SMTP / LLM dans **Administration → Paramètres** (voir aussi la
+  sécurité IMAP en [§6.4](#64-démarrer-et-créer-ladministrateur)).
 - Les données persistent dans des **volumes nommés** (indépendants du cycle de vie des
   conteneurs) :
 
 | Volume | Contenu |
 |---|---|
-| `cvagent-data` | `/data` : `cv_pdfs/`, `logs/`, et `state.db` en mode SQLite |
-| `cvagent-db` | données PostgreSQL (mode compose uniquement) |
+| `cvagent-db` | données PostgreSQL (candidats, offres, réglages, utilisateurs…) — mode compose |
+| `cvagent-data` | fichiers : `/data/cv_pdfs/` (PDF des CV) et `/data/logs/` |
 
 > Le conteneur tourne en utilisateur **non-root** (uid 10001), propriétaire du volume
-> `/data`. `CV_AGENT_DATA_DIR=/data` redirige toutes les écritures vers ce volume.
+> `/data`. `CV_AGENT_DATA_DIR=/data` redirige toutes les écritures fichier vers ce volume.
 
 ### 5.6 LLM depuis le conteneur
 
@@ -229,12 +230,10 @@ docker compose logs -f app
 git pull
 docker compose up -d --build
 
-# Sauvegarde PostgreSQL (mode compose)
+# Sauvegarde PostgreSQL
 docker compose exec -T db pg_dump -U cvagent -Fc cvagent > cvagent_backup.dump
 # Restauration
 docker compose exec -T db pg_restore -U cvagent -d cvagent < cvagent_backup.dump
-
-# Sauvegarde SQLite / fichiers : copier le contenu du volume cvagent-data
 
 # Arrêt (conteneurs) — volumes/données conservés
 docker compose down
@@ -245,43 +244,23 @@ docker compose down -v
 > ⚠️ **`CV_AGENT_SECRET` est obligatoire en conteneur.** Le chiffrement DPAPI de
 > Windows n'existe pas sous Linux : c'est le chiffrement portable `enc:v2:` (Fernet,
 > clé dérivée de `CV_AGENT_SECRET`) qui protège les secrets. Sans cette variable, ils
-> seraient stockés en clair. Utilisez la **même** valeur si plusieurs conteneurs
-> partagent la même base. Voir [§11](#11-modèle-de-sécurité-des-secrets).
+> seraient stockés en clair. Utilisez la **même** valeur si plusieurs instances
+> partagent la même base. Voir [§10](#10-modèle-de-sécurité-des-secrets).
 
 ---
 
-## 6. Déploiement A — SQLite (mono-poste bureau)
+## 6. Déploiement natif (serveur + PostgreSQL)
 
-Le mode natif le plus simple : tout tient sur une machine, base SQLite locale.
+Déploiement **sans Docker** : un serveur applicatif Windows + un serveur PostgreSQL
+(local au serveur ou dédié). **PostgreSQL peut rester en `localhost`** si l'application
+tourne sur la même machine : seule elle y accède, il est donc inutile (et déconseillé)
+d'exposer le port 5432 au réseau.
 
-```powershell
-# 1. Dépendances + base + compte admin (interactif)
-python bootstrap.py
+> **Appli bureau / `.exe`** : `desktop.py` (uvicorn en loopback + icône systray) et
+> l'exécutable Windows fonctionnent aussi, mais exigent désormais `CV_AGENT_DB_URL`
+> (connexion à PostgreSQL) — il n'y a plus de base locale packagée.
 
-# 2a. Application bureau (boucle locale 127.0.0.1 + icône systray) — comme l'exe livré
-python desktop.py
-
-# 2b. OU serveur web exposé au LAN (0.0.0.0:6060)
-.\run_web.bat
-```
-
-- `bootstrap.py` initialise le schéma, sème les réglages par défaut, importe
-  éventuellement `config.yaml`, puis crée le **premier administrateur** (interactif).
-- `desktop.py` reproduit le comportement de l'exe : uvicorn en loopback + icône de
-  la zone de notification. Les données vont dans `%LOCALAPPDATA%\CV-Agent-Pro\`
-  quand l'application est figée en `.exe`, ou dans le dossier projet en développement.
-- Ensuite, configurez IMAP / LLM / SMTP dans **Administration → Paramètres**.
-
----
-
-## 7. Déploiement B — PostgreSQL centralisé (serveur + clients navigateur)
-
-C'est le cas d'un serveur unique avec base PostgreSQL locale sur ce même serveur
-(installation **native**, sans Docker). **PostgreSQL peut rester en `localhost`** :
-seule l'application du serveur y accède, il est donc inutile (et déconseillé) d'exposer
-le port 5432 au réseau.
-
-### 7.1 Créer le rôle applicatif et la base
+### 6.1 Créer le rôle applicatif et la base
 
 Dans **pgAdmin** ou **psql** (connecté en superutilisateur `postgres`) :
 
@@ -299,7 +278,7 @@ GRANT ALL ON SCHEMA public TO cvagent; -- PG15+ : autorise cvagent à créer les
 > nécessaire en PostgreSQL 15+ : par défaut, le schéma `public` n'autorise plus la
 > création de tables à tout le monde.
 
-### 7.2 Poser les variables d'environnement
+### 6.2 Poser les variables d'environnement
 
 Sur le serveur, dans une invite **PowerShell administrateur** (`/M` = niveau machine,
 pour que la tâche planifiée et les nouveaux terminaux les voient) :
@@ -335,7 +314,7 @@ python -c "import secrets; print(secrets.token_hex(32))"
 s'écrit `%40` ; le `@` qui sépare les identifiants de l'hôte reste littéral).
 Le plus simple reste de choisir un mot de passe **sans caractères réservés**.
 
-### 7.3 Provisionner la base
+### 6.3 Provisionner la base
 
 Toujours dans le dossier du projet, **nouveau terminal** (pour hériter des variables) :
 
@@ -347,32 +326,36 @@ Toujours dans le dossier du projet, **nouveau terminal** (pour hériter des vari
 
 1. crée la base cible si elle n'existe pas (via la base de maintenance `postgres`) ;
 2. crée le schéma complet (tables à clé `SERIAL`) ;
-3. sème les 29 réglages par défaut.
+3. sème les 30 réglages par défaut.
 
 Sortie attendue :
 
 ```
 Base « cvagent » créée.            (ou « déjà présente — conservée »)
-Schéma créé + 29 réglages par défaut dans « cvagent ».
+Schéma créé + 30 réglages par défaut dans « cvagent ».
 Prochaine étape : démarrer l'application et créer l'admin via /setup.
 ```
 
-### 7.4 Démarrer et créer l'administrateur
+### 6.4 Démarrer et créer l'administrateur
 
 ```powershell
 .\run_web.bat
 ```
 
 Puis ouvrez `http://localhost:6060/setup` pour créer le premier compte admin, et
-configurez IMAP / LLM / SMTP dans **Administration → Paramètres**.
+configurez **IMAP / LLM / SMTP** dans **Administration → Paramètres**.
+
+> **Boîte mail** : renseignez `Serveur IMAP`, `Port IMAP` et **`Sécurité IMAP`**
+> (`SSL` port 993 · `STARTTLS` port 143 · `Aucune`) selon votre fournisseur —
+> Gmail, Outlook/Office 365, OVH, Zoho ou serveur interne. Un bouton **« Tester la
+> connexion à la boîte mail »** valide la saisie.
 
 > **Alternative en ligne de commande** : avec `CV_AGENT_DB_URL` posée, `python
-> bootstrap.py` crée aussi l'admin directement dans PostgreSQL (le chemin SQLite est
-> ignoré en mode PostgreSQL).
+> bootstrap.py` crée aussi l'admin directement dans PostgreSQL.
 
 ---
 
-## 8. Exposition réseau (port applicatif 6060)
+## 7. Exposition réseau (port applicatif 6060)
 
 L'application écoute sur `0.0.0.0:6060` (`run_web.bat`, ou `start_web.bat` avec
 `--workers 1` pour la tâche planifiée). Il faut ouvrir **ce port** au LAN — **jamais**
@@ -385,11 +368,11 @@ New-NetFirewallRule -DisplayName "CV-Agent 6060 LAN" -Direction Inbound `
 ```
 
 > Restreindre `-RemoteAddress` au sous-réseau (plutôt que « n'importe où ») limite
-> l'exposition. Le trafic étant en HTTP clair, voir aussi [§12](#12-https--durcissement).
+> l'exposition. Le trafic étant en HTTP clair, voir aussi [§11](#11-https--durcissement).
 
 ---
 
-## 9. Postes clients
+## 8. Postes clients
 
 **Rien à installer.** Chaque poste RH ouvre simplement dans un navigateur :
 
@@ -402,9 +385,9 @@ configuration IMAP, aucun accès direct à la base côté client.
 
 ---
 
-## 10. Démarrage automatique au boot
+## 9. Démarrage automatique au boot
 
-> En **Docker**, préférez `--restart unless-stopped` (mode conteneur unique) ou
+> En **Docker**, préférez `--restart unless-stopped` (image seule) ou
 > `restart: unless-stopped` dans compose : le conteneur redémarre tout seul. Cette
 > section concerne le déploiement **natif** Windows.
 
@@ -440,7 +423,7 @@ powershell -ExecutionPolicy Bypass -File .\uninstall_autostart.ps1
 
 ---
 
-## 11. Modèle de sécurité des secrets
+## 10. Modèle de sécurité des secrets
 
 Les secrets sensibles — `imap.password`, `smtp.password`, `openrouter.api_key` — sont
 **chiffrés au repos** dans la table `settings`, de façon transparente (les appelants
@@ -449,7 +432,7 @@ manipulent toujours le clair en mémoire). Deux formats coexistent (`secret_stor
 | Format | Mécanisme | Portable ? | Quand |
 |---|---|---|---|
 | **`enc:v2:…`** | Fernet (AES-128-CBC + HMAC-SHA256), clé dérivée de `CV_AGENT_SECRET` par PBKDF2-HMAC-SHA256 (200 000 itérations) | ✅ Oui — déchiffrable par toute machine partageant le même `CV_AGENT_SECRET` | dès que `CV_AGENT_SECRET` est défini |
-| **`enc:v1:…`** | DPAPI Windows, portée **machine** | ❌ Non — lié à la machine d'origine | quand `CV_AGENT_SECRET` est absent |
+| **`enc:v1:…`** | DPAPI Windows, portée **machine** | ❌ Non — lié à la machine d'origine | Windows natif, quand `CV_AGENT_SECRET` est absent |
 | (sans préfixe) | valeur « legacy » en clair | — | migrée automatiquement au démarrage |
 
 Conséquences pour le déploiement :
@@ -459,18 +442,17 @@ Conséquences pour le déploiement :
 - **Une valeur illisible** (mauvais/absent `CV_AGENT_SECRET`, ou blob DPAPI copié sur
   une autre machine) renvoie `""` — l'application traite cela comme « pas
   d'identifiants » et **ne plante pas**.
-- **Sans `CV_AGENT_SECRET`**, les secrets chiffrés en DPAPI **ne suivent pas** si vous
-  copiez `state.db` (ou basculez la base) vers une autre machine : il faudra les
-  ressaisir. C'est pourquoi un déploiement partagé (Docker, ou PostgreSQL centralisé)
-  doit poser `CV_AGENT_SECRET` (même valeur partout où l'app tourne).
+- Pour un déploiement où **plusieurs instances** partagent la même base PostgreSQL,
+  posez le **même** `CV_AGENT_SECRET` partout, afin que les secrets `enc:v2` soient
+  déchiffrables par chaque instance.
 - ⚠️ **Ne mettez jamais de vrais identifiants dans `config.yaml`** : ce fichier n'est
   qu'un gabarit de premier lancement, et il est **embarqué dans l'exe distribué**.
-- ⚠️ **Ne versionnez jamais** `state.db`, `session.secret`, `cv_pdfs/`, `logs/`, `.env` —
-  ils contiennent des données candidats et des secrets (déjà couverts par `.gitignore`).
+- ⚠️ **Ne versionnez jamais** `session.secret`, `cv_pdfs/`, `logs/`, `.env` — ils
+  contiennent des données candidats et des secrets (déjà couverts par `.gitignore`).
 
 ---
 
-## 12. HTTPS & durcissement
+## 11. HTTPS & durcissement
 
 - **HTTP en clair sur le LAN** : par défaut le trafic n'est pas chiffré. Pour un
   réseau non maîtrisé, placez l'application derrière un **reverse-proxy TLS** (nginx,
@@ -482,13 +464,14 @@ Conséquences pour le déploiement :
 - Le cookie de session est déjà `HttpOnly` + `SameSite=lax` (atténuation CSRF sur les
   POST mutants).
 - **Anti-force-brute** : le login limite à 5 échecs par compte puis blocage 30 s.
-- Restreignez la règle pare-feu 6060 au strict sous-réseau nécessaire ([§8](#8-exposition-réseau-port-applicatif-6060)).
+- Restreignez la règle pare-feu 6060 au strict sous-réseau nécessaire ([§7](#7-exposition-réseau-port-applicatif-6060)).
 
 ---
 
-## 13. Construction de l'exécutable Windows
+## 12. Construction de l'exécutable Windows
 
-L'application se distribue en `.exe` autonome (PyInstaller, mode *onedir*).
+L'application se distribue en `.exe` autonome (PyInstaller, mode *onedir*). L'exe exige
+`CV_AGENT_DB_URL` (PostgreSQL) au lancement.
 
 ```powershell
 # Build : produit dist\CV-Agent\CV-Agent.exe (+ dossier _internal\)
@@ -506,17 +489,18 @@ powershell -ExecutionPolicy Bypass -File .\sign.ps1
 Points d'attention :
 
 - **`cv-agent.spec`** liste explicitement les modules dans `hiddenimports` (dont
-  `web_core`, `matching_core`, `alerts_engine` et tous les `mod_*`). **Quand vous
-  ajoutez un nouveau module top-level, ajoutez-le ici**, sinon l'exe plantera avec
-  `ModuleNotFoundError`.
-- **Après l'ajout de `cryptography`**, reconstruisez impérativement l'exe pour que la
-  dépendance soit embarquée (PyInstaller la collecte automatiquement via son hook).
-- Le `.exe` figé écrit ses données dans `%LOCALAPPDATA%\CV-Agent-Pro\` (base, logs,
+  `web_core`, `matching_core`, `alerts_engine` et tous les `mod_*`) et embarque
+  **`psycopg`** (pilote PostgreSQL) via `collect_all`. **Quand vous ajoutez un nouveau
+  module top-level, ajoutez-le ici**, sinon l'exe plantera avec `ModuleNotFoundError`.
+- **Après l'ajout de `cryptography` / `psycopg`**, reconstruisez impérativement l'exe
+  pour que les dépendances soient embarquées.
+- Le `.exe` figé écrit ses fichiers dans `%LOCALAPPDATA%\CV-Agent-Pro\` (logs,
   `cv_pdfs`, `session.secret`), jamais dans le dossier d'installation (lecture seule).
+  La base, elle, est sur PostgreSQL.
 
 ---
 
-## 14. Configuration LLM : Ollama vs OpenRouter
+## 13. Configuration LLM : Ollama vs OpenRouter
 
 Le fournisseur est un **choix de configuration** (`llm.provider`), pas un basculement
 automatique. Réglé dans **Administration → Paramètres**.
@@ -531,7 +515,10 @@ objet JSON en retour.
 
 ---
 
-## 15. Sauvegarde & restauration
+## 14. Sauvegarde & restauration
+
+Les données métier sont dans **PostgreSQL** ; les PDF des CV et les journaux sont des
+fichiers.
 
 ### PostgreSQL (natif)
 
@@ -550,30 +537,26 @@ docker compose exec -T db pg_dump -U cvagent -Fc cvagent > cvagent_backup.dump
 docker compose exec -T db pg_restore -U cvagent -d cvagent < cvagent_backup.dump
 ```
 
-### SQLite
+### Fichiers (PDF des CV, journaux)
 
-Copier à froid (application arrêtée) le fichier **`state.db`** et le dossier
-**`cv_pdfs/`** (les PDF des candidats). En Docker, sauvegardez le volume `cvagent-data`.
+Sauvegardez le dossier **`cv_pdfs/`** (et éventuellement `logs/`). En Docker, sauvegardez
+le volume `cvagent-data`.
 
 ### Où vivent les données
 
 | Donnée | Emplacement (dev / sources) | Emplacement (exe figé) | Emplacement (Docker) |
 |---|---|---|---|
-| Base SQLite | `state.db` (dossier projet) | `%LOCALAPPDATA%\CV-Agent-Pro\state.db` | volume `cvagent-data` → `/data/state.db` |
+| Base (candidats, réglages…) | serveur PostgreSQL | serveur PostgreSQL | volume `cvagent-db` |
 | PDF des CV | `cv_pdfs/` | `%LOCALAPPDATA%\CV-Agent-Pro\cv_pdfs\` | volume `cvagent-data` → `/data/cv_pdfs/` |
 | Journaux | `logs\agent.log` | `%LOCALAPPDATA%\CV-Agent-Pro\logs\agent.log` | volume `cvagent-data` → `/data/logs/` |
-| Base PostgreSQL | serveur PG | serveur PG | volume `cvagent-db` |
 
-> Toute écriture passe par `app_paths.data_path()` (piloté par `CV_AGENT_DATA_DIR` en
-> conteneur) : jamais de chemin relatif brut, pour rester valide une fois figé en `.exe`
+> Toute écriture fichier passe par `app_paths.data_path()` (piloté par `CV_AGENT_DATA_DIR`
+> en conteneur) : jamais de chemin relatif brut, pour rester valide une fois figé en `.exe`
 > ou dans un volume Docker.
-
-En mode PostgreSQL, la base n'est plus dans `state.db` (elle est sur le serveur PG),
-mais `cv_pdfs/` et `logs/` restent locaux au serveur applicatif — à sauvegarder aussi.
 
 ---
 
-## 16. Invariants à respecter
+## 15. Invariants à respecter
 
 - **Un seul worker uvicorn.** APScheduler et l'écriture base supposent un process
   unique (`start_web.bat` et le `Dockerfile` passent `--workers 1`). Ne montez pas à
@@ -583,14 +566,13 @@ mais `cv_pdfs/` et `logs/` restent locaux au serveur applicatif — à sauvegard
   mal et se disputeraient l'écriture. En architecture serveur unique, ce risque n'existe
   pas. Si vous multipliez les instances (déconseillé), désactivez le planificateur sur
   toutes sauf une (**Admin → Paramètres → planification désactivée**).
-- **Règles SQL portables** (pour toute évolution du code) : placeholders `?`, token
-  `{PK}`, `db.insert_returning_id(...)`, upserts `ON CONFLICT` — jamais de
-  `cur.lastrowid` ni de `INSERT OR IGNORE/REPLACE` (SQLite-only).
+- **Requêtes SQL** (pour toute évolution du code) : placeholders `?`, token `{PK}`,
+  `db.insert_returning_id(...)`, upserts `ON CONFLICT`.
 - **Chemins via `app_paths.data_path()`** pour tout fichier écrit.
 
 ---
 
-## 17. Exploitation courante
+## 16. Exploitation courante
 
 - **Journaux du pipeline** : `logs\agent.log` (relève, classification, extraction).
   Pour la tâche planifiée, la sortie de démarrage va dans `logs\web_startup.log`. En
@@ -604,40 +586,42 @@ mais `cv_pdfs/` et `logs/` restent locaux au serveur applicatif — à sauvegard
 
 ---
 
-## 18. Dépannage
+## 17. Dépannage
 
 | Symptôme | Cause probable / résolution |
 |---|---|
-| Connexion PostgreSQL refusée / *password authentication failed* | Mot de passe mal **percent-encodé** dans `CV_AGENT_DB_URL` (encodez `@` en `%40`, etc. — voir [§7.2](#72-poser-les-variables-denvironnement)). Vérifiez aussi le rôle/mot de passe et que `pg_hba.conf` autorise la connexion. |
+| L'app refuse de démarrer : *CV_AGENT_DB_URL n'est pas définie* | PostgreSQL est requis. Posez `CV_AGENT_DB_URL` (voir [§6.2](#62-poser-les-variables-denvironnement)) ou utilisez Docker compose qui la fournit. |
+| Connexion PostgreSQL refusée / *password authentication failed* | Mot de passe mal **percent-encodé** dans `CV_AGENT_DB_URL` (encodez `@` en `%40`, etc. — voir [§6.2](#62-poser-les-variables-denvironnement)). Vérifiez aussi le rôle/mot de passe et que `pg_hba.conf` autorise la connexion. |
 | `init_postgres.py` : *permission denied to create table* | Le rôle `cvagent` n'a pas les droits sur le schéma `public`. Rejouez `ALTER DATABASE cvagent OWNER TO cvagent;` puis `GRANT ALL ON SCHEMA public TO cvagent;`. |
 | Les postes clients n'accèdent pas au serveur | Règle pare-feu 6060 absente / trop restrictive, ou l'app écoute sur `127.0.0.1` au lieu de `0.0.0.0`. Utilisez `run_web.bat` / `start_web.bat` (ou publiez `-p 6060:6060` en Docker). |
 | Le port 6060 est déjà occupé | Un ancien process uvicorn tourne encore. `uninstall_autostart.ps1` tue le process sur 6060, ou repérez-le via `Get-NetTCPConnection -LocalPort 6060`. |
-| Secrets « vides » après copie de `state.db` / en Docker | Blobs DPAPI (`enc:v1`) liés à l'ancienne machine, **ou** `CV_AGENT_SECRET` absent en conteneur. Posez `CV_AGENT_SECRET` (chiffrement portable `enc:v2`) et ressaisissez les secrets une fois. |
+| Secrets « vides » en Docker ou après changement de machine | `CV_AGENT_SECRET` absent (Docker) ou blobs DPAPI (`enc:v1`) liés à l'ancienne machine. Posez `CV_AGENT_SECRET` (chiffrement portable `enc:v2`) et ressaisissez les secrets une fois. |
+| La connexion à la boîte mail échoue | Mauvais **`Sécurité IMAP`** (SSL vs STARTTLS) ou port ; certains fournisseurs (Gmail, Outlook) exigent un **mot de passe d'application**. Utilisez le bouton « Tester la connexion ». |
 | L'exe plante avec `ModuleNotFoundError` | Module top-level manquant dans `hiddenimports` de `cv-agent.spec`. Ajoutez-le et reconstruisez. |
-| L'exe ne trouve pas `cryptography` | Exe construit **avant** l'ajout de la dépendance. Reconstruisez (`build_exe.ps1`). |
+| L'exe ne trouve pas `cryptography` / `psycopg` | Exe construit **avant** l'ajout de la dépendance. Reconstruisez (`build_exe.ps1`). |
 | Variables d'environnement ignorées | `setx` n'affecte que les nouveaux processus : **rouvrez** le terminal (et redémarrez la tâche planifiée) après les avoir posées. |
 | L'IA ne répond pas | Ollama non démarré / modèle non téléchargé, ou clé OpenRouter absente/invalide. En Docker, `ollama.host` doit pointer vers `host.docker.internal`. Voir `logs\agent.log`. |
 
 ---
 
-## 19. Annexes
+## 18. Annexes
 
-### 19.1 Variables d'environnement
+### 18.1 Variables d'environnement
 
 | Variable | Rôle | Exemple |
 |---|---|---|
-| `CV_AGENT_DB_URL` | Bascule vers PostgreSQL. Absente ⇒ SQLite. Mot de passe **percent-encodé**. | `postgresql://cvagent:pw@localhost:5432/cvagent` |
-| `CV_AGENT_SECRET` | (1) stabilise le cookie de session entre redémarrages ; (2) active le chiffrement portable des secrets (`enc:v2`). **Obligatoire en conteneur** ; requis aussi si plusieurs instances partagent une base. | `<64 hex générés>` (voir §7.2 / §5.2) |
-| `CV_AGENT_DATA_DIR` | Force le dossier des données (base SQLite, `cv_pdfs`, `logs`). Utilisé en conteneur pour pointer vers un volume monté. | `/data` |
+| `CV_AGENT_DB_URL` | **Obligatoire.** Connexion PostgreSQL ; mot de passe **percent-encodé**. | `postgresql://cvagent:pw@localhost:5432/cvagent` |
+| `CV_AGENT_SECRET` | (1) stabilise le cookie de session entre redémarrages ; (2) active le chiffrement portable des secrets (`enc:v2`). **Obligatoire en conteneur** ; requis aussi si plusieurs instances partagent une base. | `<64 hex générés>` (voir §5.2 / §6.2) |
+| `CV_AGENT_DATA_DIR` | Force le dossier des fichiers (`cv_pdfs`, `logs`). Utilisé en conteneur pour pointer vers un volume monté. | `/data` |
 | `CV_AGENT_HTTPS_ONLY` | `1` ⇒ drapeau `Secure` sur le cookie (derrière un reverse-proxy TLS). | `1` |
 | `POSTGRES_PASSWORD` | (docker-compose) mot de passe du rôle `cvagent` ; **alphanumérique** de préférence. | `MotDePasseAlphaNum123` |
 | `OPENROUTER_API_KEY` | Clé cloud OpenRouter (prioritaire sur la valeur stockée en base). | `sk-or-…` |
 
-### 19.2 Commandes utiles
+### 18.2 Commandes utiles
 
 ```powershell
-# Vérifier le backend actif et l'état PostgreSQL
-.\.venv\Scripts\python.exe -c "import db; print(db.backend(), db.is_postgres())"
+# Vérifier que CV_AGENT_DB_URL est bien vue (sinon lève une erreur claire)
+.\.venv\Scripts\python.exe -c "import db; print(db.db_url())"
 
 # Générer un CV_AGENT_SECRET
 python -c "import secrets; print(secrets.token_hex(32))"
@@ -657,29 +641,29 @@ docker compose logs -f app
 docker compose down
 ```
 
-### 19.3 Checklist — déploiement Docker (recommandé)
+### 18.3 Checklist — déploiement Docker (recommandé)
 
 - [ ] Docker Engine + Compose (ou Docker Desktop) installés
 - [ ] `CV_AGENT_SECRET` généré
 - [ ] `.env` créé à partir de `.env.example` (`CV_AGENT_SECRET` + `POSTGRES_PASSWORD` alphanumérique)
-- [ ] `docker compose up -d` (ou `docker run` en mode SQLite)
+- [ ] `docker compose up -d`
 - [ ] Conteneur *healthy* ; admin créé via `http://<hôte>:6060/setup`
-- [ ] IMAP / LLM / SMTP configurés dans Administration → Paramètres
+- [ ] IMAP (serveur + **sécurité** + identifiants) / LLM / SMTP configurés dans Administration → Paramètres
 - [ ] `ollama.host` = `http://host.docker.internal:11434` (ou clé OpenRouter valide)
 - [ ] Port **6060** accessible depuis les postes clients
-- [ ] Sauvegarde planifiée (volume `cvagent-data` et, en compose, `pg_dump`)
+- [ ] Sauvegarde planifiée (`pg_dump` + volume `cvagent-data`)
 
-### 19.4 Checklist — déploiement B natif (PostgreSQL centralisé)
+### 18.4 Checklist — déploiement natif (PostgreSQL)
 
-- [ ] PostgreSQL 17 installé et démarré sur le serveur
+- [ ] PostgreSQL 17 installé et démarré (serveur local ou dédié)
 - [ ] Rôle `cvagent` créé (LOGIN + CREATEDB), propriétaire de la base
 - [ ] `CV_AGENT_SECRET` généré et posé (`setx /M`)
 - [ ] `CV_AGENT_DB_URL` posée avec mot de passe **percent-encodé** (`setx /M`)
 - [ ] Terminal rouvert (héritage des variables)
-- [ ] `init_postgres.py` exécuté sans erreur (schéma + 29 réglages)
+- [ ] `init_postgres.py` exécuté sans erreur (schéma + 30 réglages)
 - [ ] Règle pare-feu **6060** ouverte au LAN (5432 **non** exposé)
 - [ ] Application démarrée (`run_web.bat` ou tâche planifiée)
-- [ ] Admin créé via `/setup` ; IMAP / LLM / SMTP configurés
+- [ ] Admin créé via `/setup` ; IMAP (avec **sécurité**) / LLM / SMTP configurés
 - [ ] Ollama opérationnel (ou clé OpenRouter valide)
 - [ ] Un poste client accède bien à `http://IP_SERVEUR:6060`
 - [ ] Sauvegarde PostgreSQL planifiée (`pg_dump`)
