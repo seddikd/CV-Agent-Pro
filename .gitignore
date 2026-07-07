@@ -32,8 +32,8 @@ build/
 dist/
 Output/
 *.manifest
-# Manuel PDF régénéré par build_pdf.py (le .md source, lui, est versionné).
-MANUEL_UTILISATION.pdf
+# Manuels PDF régénérés par build_pdf.py (les .md sources, eux, sont versionnés).
+MANUEL_*.pdf
 
 # ─── IDE / OS ────────────────────────────────────────────────────────────────
 .vscode/
