@@ -43,10 +43,22 @@ def liste_offres(request: Request, statut: str = ""):
                 "SELECT * FROM jobs ORDER BY updated_at DESC"
             ).fetchall()
         offres = [dict(r) for r in rows]
+
+        # Compteurs par statut (toujours sur l'ensemble, indépendamment du filtre).
+        stats_offres = {
+            r["statut"]: r["n"]
+            for r in conn.execute(
+                "SELECT statut, COUNT(*) AS n FROM jobs GROUP BY statut"
+            ).fetchall()
+        }
+    total_offres = sum(stats_offres.values())
     return render(
         request,
         "jobs_list.html",
-        {"offres": offres, "statut": statut, "statuts": STATUTS},
+        {
+            "offres": offres, "statut": statut, "statuts": STATUTS,
+            "stats_offres": stats_offres, "total_offres": total_offres,
+        },
     )
 
 

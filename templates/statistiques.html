@@ -3,26 +3,6 @@
 {% block content %}
 
 <style>
-  .kpi-row { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
-  .kpi {
-    flex: 1 1 160px; padding: 1rem 1.2rem; border-radius: 10px;
-    background: var(--card-bg, #fff); border: 1px solid var(--border, #e2e2e2);
-  }
-  .kpi .num { font-size: 2rem; font-weight: 700; line-height: 1.1; }
-  .kpi .unit { font-size: 1rem; font-weight: 600; opacity: .7; }
-  .kpi .lbl { font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; opacity: .7; }
-  .kpi.accent .num { color: var(--accent, #2563eb); }
-  .kpi.ok .num { color: #16a34a; }
-  .kpi.ko .num { color: #dc2626; }
-
-  .stat-badges { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 1.6rem; }
-  .stat-badge {
-    display: inline-flex; align-items: baseline; gap: .4rem;
-    padding: .35rem .7rem; border-radius: 999px; font-size: .85rem;
-    border: 1px solid var(--border, #e2e2e2);
-  }
-  .stat-badge strong { font-size: 1rem; }
-
   .charts-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 1.2rem;
@@ -43,8 +23,6 @@
   .bar-row .bar-num { font-size: .82rem; font-weight: 600; text-align: right; }
   .chart-empty { font-size: .85rem; opacity: .6; padding: .5rem 0; }
 
-  html[data-theme="dark"] .kpi,
-  html[data-theme="dark"] .stat-badge { background: var(--card-bg, #1e2330); }
   html[data-theme="dark"] .bar-track { background: var(--track, #2a3040); }
 </style>
 
@@ -62,22 +40,22 @@
   </div>
 {% else %}
 
-<div class="kpi-row">
-  <div class="kpi accent">
-    <div class="num">{{ temps_moyen_txt }}{% if temps_moyen_txt != 'N/A' %} <span class="unit">j</span>{% endif %}</div>
-    <div class="lbl">Temps moyen de recrutement</div>
+<div class="kpi-cards">
+  <div class="kpi-card kpi-mint">
+    <span class="kpi-ic">📥</span>
+    <div><div class="kpi-num">{{ total }}</div><div class="kpi-lbl">Candidats au total</div></div>
   </div>
-  <div class="kpi ok">
-    <div class="num">{{ taux_recrutement }} <span class="unit">%</span></div>
-    <div class="lbl">Taux de recrutement</div>
+  <div class="kpi-card kpi-lavender">
+    <span class="kpi-ic">⏱️</span>
+    <div><div class="kpi-num">{{ temps_moyen_txt }}{% if temps_moyen_txt != 'N/A' %}<span class="kpi-unit">j</span>{% endif %}</div><div class="kpi-lbl">Temps moyen de recrutement</div></div>
   </div>
-  <div class="kpi ko">
-    <div class="num">{{ taux_refus }} <span class="unit">%</span></div>
-    <div class="lbl">Taux de refus</div>
+  <div class="kpi-card kpi-amber">
+    <span class="kpi-ic">🎉</span>
+    <div><div class="kpi-num">{{ taux_recrutement }}<span class="kpi-unit">%</span></div><div class="kpi-lbl">Taux de recrutement</div></div>
   </div>
-  <div class="kpi">
-    <div class="num">{{ total }}</div>
-    <div class="lbl">Candidats au total</div>
+  <div class="kpi-card kpi-pink">
+    <span class="kpi-ic">🚫</span>
+    <div><div class="kpi-num">{{ taux_refus }}<span class="kpi-unit">%</span></div><div class="kpi-lbl">Taux de refus</div></div>
   </div>
 </div>
 

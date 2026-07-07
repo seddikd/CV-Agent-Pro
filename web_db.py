@@ -54,6 +54,9 @@ DEFAULT_SETTINGS = {
     "processing.fetch_since_days": "30",
     "scheduler.interval_minutes": "60",
     "scheduler.enabled": "true",
+    # Rappels d'entretien : email automatique X heures avant l'entretien.
+    "entretiens.reminder_enabled": "true",
+    "entretiens.reminder_hours_before": "24",
 }
 
 
@@ -304,6 +307,20 @@ def delete_user(user_id: int) -> None:
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
 
+def delete_users(user_ids: list[int]) -> int:
+    """Supprime plusieurs comptes en une seule connexion. Retourne le nb supprimé.
+
+    Les garde-fous (ne pas supprimer son propre compte, préserver au moins un
+    admin actif) sont appliqués EN AMONT par l'appelant (voir la route
+    /admin/users/bulk-delete) : cette fonction se contente d'exécuter."""
+    if not user_ids:
+        return 0
+    with connect() as conn:
+        for uid in user_ids:
+            conn.execute("DELETE FROM users WHERE id = ?", (uid,))
+    return len(user_ids)
+
+
 def admin_count() -> int:
     with connect() as conn:
         row = conn.execute(
@@ -332,12 +349,13 @@ def insert_candidate(
             (id, received_at, expediteur, nom, prenom, email, telephone,
              poste_recherche, annees_experience, diplome_plus_eleve,
              competences, langues, resume, pdf_filename, pdf_path,
-             specialite, wilaya, niveau_etude, universite,
+             specialite, wilaya, situation_familiale, date_naissance, age,
+             niveau_etude, universite,
              soft_skills, logiciels, entreprises, certifications,
              permis, disponibilite, salaire_souhaite, experiences_json,
              statut, commentaires, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                     'Nouveau', '', ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 received_at = excluded.received_at,
@@ -356,6 +374,9 @@ def insert_candidate(
                 pdf_path = excluded.pdf_path,
                 specialite = excluded.specialite,
                 wilaya = excluded.wilaya,
+                situation_familiale = excluded.situation_familiale,
+                date_naissance = excluded.date_naissance,
+                age = excluded.age,
                 niveau_etude = excluded.niveau_etude,
                 universite = excluded.universite,
                 soft_skills = excluded.soft_skills,
@@ -386,6 +407,9 @@ def insert_candidate(
                 pdf_path,
                 extraction.specialite,
                 extraction.wilaya,
+                extraction.situation_familiale,
+                extraction.date_naissance,
+                extraction.age,
                 extraction.niveau_etude,
                 extraction.universite,
                 ", ".join(extraction.soft_skills),

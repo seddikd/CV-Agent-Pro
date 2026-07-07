@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{% if entretien %}Modifier l'entretien{% else %}Planifier un entretien{% endif %}{% endblock %}
+{% block content %}
+
+<a href="/entretiens" class="back">← Retour aux entretiens</a>
+
+<div class="page-head">
+  <h1>{% if entretien %}✏️ Modifier l'entretien{% else %}📅 Planifier un entretien{% endif %}</h1>
+</div>
+
+<form method="post"
+      action="{% if entretien %}/entretiens/{{ entretien.id }}/update{% else %}/entretiens{% endif %}"
+      class="job-form">
+
+  <div class="card">
+    <div class="form-section-head">
+      <h3>Candidat & créneau</h3>
+      <p class="section-hint">Choisissez le candidat à rencontrer et la date de l'entretien.</p>
+    </div>
+    <div class="form-grid">
+      <label class="col-full">Candidat <span class="req">*</span>
+        <select name="candidate_id" required>
+          <option value="" disabled {% if not candidate_id %}selected{% endif %}>— Sélectionner un candidat —</option>
+          {% for c in candidats %}
+          <option value="{{ c.id }}" {% if candidate_id and c.id == candidate_id %}selected{% endif %}>
+            {{ (c.prenom or '') }} {{ (c.nom or '') }}{% if c.poste_recherche %} — {{ c.poste_recherche }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Date & heure <span class="req">*</span>
+        <input type="datetime-local" name="date_heure" required
+               value="{{ (entretien.date_heure or '')[:16] if entretien else '' }}">
+      </label>
+      <label>Type
+        <select name="type">
+          <option value="">—</option>
+          {% for t in types %}
+          <option value="{{ t }}" {% if entretien and entretien.type == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="form-section-head">
+      <h3>Détails</h3>
+    </div>
+    <div class="form-grid">
+      <label class="col-full">Lieu / lien de connexion
+        <input type="text" name="lieu"
+               placeholder="ex. Salle B2 — ou https://meet…"
+               value="{{ entretien.lieu if entretien else '' }}">
+      </label>
+      <label>Statut
+        <select name="statut">
+          {% for s in statuts %}
+          <option value="{{ s }}" {% if entretien and entretien.statut == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="col-full">Notes
+        <textarea name="notes" rows="4"
+                  placeholder="Points à aborder, participants…">{{ entretien.notes if entretien else '' }}</textarea>
+      </label>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <a href="/entretiens" class="btn ghost">Annuler</a>
+    <button type="submit" class="btn primary">💾 Enregistrer</button>
+  </div>
+</form>
+
+{% endblock %}

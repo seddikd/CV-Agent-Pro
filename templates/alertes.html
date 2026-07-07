@@ -31,6 +31,25 @@
 
 {% if msg %}<div class="alert info">{{ msg }}</div>{% endif %}
 
+<div class="kpi-cards">
+  <div class="kpi-card kpi-lavender">
+    <span class="kpi-ic">🔔</span>
+    <div><div class="kpi-num">{{ alertes|length }}</div><div class="kpi-lbl">Alertes au total</div></div>
+  </div>
+  <div class="kpi-card kpi-pink">
+    <span class="kpi-ic">📬</span>
+    <div><div class="kpi-num">{{ non_lues }}</div><div class="kpi-lbl">Non lues</div></div>
+  </div>
+  <div class="kpi-card kpi-mint">
+    <span class="kpi-ic">✅</span>
+    <div><div class="kpi-num">{{ alertes|length - non_lues }}</div><div class="kpi-lbl">Lues</div></div>
+  </div>
+  <div class="kpi-card kpi-amber">
+    <span class="kpi-ic">🎯</span>
+    <div><div class="kpi-num">{{ seuil }}<span class="kpi-unit">/100</span></div><div class="kpi-lbl">Seuil de correspondance</div></div>
+  </div>
+</div>
+
 <p class="muted small">Une alerte est créée quand un candidat obtient un score ≥ {{ seuil }}/100 vis-à-vis d'une offre publiée.</p>
 
 <table class="table alerts-table">

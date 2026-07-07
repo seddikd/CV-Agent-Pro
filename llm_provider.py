@@ -18,6 +18,23 @@ log = logging.getLogger("cv_agent.llm")
 
 DEFAULT_CLOUD_BASE = "https://openrouter.ai/api/v1"
 
+# Endpoint public (sans clé) listant tous les modèles cloud OpenRouter.
+OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+
+
+def list_cloud_models(timeout: int = 15) -> list[str]:
+    """Récupère les identifiants de TOUS les modèles cloud d'OpenRouter (tri alpha).
+
+    OpenRouter agrège les modèles cloud de nombreux fournisseurs (OpenAI, Google,
+    Anthropic, Mistral, Meta…). L'appel ne nécessite pas de clé API. Lève
+    `requests.RequestException` si le réseau échoue (l'appelant retombe alors sur
+    la liste figée intégrée à l'UI).
+    """
+    r = requests.get(OPENROUTER_MODELS_URL, timeout=timeout)
+    r.raise_for_status()
+    modeles = [m.get("id") for m in r.json().get("data", []) if m.get("id")]
+    return sorted(set(modeles))
+
 
 def _cloud_url(orc: dict) -> str:
     """URL /chat/completions à partir de l'URL de base configurée."""

@@ -23,11 +23,12 @@ hiddenimports = (
         "db", "state_db", "secret_store", "excel_export", "mail_fetcher", "pdf_extractor",
         "llm_provider", "llm_classifier", "llm_extractor", "notifier",
         # Socle + logique partagés des modules ATS.
-        "web_core", "matching_core", "alerts_engine",
+        "web_core", "matching_core", "alerts_engine", "entretien_reminders",
         # Routeurs de modules ATS (mod_*.py) — importés au runtime par webapp.
         "mod_dashboard", "mod_search", "mod_jobs", "mod_compare", "mod_notes",
         "mod_duplicates", "mod_summary", "mod_documents", "mod_matching",
         "mod_search_ia", "mod_pipeline", "mod_stats", "mod_alerts", "mod_api",
+        "mod_entretiens",
         "PIL.Image",  # icône du systray
     ]
 )

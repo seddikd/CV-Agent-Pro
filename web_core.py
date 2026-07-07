@@ -29,6 +29,17 @@ HERE = app_paths.RESOURCE_DIR
 
 templates = Jinja2Templates(directory=HERE / "templates")
 
+# Anti-cache des assets : on suffixe l'URL de style.css par la date de
+# modification du fichier (?v=...). Le navigateur re-télécharge donc la feuille
+# de style dès qu'elle change, sans jamais servir une version obsolète en cache.
+import os
+
+try:
+    _css_mtime = int(os.path.getmtime(HERE / "static" / "style.css"))
+except OSError:
+    _css_mtime = 1
+templates.env.globals["asset_v"] = str(_css_mtime)
+
 
 def render(request: Request, template: str, ctx: dict | None = None) -> HTMLResponse:
     """Rend un template en injectant `user` + drapeaux de permission (comme webapp.render)."""

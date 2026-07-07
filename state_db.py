@@ -142,6 +142,23 @@ CREATE TABLE IF NOT EXISTS alerts (
     UNIQUE (candidate_id, job_id)
 );
 CREATE INDEX IF NOT EXISTS idx_alerts_seen ON alerts(seen);
+
+-- Entretiens planifiés pour un candidat (module « Entretiens »).
+CREATE TABLE IF NOT EXISTS entretiens (
+    id {PK},
+    candidate_id INTEGER NOT NULL,
+    date_heure TEXT NOT NULL,
+    type TEXT,
+    lieu TEXT,
+    statut TEXT NOT NULL DEFAULT 'Planifié',
+    notes TEXT,
+    reminder_sent INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_entretiens_candidate ON entretiens(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_entretiens_date ON entretiens(date_heure);
 """
 
 
@@ -165,6 +182,11 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("candidates", "salaire_souhaite", "TEXT"),
     ("candidates", "specialite", "TEXT"),
     ("candidates", "wilaya", "TEXT"),
+    # Situation familiale normalisée (Célibataire / Marié(e) / Divorcé(e) / Veuf(ve)).
+    ("candidates", "situation_familiale", "TEXT"),
+    # Date de naissance (texte brut du CV) + âge en années (entier) pour filtrer par tranche.
+    ("candidates", "date_naissance", "TEXT"),
+    ("candidates", "age", "INTEGER"),
     ("candidates", "niveau_etude", "TEXT"),
     ("candidates", "experiences_json", "TEXT"),
     # Synthèse enrichie générée à la demande (module « Résumé IA ») — JSON.
@@ -173,6 +195,8 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("candidates", "duplicate_of", "INTEGER"),
     # Étape dans le pipeline de recrutement (module « Pipeline »).
     ("candidates", "stage", "TEXT"),
+    # Rappel email envoyé pour un entretien (module « Entretiens ») — idempotence.
+    ("entretiens", "reminder_sent", "INTEGER DEFAULT 0"),
 ]
 
 

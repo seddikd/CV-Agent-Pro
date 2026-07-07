@@ -62,6 +62,25 @@
   <h1>Pipeline de recrutement</h1>
 </div>
 
+<div class="kpi-cards">
+  <div class="kpi-card kpi-mint">
+    <span class="kpi-ic">📋</span>
+    <div><div class="kpi-num">{{ colonnes.values()|map('length')|sum }}</div><div class="kpi-lbl">Candidats en pipeline</div></div>
+  </div>
+  <div class="kpi-card kpi-pink">
+    <span class="kpi-ic">📅</span>
+    <div><div class="kpi-num">{{ colonnes['Entretien RH']|length + colonnes['Entretien Technique']|length }}</div><div class="kpi-lbl">En entretien</div></div>
+  </div>
+  <div class="kpi-card kpi-lavender">
+    <span class="kpi-ic">📨</span>
+    <div><div class="kpi-num">{{ colonnes['Offre']|length }}</div><div class="kpi-lbl">Offres envoyées</div></div>
+  </div>
+  <div class="kpi-card kpi-amber">
+    <span class="kpi-ic">🎉</span>
+    <div><div class="kpi-num">{{ colonnes['Embauché']|length }}</div><div class="kpi-lbl">Embauchés</div></div>
+  </div>
+</div>
+
 <div class="kanban" id="kanban">
   {% for etape in etapes %}
   <div class="kanban-col">

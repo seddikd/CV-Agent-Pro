@@ -45,6 +45,49 @@
         <option value="STARTTLS" {% if isec == 'STARTTLS' %}selected{% endif %}>STARTTLS (port 143)</option>
         <option value="None" {% if isec == 'None' %}selected{% endif %}>Aucune (port 143)</option>
       </select>
+      {% elif key == 'openrouter.base_url' %}
+      <input type="text" name="{{ key }}" value="{{ values[key] }}" list="baseurl-presets"
+             placeholder="https://openrouter.ai/api/v1" autocomplete="off">
+      <datalist id="baseurl-presets">
+        <option value="https://openrouter.ai/api/v1">OpenRouter</option>
+        <option value="https://generativelanguage.googleapis.com/v1beta/openai">Google Gemini (compatible OpenAI)</option>
+        <option value="https://api.openai.com/v1">OpenAI</option>
+        <option value="https://api.groq.com/openai/v1">Groq</option>
+        <option value="https://api.deepseek.com/v1">DeepSeek</option>
+        <option value="https://api.together.xyz/v1">Together AI</option>
+        <option value="https://api.mistral.ai/v1">Mistral AI</option>
+        <option value="http://localhost:1234/v1">Local — LM Studio</option>
+        <option value="http://localhost:11434/v1">Local — Ollama (compatible OpenAI)</option>
+      </datalist>
+      <small class="muted">Choisissez un fournisseur ou saisissez votre propre URL.</small>
+      {% elif key == 'openrouter.model' %}
+      <input type="text" name="{{ key }}" value="{{ values[key] }}" list="model-presets"
+             id="openrouter-model" placeholder="openai/gpt-4o-mini" autocomplete="off">
+      <datalist id="model-presets">
+        <option value="openai/gpt-4o">OpenAI GPT-4o</option>
+        <option value="openai/gpt-4o-mini">OpenAI GPT-4o mini</option>
+        <option value="openai/gpt-4.1">OpenAI GPT-4.1</option>
+        <option value="openai/gpt-4.1-mini">OpenAI GPT-4.1 mini</option>
+        <option value="anthropic/claude-3.7-sonnet">Anthropic Claude 3.7 Sonnet</option>
+        <option value="anthropic/claude-3.5-sonnet">Anthropic Claude 3.5 Sonnet</option>
+        <option value="anthropic/claude-3.5-haiku">Anthropic Claude 3.5 Haiku</option>
+        <option value="google/gemini-2.5-pro">Google Gemini 2.5 Pro</option>
+        <option value="google/gemini-2.0-flash-001">Google Gemini 2.0 Flash</option>
+        <option value="google/gemini-flash-1.5">Google Gemini 1.5 Flash</option>
+        <option value="deepseek/deepseek-chat">DeepSeek V3 (chat)</option>
+        <option value="deepseek/deepseek-r1">DeepSeek R1</option>
+        <option value="meta-llama/llama-3.3-70b-instruct">Meta Llama 3.3 70B</option>
+        <option value="mistralai/mistral-large">Mistral Large</option>
+        <option value="mistralai/mistral-small-3.1-24b-instruct">Mistral Small 3.1 24B</option>
+        <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B</option>
+        <option value="x-ai/grok-2">xAI Grok 2</option>
+      </datalist>
+      <div style="margin-top:.35rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+        <button type="button" class="btn small" id="load-cloud-models">🔄 Charger les modèles cloud (OpenRouter)</button>
+        <span id="cloud-models-status" class="muted small"></span>
+      </div>
+      <small class="muted">Modèles cloud (OpenRouter agrège OpenAI, Google, Anthropic, Mistral…). Liste éditable — saisissez n'importe quel identifiant.
+        <a href="https://openrouter.ai/models" target="_blank" rel="noopener">Catalogue complet ↗</a></small>
       {% elif kind == 'password' %}
       <input type="password" name="{{ key }}" placeholder="(inchangé si vide)">
       {% else %}
@@ -111,6 +154,30 @@
     }
     sel.addEventListener('change', toggle);
     toggle();
+  })();
+
+  // Charge le catalogue cloud OpenRouter (en direct) pour enrichir la datalist.
+  (function () {
+    var btn = document.getElementById('load-cloud-models');
+    if (!btn) return;
+    var status = document.getElementById('cloud-models-status');
+    var datalist = document.getElementById('model-presets');
+    btn.addEventListener('click', function () {
+      btn.disabled = true; status.textContent = 'Chargement…';
+      fetch('/admin/settings/openrouter-models')
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          if (!res.ok || res.j.error) throw new Error(res.j.error || 'indisponible');
+          var models = res.j.models || [];
+          datalist.innerHTML = '';
+          models.forEach(function (id) {
+            var o = document.createElement('option'); o.value = id; datalist.appendChild(o);
+          });
+          status.textContent = models.length + ' modèle(s) cloud chargé(s).';
+        })
+        .catch(function (e) { status.textContent = 'Échec : ' + e.message + ' (liste par défaut conservée).'; })
+        .finally(function () { btn.disabled = false; });
+    });
   })();
 </script>
 

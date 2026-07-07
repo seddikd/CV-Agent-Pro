@@ -7,6 +7,21 @@
   <p class="muted small">Score de correspondance entre chaque offre et vos candidats (calcul local, hors-ligne).</p>
 </div>
 
+<div class="kpi-cards">
+  <div class="kpi-card kpi-mint">
+    <span class="kpi-ic">💼</span>
+    <div><div class="kpi-num">{{ total_offres }}</div><div class="kpi-lbl">Offres</div></div>
+  </div>
+  <div class="kpi-card kpi-lavender">
+    <span class="kpi-ic">📢</span>
+    <div><div class="kpi-num">{{ n_publiees }}</div><div class="kpi-lbl">Offres publiées</div></div>
+  </div>
+  <div class="kpi-card kpi-amber">
+    <span class="kpi-ic">👤</span>
+    <div><div class="kpi-num">{{ total_cands }}</div><div class="kpi-lbl">Candidats évalués</div></div>
+  </div>
+</div>
+
 <table class="table">
   <thead>
     <tr>

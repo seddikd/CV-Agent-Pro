@@ -2,59 +2,351 @@
 {% block title %}Utilisateurs{% endblock %}
 {% block content %}
 
-<div class="page-head"><h1>Gestion des utilisateurs</h1></div>
+{% set role_labels = {'admin': 'Admin', 'manager': 'Manager', 'rh': 'RH', 'lecture': 'Lecture seule'} %}
+{% set palette = ['#2563eb', '#7c3aed', '#0891b2', '#059669', '#d97706', '#db2777', '#4f46e5', '#0d9488'] %}
+
+<div class="users-head">
+  <h1>Gestion des utilisateurs</h1>
+  <p class="subtitle">Gérez les comptes au même endroit : contrôlez les accès, attribuez les rôles et l'état d'activité.</p>
+</div>
 
 {% if msg %}<div class="alert info">{{ msg }}</div>{% endif %}
 
-<div class="card">
-  <h3>➕ Créer un utilisateur</h3>
-  <form method="post" action="/admin/users/create" class="form inline">
-    <input type="email" name="email" placeholder="email" required>
-    <input type="text" name="name" placeholder="Nom complet" required>
-    <input type="password" name="password" placeholder="Mot de passe" required>
-    <select name="role" required>
-      <option value="rh">rh</option>
-      <option value="manager">manager</option>
-      <option value="lecture">lecture seule</option>
-      <option value="admin">admin</option>
-    </select>
-    <button type="submit" class="btn primary">Créer</button>
-  </form>
+<div class="users-toolbar">
+  <div class="search">
+    <input type="text" id="u-search" placeholder="Rechercher un nom ou un email…"
+           autocomplete="off" aria-label="Rechercher un utilisateur">
+  </div>
+  <select id="u-role-filter" class="tb-filter" aria-label="Filtrer par rôle">
+    <option value="">Tous les rôles</option>
+    {% for r, lbl in role_labels.items() %}
+    <option value="{{ r }}">{{ lbl }}</option>
+    {% endfor %}
+  </select>
+  <select id="u-status-filter" class="tb-filter" aria-label="Filtrer par statut">
+    <option value="">Tous les statuts</option>
+    <option value="1">Actif</option>
+    <option value="0">Désactivé</option>
+  </select>
+  <span class="grow"></span>
+  <button type="button" class="btn" onclick="exportUsersCsv()">⬆️ Exporter</button>
+  <button type="button" class="btn primary" onclick="openModal('modal-create')">➕ Ajouter un utilisateur</button>
 </div>
 
-<table class="table">
+<!-- Barre d'action de masse : les cases à cocher lui sont rattachées via form="bulk-form". -->
+<form class="bulk-bar" id="bulk-form" method="post" action="/admin/users/bulk-delete" hidden
+      onsubmit="return confirm('Supprimer les ' + selectedCount() + ' utilisateur(s) sélectionné(s) ?');">
+  <span class="bulk-info"><strong id="bulk-count">0</strong> utilisateur(s) sélectionné(s)</span>
+  <span class="grow"></span>
+  <button type="button" class="btn ghost" onclick="clearSelection()">Tout désélectionner</button>
+  <button type="submit" class="btn danger">🗑️ Supprimer la sélection</button>
+</form>
+
+<table class="table users" id="users-table">
   <thead>
-    <tr><th>Email</th><th>Édition</th></tr>
+    <tr>
+      <th class="col-check"><input type="checkbox" id="check-all" aria-label="Tout sélectionner sur cette page"></th>
+      <th>Nom complet</th>
+      <th>Email</th>
+      <th>Statut</th>
+      <th>Rôle</th>
+      <th>Date d'ajout</th>
+      <th>Actions</th>
+    </tr>
   </thead>
   <tbody>
   {% for u in users %}
-    <tr>
-      <td><code>{{ u.email }}</code></td>
+    {% set nm = u.name or u.email %}
+    {% set parts = nm.split() %}
+    {% set initials = (parts[0][0] ~ (parts[1][0] if parts|length > 1 else ''))|upper %}
+    <tr class="u-row"
+        data-name="{{ u.name|lower }}"
+        data-email="{{ u.email|lower }}"
+        data-role="{{ u.role }}"
+        data-active="{{ 1 if u.active else 0 }}">
+      <td class="col-check">
+        {% if u.id == user.id %}
+        <input type="checkbox" disabled title="Vous ne pouvez pas supprimer votre propre compte">
+        {% else %}
+        <input type="checkbox" class="row-check" name="ids" value="{{ u.id }}" form="bulk-form"
+               aria-label="Sélectionner {{ u.email }}">
+        {% endif %}
+      </td>
       <td>
-        <form method="post" action="/admin/users/{{ u.id }}/update" class="user-row-form">
-          <input type="text" name="name" value="{{ u.name }}" required placeholder="Nom">
-          <select name="role">
-            <option value="rh" {% if u.role == 'rh' %}selected{% endif %}>rh</option>
-            <option value="manager" {% if u.role == 'manager' %}selected{% endif %}>manager</option>
-            <option value="lecture" {% if u.role == 'lecture' %}selected{% endif %}>lecture seule</option>
-            <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>admin</option>
-          </select>
-          <select name="active">
-            <option value="1" {% if u.active %}selected{% endif %}>actif</option>
-            <option value="0" {% if not u.active %}selected{% endif %}>désactivé</option>
-          </select>
-          <input type="password" name="password" placeholder="Nouveau MdP (vide = inchangé)">
-          <button type="submit" class="btn small primary">💾 Modifier</button>
-        </form>
-        <form method="post" action="/admin/users/{{ u.id }}/delete"
-              onsubmit="return confirm('Supprimer {{ u.email }} ?')"
-              class="user-row-form" style="margin-top:6px">
-          <button type="submit" class="btn small danger">🗑 Supprimer</button>
-        </form>
+        <div class="user-cell">
+          <span class="avatar" style="background: {{ palette[u.id % 8] }}">{{ initials }}</span>
+          <span class="u-name">{{ u.name }}{% if u.id == user.id %}<span class="u-you">(vous)</span>{% endif %}</span>
+        </div>
+      </td>
+      <td>{{ u.email }}</td>
+      <td>
+        {% if u.active %}<span class="ustatus active">Actif</span>
+        {% else %}<span class="ustatus inactive">Désactivé</span>{% endif %}
+      </td>
+      <td><span class="role-badge role-{{ u.role }}">{{ role_labels.get(u.role, u.role) }}</span></td>
+      <td class="small muted">{{ (u.created_at or '')[:10] }}</td>
+      <td>
+        <div class="row-actions">
+          <button type="button" class="icon-btn edit" title="Modifier"
+                  data-id="{{ u.id }}" data-name="{{ u.name }}" data-email="{{ u.email }}"
+                  data-role="{{ u.role }}" data-active="{{ 1 if u.active else 0 }}"
+                  onclick="openEdit(this)">✏️</button>
+          {% if u.id == user.id %}
+          <button type="button" class="icon-btn del" disabled
+                  title="Vous ne pouvez pas supprimer votre propre compte">🗑️</button>
+          {% else %}
+          <form method="post" action="/admin/users/{{ u.id }}/delete" style="display:inline"
+                onsubmit="return confirm('Supprimer définitivement {{ u.email }} ?');">
+            <button type="submit" class="icon-btn del" title="Supprimer">🗑️</button>
+          </form>
+          {% endif %}
+        </div>
       </td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
+
+<div class="users-foot">
+  <div class="foot-left">
+    <label for="page-size">Lignes par page</label>
+    <select id="page-size" aria-label="Lignes par page">
+      <option value="10">10</option>
+      <option value="25">25</option>
+      <option value="50">50</option>
+    </select>
+    <span class="muted">· <span id="u-count">{{ users|length }}</span> utilisateur(s)</span>
+  </div>
+  <div class="pager" id="pager"></div>
+</div>
+
+<!-- ─── Modale : créer un utilisateur ─────────────────────────────────── -->
+<div class="modal-overlay" id="modal-create" hidden onclick="if(event.target===this)closeModal(this)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mc-title">
+    <div class="modal-head">
+      <h3 id="mc-title">➕ Nouvel utilisateur</h3>
+      <button type="button" class="modal-close" onclick="closeModal(this)" aria-label="Fermer">×</button>
+    </div>
+    <form method="post" action="/admin/users/create">
+      <div class="modal-body">
+        <label>Nom complet
+          <input type="text" name="name" required placeholder="ex. Amina Belhadj">
+        </label>
+        <label>Email
+          <input type="email" name="email" required placeholder="ex. amina@entreprise.dz">
+        </label>
+        <label>Mot de passe
+          <input type="password" name="password" required placeholder="Mot de passe initial">
+        </label>
+        <label>Rôle
+          <select name="role" required>
+            <option value="rh">RH</option>
+            <option value="manager">Manager</option>
+            <option value="lecture">Lecture seule</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn ghost" onclick="closeModal(this)">Annuler</button>
+        <button type="submit" class="btn primary">Créer l'utilisateur</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── Modale : modifier un utilisateur ──────────────────────────────── -->
+<div class="modal-overlay" id="modal-edit" hidden onclick="if(event.target===this)closeModal(this)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="me-title">
+    <div class="modal-head">
+      <h3 id="me-title">✏️ Modifier l'utilisateur</h3>
+      <button type="button" class="modal-close" onclick="closeModal(this)" aria-label="Fermer">×</button>
+    </div>
+    <form method="post" id="edit-form">
+      <div class="modal-body">
+        <label>Email
+          <input type="email" id="edit-email" disabled>
+        </label>
+        <label>Nom complet
+          <input type="text" name="name" id="edit-name" required>
+        </label>
+        <label>Rôle
+          <select name="role" id="edit-role" required>
+            <option value="rh">RH</option>
+            <option value="manager">Manager</option>
+            <option value="lecture">Lecture seule</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+        <label>Statut
+          <select name="active" id="edit-active">
+            <option value="1">Actif</option>
+            <option value="0">Désactivé</option>
+          </select>
+        </label>
+        <label>Nouveau mot de passe
+          <input type="password" name="password" placeholder="Laisser vide pour ne pas changer">
+          <span class="field-hint">Renseignez uniquement pour réinitialiser le mot de passe.</span>
+        </label>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn ghost" onclick="closeModal(this)">Annuler</button>
+        <button type="submit" class="btn primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  var search = document.getElementById('u-search');
+  var roleF = document.getElementById('u-role-filter');
+  var statusF = document.getElementById('u-status-filter');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('#users-table .u-row'));
+  var count = document.getElementById('u-count');
+  var pageSizeSel = document.getElementById('page-size');
+  var pager = document.getElementById('pager');
+  var checkAll = document.getElementById('check-all');
+  var bulkForm = document.getElementById('bulk-form');
+  var bulkCount = document.getElementById('bulk-count');
+
+  var pageSize = parseInt(pageSizeSel.value, 10) || 10;
+  var currentPage = 1;
+
+  function matches(r) {
+    var q = (search.value || '').trim().toLowerCase();
+    var rv = roleF.value, sv = statusF.value;
+    var okText = !q || r.dataset.name.indexOf(q) !== -1 || r.dataset.email.indexOf(q) !== -1;
+    var okRole = !rv || r.dataset.role === rv;
+    var okStatus = !sv || r.dataset.active === sv;
+    return okText && okRole && okStatus;
+  }
+  function filtered() { return rows.filter(matches); }
+
+  function refresh() {
+    var f = filtered();
+    count.textContent = f.length;
+    var pages = Math.max(1, Math.ceil(f.length / pageSize));
+    if (currentPage > pages) currentPage = pages;
+    if (currentPage < 1) currentPage = 1;
+    var start = (currentPage - 1) * pageSize;
+    rows.forEach(function (r) { r.style.display = 'none'; });
+    f.slice(start, start + pageSize).forEach(function (r) { r.style.display = ''; });
+    renderPager(pages);
+    syncCheckAll();
+  }
+
+  // Liste des pages avec ellipses : [1, '…', 4, 5, 6, '…', 10].
+  function pageList(cur, total) {
+    var out = [], range = [];
+    for (var i = Math.max(2, cur - 1); i <= Math.min(total - 1, cur + 1); i++) range.push(i);
+    out.push(1);
+    if (range.length && range[0] > 2) out.push('…');
+    range.forEach(function (x) { out.push(x); });
+    if (range.length && range[range.length - 1] < total - 1) out.push('…');
+    if (total > 1) out.push(total);
+    return out;
+  }
+
+  function renderPager(pages) {
+    pager.innerHTML = '';
+    function nav(label, target, disabled, active) {
+      if (label === '…') {
+        var s = document.createElement('span'); s.className = 'ellipsis'; s.textContent = '…';
+        pager.appendChild(s); return;
+      }
+      var b = document.createElement('button');
+      b.type = 'button'; b.textContent = label;
+      if (disabled) b.disabled = true;
+      if (active) b.className = 'active';
+      b.addEventListener('click', function () { currentPage = target; refresh(); });
+      pager.appendChild(b);
+    }
+    nav('‹', currentPage - 1, currentPage <= 1, false);
+    pageList(currentPage, pages).forEach(function (p) {
+      if (p === '…') nav('…');
+      else nav(String(p), p, false, p === currentPage);
+    });
+    nav('›', currentPage + 1, currentPage >= pages, false);
+  }
+
+  [search, roleF, statusF].forEach(function (el) {
+    el.addEventListener('input', function () { currentPage = 1; refresh(); });
+    el.addEventListener('change', function () { currentPage = 1; refresh(); });
+  });
+  pageSizeSel.addEventListener('change', function () {
+    pageSize = parseInt(pageSizeSel.value, 10) || 10; currentPage = 1; refresh();
+  });
+
+  // ─── Sélection multiple ───────────────────────────────────────────────
+  function rowChecks() { return Array.prototype.slice.call(document.querySelectorAll('.row-check')); }
+  function visibleChecks() {
+    return rowChecks().filter(function (c) {
+      var row = c.closest('.u-row'); return row && row.style.display !== 'none';
+    });
+  }
+  window.selectedCount = function () { return rowChecks().filter(function (c) { return c.checked; }).length; };
+  function updateBulk() {
+    var n = window.selectedCount();
+    bulkCount.textContent = n;
+    bulkForm.hidden = n === 0;
+  }
+  function syncCheckAll() {
+    var vis = visibleChecks();
+    checkAll.checked = vis.length > 0 && vis.every(function (c) { return c.checked; });
+    checkAll.indeterminate = !checkAll.checked && vis.some(function (c) { return c.checked; });
+  }
+  window.clearSelection = function () {
+    rowChecks().forEach(function (c) { c.checked = false; });
+    checkAll.checked = false; checkAll.indeterminate = false;
+    updateBulk();
+  };
+  rowChecks().forEach(function (c) {
+    c.addEventListener('change', function () { updateBulk(); syncCheckAll(); });
+  });
+  checkAll.addEventListener('change', function () {
+    visibleChecks().forEach(function (c) { c.checked = checkAll.checked; });
+    checkAll.indeterminate = false;
+    updateBulk();
+  });
+
+  // ─── Export CSV des lignes filtrées ───────────────────────────────────
+  window.exportUsersCsv = function () {
+    var lines = ['Nom,Email,Statut,Role,Date ajout'];
+    filtered().forEach(function (r) {
+      var cells = r.querySelectorAll('td');
+      var name = r.querySelector('.u-name').textContent.replace('(vous)', '').trim();
+      var statut = r.dataset.active === '1' ? 'Actif' : 'Desactive';
+      var vals = [name, r.dataset.email, statut, r.dataset.role, cells[5].textContent.trim()];
+      lines.push(vals.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','));
+    });
+    var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'utilisateurs.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
+  // ─── Modales ──────────────────────────────────────────────────────────
+  window.openModal = function (id) { document.getElementById(id).hidden = false; };
+  window.closeModal = function (el) { el.closest('.modal-overlay').hidden = true; };
+  window.openEdit = function (btn) {
+    var d = btn.dataset;
+    document.getElementById('edit-form').action = '/admin/users/' + d.id + '/update';
+    document.getElementById('edit-email').value = d.email;
+    document.getElementById('edit-name').value = d.name;
+    document.getElementById('edit-role').value = d.role;
+    document.getElementById('edit-active').value = d.active;
+    document.getElementById('modal-edit').querySelector('input[name="password"]').value = '';
+    openModal('modal-edit');
+  };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay:not([hidden])').forEach(function (m) { m.hidden = true; });
+    }
+  });
+
+  refresh();
+})();
+</script>
 
 {% endblock %}

@@ -18,13 +18,31 @@
   </div>
 </div>
 
-<div class="stats">
-  <span class="stat"><strong>{{ stats.total }}</strong> au total</span>
+<div class="kpi-cards">
+  <div class="kpi-card kpi-mint">
+    <span class="kpi-ic">📥</span>
+    <div><div class="kpi-num">{{ stats.total }}</div><div class="kpi-lbl">Candidats au total</div></div>
+  </div>
+  <div class="kpi-card kpi-lavender">
+    <span class="kpi-ic">✨</span>
+    <div><div class="kpi-num">{{ stats.by_statut.get('Nouveau', 0) }}</div><div class="kpi-lbl">Nouveaux</div></div>
+  </div>
+  <div class="kpi-card kpi-pink">
+    <span class="kpi-ic">📅</span>
+    <div><div class="kpi-num">{{ stats.by_statut.get('Entretien planifié', 0) }}</div><div class="kpi-lbl">Entretiens planifiés</div></div>
+  </div>
+  <div class="kpi-card kpi-amber">
+    <span class="kpi-ic">🎉</span>
+    <div><div class="kpi-num">{{ stats.by_statut.get('Embauché', 0) }}</div><div class="kpi-lbl">Embauchés</div></div>
+  </div>
+</div>
+
+<div class="stat-badges">
   {% for s, c in stats.by_statut.items() %}
-  <span class="stat">{{ s }} : <strong>{{ c }}</strong></span>
+  <span class="stat-badge">{{ s }} <strong>{{ c }}</strong></span>
   {% endfor %}
   {% if last_run %}
-  <span class="stat muted">Dernier cycle réussi : {{ last_run.finished_at }} ({{ last_run.cvs_detected }} CV)</span>
+  <span class="stat-badge muted">🔄 Dernier cycle : {{ last_run.finished_at }} · {{ last_run.cvs_detected }} CV</span>
   {% endif %}
 </div>
 

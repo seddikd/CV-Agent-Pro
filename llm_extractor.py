@@ -16,6 +16,9 @@ RÈGLES IMPORTANTES :
 - specialite : domaine/filière du candidat (ex. « Réseaux & Télécoms », « Développement web », « Comptabilité »).
 - niveau_etude : niveau le plus élevé de façon normalisée (ex. « Bac », « Bac+2 », « Licence », « Master », « Doctorat », « Ingénieur »).
 - wilaya : wilaya / ville de résidence en Algérie si mentionnée (ex. « Alger », « Oran »), sinon la ville trouvée, sinon null.
+- situation_familiale : normalise STRICTEMENT en l'une de ces valeurs si mentionnée : « Célibataire », « Marié(e) », « Divorcé(e) », « Veuf(ve) ». Sinon null.
+- date_naissance : date de naissance telle qu'écrite dans le CV (ex. « 12/05/1994 »), sinon null.
+- age : âge du candidat en années (entier). Si l'âge n'est pas indiqué mais la date/année de naissance l'est, calcule-le. Sinon null.
 - competences_principales : compétences TECHNIQUES (technologies, méthodes métier).
 - soft_skills : qualités humaines/comportementales (ex. « travail en équipe », « rigueur »).
 - logiciels : outils/logiciels maîtrisés (ex. « AutoCAD », « SAP », « Excel »).
@@ -37,6 +40,9 @@ Schéma JSON exact :
   "poste_recherche": string | null,
   "specialite": string | null,
   "wilaya": string | null,
+  "situation_familiale": string | null,
+  "date_naissance": string | null,
+  "age": number | null,
   "annees_experience": number | null,
   "diplome_plus_eleve": string | null,
   "niveau_etude": string | null,
@@ -64,6 +70,9 @@ class ExtractionResult:
     poste_recherche: str | None = None
     specialite: str | None = None
     wilaya: str | None = None
+    situation_familiale: str | None = None
+    date_naissance: str | None = None
+    age: int | None = None
     annees_experience: int | None = None
     diplome_plus_eleve: str | None = None
     niveau_etude: str | None = None
@@ -149,6 +158,9 @@ def extract(
         poste_recherche=data.get("poste_recherche"),
         specialite=data.get("specialite"),
         wilaya=data.get("wilaya"),
+        situation_familiale=data.get("situation_familiale"),
+        date_naissance=data.get("date_naissance"),
+        age=_coerce_int(data.get("age")),
         annees_experience=_coerce_int(data.get("annees_experience")),
         diplome_plus_eleve=data.get("diplome_plus_eleve"),
         niveau_etude=data.get("niveau_etude"),

@@ -48,6 +48,8 @@ import mod_pipeline
 import mod_stats
 import mod_alerts
 import mod_api
+import mod_entretiens
+import entretien_reminders
 
 # render() vit dans web_core (socle partagé des routeurs mod_*) : on le réutilise
 # ici plutôt que d'en maintenir une copie identique (contexte de base commun).
@@ -98,6 +100,15 @@ def _scheduled_run() -> None:
         log.exception("Scheduled run failed: %s", e)
 
 
+def _scheduled_reminders() -> None:
+    try:
+        n = entretien_reminders.envoyer_rappels_dus()
+        if n:
+            log.info("%d rappel(s) d'entretien envoyé(s)", n)
+    except Exception as e:
+        log.exception("Reminder job failed: %s", e)
+
+
 def reschedule_from_settings() -> None:
     settings = web_db.get_all_settings()
     enabled = settings.get("scheduler.enabled", "true").lower() == "true"
@@ -118,6 +129,21 @@ def reschedule_from_settings() -> None:
         log.info("Scheduler armed (every %d min)", interval)
     else:
         log.info("Scheduler disabled by settings")
+
+    # Job de rappels d'entretien, indépendant du planificateur de pipeline
+    # (vérifie toutes les 15 min les entretiens dont l'échéance approche).
+    if scheduler.get_job("entretien_reminders"):
+        scheduler.remove_job("entretien_reminders")
+    if settings.get("entretiens.reminder_enabled", "true").lower() == "true":
+        scheduler.add_job(
+            _scheduled_reminders,
+            trigger=IntervalTrigger(minutes=15),
+            id="entretien_reminders",
+            next_run_time=datetime.now(),
+            max_instances=1,
+            coalesce=True,
+        )
+        log.info("Rappels d'entretien armés (toutes les 15 min)")
 
 
 @asynccontextmanager
@@ -191,7 +217,7 @@ app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 for _mod in (mod_dashboard, mod_search, mod_jobs, mod_compare,
              mod_notes, mod_duplicates, mod_summary, mod_documents,
              mod_matching, mod_search_ia, mod_pipeline, mod_stats,
-             mod_alerts, mod_api):
+             mod_alerts, mod_api, mod_entretiens):
     app.include_router(_mod.router)
 
 
@@ -547,6 +573,41 @@ def admin_users_delete(request: Request, uid: int):
     return RedirectResponse("/admin/users?msg=Utilisateur+supprimé", status_code=303)
 
 
+@app.post("/admin/users/bulk-delete")
+def admin_users_bulk_delete(request: Request, ids: list[int] = Form(default=[])):
+    """Suppression en masse. Mêmes garde-fous que la suppression unitaire :
+    jamais son propre compte, et il doit toujours rester au moins un admin actif.
+    Les comptes protégés sont ignorés (pas d'échec global) et signalés."""
+    admin = web_auth.require_admin(request)
+
+    # Cibles réelles (dédupliquées, existantes), en excluant son propre compte.
+    demandes = set(ids)
+    self_selectionne = admin["id"] in demandes
+    demandes.discard(admin["id"])
+    cibles = [t for t in (web_db.get_user_by_id(i) for i in demandes) if t]
+
+    # Préserver au moins un admin actif : on ne supprime pas plus d'admins actifs
+    # que « total - 1 ». Les admins actifs en trop sont retirés de la sélection.
+    admins_actifs_cibles = [t for t in cibles if t["role"] == "admin" and t["active"]]
+    supprimables_admin = max(0, web_db.admin_count() - 1)
+    ids_proteges: set[int] = set()
+    if len(admins_actifs_cibles) > supprimables_admin:
+        ids_proteges = {t["id"] for t in admins_actifs_cibles}
+
+    a_supprimer = [t["id"] for t in cibles if t["id"] not in ids_proteges]
+    n = web_db.delete_users(a_supprimer)
+
+    parts = [f"{n} utilisateur(s) supprimé(s)"]
+    if self_selectionne:
+        parts.append("votre compte a été ignoré")
+    if ids_proteges:
+        parts.append("au moins un admin actif doit rester")
+    from urllib.parse import quote
+    return RedirectResponse(
+        "/admin/users?msg=" + quote(" — ".join(parts)), status_code=303
+    )
+
+
 # ─── Admin: settings ──────────────────────────────────────────────────────────
 
 # --- Onglet « Paramètres Mail » : réception (IMAP), planification, notifications (SMTP)
@@ -563,6 +624,8 @@ MAIL_FIELDS = [
     ("scheduler.enabled", "Planificateur activé (true/false)", "text"),
     ("notify.enabled", "Notifications email (true/false)", "text"),
     ("notify.recipients", "Destinataires (emails séparés par virgule)", "text"),
+    ("entretiens.reminder_enabled", "Rappels d'entretien par email (true/false)", "text"),
+    ("entretiens.reminder_hours_before", "Rappel entretien : heures avant", "number"),
     ("smtp.host", "Serveur SMTP", "text"),
     ("smtp.port", "Port SMTP", "number"),
     ("smtp.security", "Sécurité SMTP", "select"),
@@ -658,6 +721,17 @@ def admin_test_openrouter(
 
     ok, message = llm_provider.check_openrouter(orc)
     return _test_result_html(ok, message)
+
+
+@app.get("/admin/settings/openrouter-models")
+def admin_openrouter_models(request: Request):
+    """Liste JSON des modèles cloud OpenRouter (pour enrichir la datalist)."""
+    web_auth.require_admin(request)
+    try:
+        modeles = llm_provider.list_cloud_models()
+    except Exception as e:  # noqa: BLE001 - réseau indisponible → l'UI garde sa liste figée
+        return JSONResponse({"error": str(e)}, status_code=502)
+    return JSONResponse({"models": modeles})
 
 
 @app.post("/admin/settings/test-ollama", response_class=HTMLResponse)

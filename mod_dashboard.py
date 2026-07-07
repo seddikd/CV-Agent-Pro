@@ -4,7 +4,7 @@ Toutes les agrégations (SQL + Python) vivent ici — rien n'est ajouté à web_
 Les requêtes utilisent uniquement le placeholder portable `?`.
 """
 from collections import Counter
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Request
 
@@ -118,10 +118,36 @@ def dashboard(request: Request):
         }
         competences = _add_pct(_top_competences(conn, 15))
 
+        # Activité récente : derniers CV reçus (panneau agenda du tableau de bord).
+        recents = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT id, nom, prenom, poste_recherche, statut, received_at "
+                "FROM candidates ORDER BY received_at DESC LIMIT 7"
+            ).fetchall()
+        ]
+
+        # Entretiens à venir : planifiés dont la date n'est pas encore passée.
+        maintenant = datetime.now().isoformat(timespec="minutes")
+        entretiens = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT e.id AS id, e.date_heure AS date_heure, e.type AS type, "
+                "e.lieu AS lieu, e.candidate_id AS candidate_id, "
+                "c.nom AS cand_nom, c.prenom AS cand_prenom "
+                "FROM entretiens e JOIN candidates c ON c.id = e.candidate_id "
+                "WHERE e.statut = 'Planifié' AND e.date_heure >= ? "
+                "ORDER BY e.date_heure ASC LIMIT 7",
+                (maintenant,),
+            ).fetchall()
+        ]
+
     return render(request, "dashboard_stats.html", {
         "total": total,
         "nouveaux_7j": nouveaux_7j,
         "par_statut": par_statut,
         "charts": charts,
         "competences": competences,
+        "recents": recents,
+        "entretiens": entretiens,
     })

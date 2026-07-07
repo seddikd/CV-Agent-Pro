@@ -11,6 +11,10 @@
     </h2>
     <p class="muted">Candidature reçue le {{ c.received_at[:10] }} à {{ c.received_at[11:16] }}</p>
 
+    {% if can_write %}
+    <p><a href="/entretiens/nouveau?candidate_id={{ c.id }}" class="btn primary">📅 Planifier un entretien</a></p>
+    {% endif %}
+
     <dl class="info">
       <dt>Expéditeur</dt><dd>{{ c.expediteur or '—' }}</dd>
       <dt>Email</dt><dd>{% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% else %}—{% endif %}</dd>

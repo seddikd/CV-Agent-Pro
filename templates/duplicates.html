@@ -13,6 +13,21 @@
   <h1>Détection de doublons</h1>
 </div>
 
+<div class="kpi-cards">
+  <div class="kpi-card kpi-lavender">
+    <span class="kpi-ic">🧬</span>
+    <div><div class="kpi-num">{{ nb_groupes }}</div><div class="kpi-lbl">Groupes détectés</div></div>
+  </div>
+  <div class="kpi-card kpi-pink">
+    <span class="kpi-ic">👥</span>
+    <div><div class="kpi-num">{{ nb_concernes }}</div><div class="kpi-lbl">Candidats concernés</div></div>
+  </div>
+  <div class="kpi-card kpi-mint">
+    <span class="kpi-ic">🏷️</span>
+    <div><div class="kpi-num">{{ nb_marques }}</div><div class="kpi-lbl">Déjà marqués doublon</div></div>
+  </div>
+</div>
+
 <p class="small muted">
   Regroupement des candidats potentiellement en double par email, téléphone ou nom.
   Le plus ancien candidat de chaque groupe (plus petit ID) est considéré comme l'original.

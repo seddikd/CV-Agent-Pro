@@ -102,7 +102,16 @@ def liste_matching(request: Request):
             "SELECT id, titre, statut FROM jobs ORDER BY updated_at DESC"
         ).fetchall()
         offres = [dict(r) for r in rows]
-    return render(request, "matching_list.html", {"offres": offres})
+        total_cands = conn.execute(
+            "SELECT COUNT(*) AS n FROM candidates"
+        ).fetchone()["n"]
+    n_publiees = sum(1 for o in offres if o["statut"] == "Publiée")
+    return render(request, "matching_list.html", {
+        "offres": offres,
+        "total_offres": len(offres),
+        "n_publiees": n_publiees,
+        "total_cands": total_cands,
+    })
 
 
 @router.get("/matching/{job_id}")

@@ -14,40 +14,88 @@
   })();
 </script>
 <link rel="icon" href="/static/app.ico" type="image/x-icon">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v={{ asset_v }}">
 <script src="/static/htmx.min.js" defer></script>
 </head>
 <body>
+{# Le contenu de la page est capturé une seule fois puis inséré dans l'une ou
+   l'autre coquille (avec ou sans barre latérale selon l'authentification). #}
+{% set content_body %}{% block content %}{% endblock %}{% endset %}
 {% if user %}
-<nav class="topbar">
-  <a href="/" class="brand">📨 CV Agent</a>
-  <a href="/dashboard" class="nav-link">Tableau de bord</a>
-  <a href="/" class="nav-link">Candidats</a>
-  <a href="/recherche" class="nav-link">Recherche</a>
-  <a href="/offres" class="nav-link">Offres</a>
-  <a href="/comparer" class="nav-link">Comparer</a>
-  <a href="/doublons" class="nav-link">Doublons</a>
-  <a href="/pipeline" class="nav-link">Pipeline</a>
-  <a href="/matching" class="nav-link">Matching</a>
-  <a href="/alertes" class="nav-link">Alertes</a>
-  <a href="/recherche-ia" class="nav-link">Recherche IA</a>
-  <a href="/statistiques" class="nav-link">Stats</a>
-  <a href="/admin/runs" class="nav-link">Cycles</a>
-  {% if user.role == 'admin' %}
-  <a href="/admin/users" class="nav-link">Utilisateurs</a>
-  <a href="/admin/settings/mail" class="nav-link">Param. Mail</a>
-  <a href="/admin/settings/llm" class="nav-link">Param. LLM</a>
-  {% endif %}
-  <span class="spacer"></span>
-  <button type="button" class="theme-toggle" id="theme-toggle" title="Thème clair / sombre" aria-label="Basculer le thème clair ou sombre">🌗</button>
-  <span class="user-info">👤 {{ user.name }} <em class="role role-{{ user.role }}">{{ user.role }}</em></span>
-  <a href="/logout" class="nav-link logout">Se déconnecter</a>
-</nav>
-{% endif %}
+{% set path = request.url.path %}
+{% macro navlink(href, icon, label) %}
+  {% set active = (path == href) or (href != '/' and path.startswith(href ~ '/')) %}
+  <a href="{{ href }}" class="side-link{% if active %} active{% endif %}">
+    <span class="ic">{{ icon }}</span><span class="lbl">{{ label }}</span>
+  </a>
+{% endmacro %}
 
+<div class="app-shell">
+  <aside class="sidebar">
+    <a href="/dashboard" class="brand">
+      <span class="brand-logo">📨</span>
+      <span class="brand-name">CV&nbsp;Agent</span>
+    </a>
+
+    <nav class="side-nav">
+      <div class="side-group">Principal</div>
+      {{ navlink('/dashboard', '📊', 'Tableau de bord') }}
+      {{ navlink('/', '👤', 'Candidats') }}
+      {{ navlink('/recherche', '🔎', 'Recherche') }}
+      {{ navlink('/recherche-ia', '🤖', 'Recherche IA') }}
+
+      <div class="side-group">Recrutement</div>
+      {{ navlink('/offres', '💼', 'Offres') }}
+      {{ navlink('/entretiens', '📅', 'Entretiens') }}
+      {{ navlink('/pipeline', '📋', 'Pipeline') }}
+      {{ navlink('/matching', '🎯', 'Matching') }}
+      {{ navlink('/comparer', '⚖️', 'Comparer') }}
+      {{ navlink('/doublons', '🧬', 'Doublons') }}
+      {{ navlink('/alertes', '🔔', 'Alertes') }}
+      {{ navlink('/statistiques', '📈', 'Statistiques') }}
+
+      <div class="side-group">Administration</div>
+      {{ navlink('/admin/runs', '🔄', 'Cycles') }}
+      {% if user.role == 'admin' %}
+      {{ navlink('/admin/users', '👥', 'Utilisateurs') }}
+      {{ navlink('/admin/settings/mail', '✉️', 'Param. Mail') }}
+      {{ navlink('/admin/settings/llm', '⚙️', 'Param. LLM') }}
+      {% endif %}
+    </nav>
+
+    <div class="side-foot">Version 1.0</div>
+  </aside>
+
+  <div class="app-main">
+    <header class="app-topbar">
+      <form method="get" action="/" class="top-search" role="search">
+        <input type="search" name="search" placeholder="Rechercher un candidat…"
+               aria-label="Rechercher un candidat">
+      </form>
+      <span class="spacer"></span>
+      <a href="/alertes" class="top-icon" title="Alertes" aria-label="Alertes">🔔</a>
+      <button type="button" class="theme-toggle" id="theme-toggle"
+              title="Thème clair / sombre" aria-label="Basculer le thème clair ou sombre">🌗</button>
+      <div class="top-user">
+        <span class="tu-avatar">{{ (user.name or '?')[0]|upper }}</span>
+        <span class="tu-meta">
+          <span class="tu-name">{{ user.name }}</span>
+          <span class="role role-{{ user.role }}">{{ user.role }}</span>
+        </span>
+        <a href="/logout" class="tu-logout" title="Se déconnecter" aria-label="Se déconnecter">⏻</a>
+      </div>
+    </header>
+
+    <main class="content">
+    {{ content_body }}
+    </main>
+  </div>
+</div>
+{% else %}
 <main class="container">
-{% block content %}{% endblock %}
+{{ content_body }}
 </main>
+{% endif %}
 
 <script>
   (function () {

@@ -44,11 +44,19 @@
   html[data-theme="dark"] .bar-track { background: var(--track, #2a3040); }
 </style>
 
-<div class="page-head">
-  <h1>Tableau de bord RH</h1>
-  <div class="actions">
-    <a href="/" class="btn ghost">Voir les candidats</a>
+{% set n_entretien = (par_statut | selectattr('cat', 'equalto', 'Entretien planifié') | map(attribute='n') | first) or 0 %}
+{% set n_embauche = (par_statut | selectattr('cat', 'equalto', 'Embauché') | map(attribute='n') | first) or 0 %}
+
+<div class="hero">
+  <div class="hero-text">
+    <h1>Bonjour {{ (user.name or '').split(' ')[0] }} !</h1>
+    <p>Voici l'activité de votre vivier de candidats. Suivez les nouveaux CV, faites avancer vos entretiens et repérez les meilleurs profils.</p>
+    <div class="hero-cta">
+      <a href="/" class="btn">Voir les candidats</a>
+      <a href="/offres/nouveau" class="btn ghost">➕ Nouvelle offre</a>
+    </div>
   </div>
+  <div class="hero-emoji">🧑‍💼</div>
 </div>
 
 {% if total == 0 %}
@@ -57,14 +65,22 @@
   </div>
 {% else %}
 
-<div class="kpi-row">
-  <div class="kpi accent">
-    <div class="num">{{ total }}</div>
-    <div class="lbl">CV au total</div>
+<div class="kpi-cards">
+  <div class="kpi-card kpi-mint">
+    <span class="kpi-ic">📥</span>
+    <div><div class="kpi-num">{{ total }}</div><div class="kpi-lbl">CV au total</div></div>
   </div>
-  <div class="kpi">
-    <div class="num">{{ nouveaux_7j }}</div>
-    <div class="lbl">Nouveaux (7 j)</div>
+  <div class="kpi-card kpi-lavender">
+    <span class="kpi-ic">✨</span>
+    <div><div class="kpi-num">{{ nouveaux_7j }}</div><div class="kpi-lbl">Nouveaux (7 jours)</div></div>
+  </div>
+  <div class="kpi-card kpi-pink">
+    <span class="kpi-ic">📅</span>
+    <div><div class="kpi-num">{{ n_entretien }}</div><div class="kpi-lbl">Entretiens planifiés</div></div>
+  </div>
+  <div class="kpi-card kpi-amber">
+    <span class="kpi-ic">🎉</span>
+    <div><div class="kpi-num">{{ n_embauche }}</div><div class="kpi-lbl">Embauchés</div></div>
   </div>
 </div>
 
@@ -93,13 +109,79 @@
 </div>
 {% endmacro %}
 
-<div class="charts-grid">
-  {{ barchart("CV par spécialité", charts.specialite, "Aucune spécialité renseignée.") }}
-  {{ barchart("CV par métier (poste recherché)", charts.poste, "Aucun poste renseigné.") }}
-  {{ barchart("CV par wilaya", charts.wilaya, "Aucune wilaya renseignée.") }}
-  {{ barchart("CV par niveau d'étude", charts.niveau, "Aucun niveau renseigné.") }}
-  {{ barchart("CV par années d'expérience", charts.experience, "Aucune expérience renseignée.") }}
-  {{ barchart("Top 15 des compétences", competences, "Aucune compétence renseignée.") }}
+<div class="dash-cols">
+  <div class="dash-main">
+    <div class="charts-grid">
+      {{ barchart("CV par spécialité", charts.specialite, "Aucune spécialité renseignée.") }}
+      {{ barchart("CV par métier (poste recherché)", charts.poste, "Aucun poste renseigné.") }}
+      {{ barchart("CV par wilaya", charts.wilaya, "Aucune wilaya renseignée.") }}
+      {{ barchart("CV par niveau d'étude", charts.niveau, "Aucun niveau renseigné.") }}
+      {{ barchart("CV par années d'expérience", charts.experience, "Aucune expérience renseignée.") }}
+      {{ barchart("Top 15 des compétences", competences, "Aucune compétence renseignée.") }}
+    </div>
+  </div>
+
+  <aside class="dash-side">
+    <div class="card agenda-card">
+      <div class="agenda-head">
+        <h3>Entretiens à venir</h3>
+        <a href="/entretiens" class="agenda-date">Tout voir →</a>
+      </div>
+      {% if entretiens %}
+      <div class="agenda-list">
+        {% for e in entretiens %}
+        <div class="agenda-item">
+          <span class="agenda-time">
+            {{ (e.date_heure or '')[11:16] }}
+            <span class="ag-day">{{ (e.date_heure or '')[:10] }}</span>
+          </span>
+          <div class="agenda-body">
+            <a href="/candidate/{{ e.candidate_id }}">{{ (e.cand_prenom or '') }} {{ (e.cand_nom or '') }}</a>
+            <div class="agenda-sub">
+              <span>{{ e.type or 'Entretien' }}</span>
+              {% if e.lieu %}<span class="dot"></span><span>{{ e.lieu }}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="agenda-foot"><a href="/entretiens/nouveau">➕ Planifier un entretien</a></div>
+      {% else %}
+      <p class="agenda-empty">Aucun entretien à venir. <a href="/entretiens/nouveau">Planifier →</a></p>
+      {% endif %}
+    </div>
+
+    <div class="card agenda-card">
+      <div class="agenda-head">
+        <h3>Activité récente</h3>
+        <span class="agenda-date">Derniers CV reçus</span>
+      </div>
+      {% if recents %}
+      <div class="agenda-list">
+        {% for c in recents %}
+        {% set nom = ((c.prenom or '') ~ ' ' ~ (c.nom or '')).strip() or 'Candidat #' ~ c.id %}
+        <div class="agenda-item">
+          <span class="agenda-time">
+            {{ (c.received_at or '')[11:16] or '—' }}
+            <span class="ag-day">{{ (c.received_at or '')[:10] }}</span>
+          </span>
+          <div class="agenda-body">
+            <a href="/candidate/{{ c.id }}">{{ nom }}</a>
+            <div class="agenda-sub">
+              <span>{{ c.poste_recherche or 'Poste non précisé' }}</span>
+              <span class="dot"></span>
+              <span>{{ c.statut or 'Nouveau' }}</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="agenda-foot"><a href="/">Voir tous les candidats →</a></div>
+      {% else %}
+      <p class="agenda-empty">Aucune activité pour le moment.</p>
+      {% endif %}
+    </div>
+  </aside>
 </div>
 
 {% endif %}

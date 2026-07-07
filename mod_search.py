@@ -19,6 +19,19 @@ TEXT_FIELDS = [
 
 OPERATEURS = ["AND", "OR", "NOT"]
 
+# Situations familiales proposées (liste déroulante ; valeurs normalisées à l'extraction).
+SITUATIONS = ["Célibataire", "Marié(e)", "Divorcé(e)", "Veuf(ve)"]
+
+# Tranches d'âge : (libellé, borne min incluse, borne max incluse ou None pour « et plus »).
+TRANCHES_AGE = [
+    ("18-24", 18, 24),
+    ("25-30", 25, 30),
+    ("31-35", 31, 35),
+    ("36-40", 36, 40),
+    ("41-50", 41, 50),
+    ("51+", 51, None),
+]
+
 
 @router.get("/recherche")
 def recherche(request: Request):
@@ -28,9 +41,27 @@ def recherche(request: Request):
     qp = request.query_params
     valeurs = {champ: (qp.get(champ) or "").strip() for champ, _, _ in TEXT_FIELDS}
     exp_min_raw = (qp.get("experience") or "").strip()
+    wilaya = (qp.get("wilaya") or "").strip()
+    situation = (qp.get("situation_familiale") or "").strip()
+    tranche_age = (qp.get("tranche_age") or "").strip()
     operateur = (qp.get("operateur") or "AND").upper()
     if operateur not in OPERATEURS:
         operateur = "AND"
+
+    # Options de wilaya : uniquement celles réellement présentes en base (dropdown).
+    with connect() as conn:
+        wilaya_rows = conn.execute(
+            "SELECT DISTINCT wilaya FROM candidates "
+            "WHERE wilaya IS NOT NULL AND wilaya <> '' ORDER BY wilaya"
+        ).fetchall()
+    wilayas = [r["wilaya"] for r in wilaya_rows]
+
+    # Bornes de la tranche d'âge choisie (None si aucune / invalide).
+    age_min = age_max = None
+    for libelle, bmin, bmax in TRANCHES_AGE:
+        if tranche_age == libelle:
+            age_min, age_max = bmin, bmax
+            break
 
     # Expérience minimale : entier positif uniquement, sinon ignorée.
     exp_min = None
@@ -51,6 +82,20 @@ def recherche(request: Request):
     if exp_min is not None:
         conditions.append("annees_experience >= ?")
         params.append(exp_min)
+    if wilaya:
+        conditions.append("wilaya LIKE ?")
+        params.append(f"%{wilaya}%")
+    if situation in SITUATIONS:
+        conditions.append("situation_familiale LIKE ?")
+        params.append(f"%{situation}%")
+    if age_min is not None:
+        # Unité parenthésée : reste cohérente sous l'opérateur global (AND/OR/NOT).
+        if age_max is not None:
+            conditions.append("(age >= ? AND age <= ?)")
+            params.extend([age_min, age_max])
+        else:
+            conditions.append("age >= ?")
+            params.append(age_min)
 
     rows = []
     aucun_critere = not conditions
@@ -67,6 +112,7 @@ def recherche(request: Request):
 
         sql = (
             "SELECT id, nom, prenom, email, poste_recherche, specialite, "
+            "wilaya, situation_familiale, age, "
             "annees_experience, competences, statut "
             f"FROM candidates WHERE {where} "
             "ORDER BY id DESC LIMIT 500"
@@ -78,6 +124,12 @@ def recherche(request: Request):
         "text_fields": TEXT_FIELDS,
         "valeurs": valeurs,
         "experience": exp_min_raw,
+        "wilaya": wilaya,
+        "wilayas": wilayas,
+        "situation_familiale": situation,
+        "situations": SITUATIONS,
+        "tranche_age": tranche_age,
+        "tranches_age": [t[0] for t in TRANCHES_AGE],
         "operateur": operateur,
         "operateurs": OPERATEURS,
         "rows": rows,

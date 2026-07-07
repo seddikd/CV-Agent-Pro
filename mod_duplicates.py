@@ -77,9 +77,16 @@ def doublons(request: Request):
     libelle_vers_cle = {lib: cle for cle, lib, _ in CRITERES}
     groupes.sort(key=lambda g: (ordre[libelle_vers_cle[g["critere"]]], g["original_id"]))
 
+    # Candidats concernés (uniques, un même candidat pouvant apparaître dans
+    # plusieurs groupes) et candidats déjà marqués comme doublon.
+    concernes = {c["id"] for g in groupes for c in g["membres"]}
+    nb_marques = sum(1 for c in rows if c["duplicate_of"])
+
     return render(request, "duplicates.html", {
         "groupes": groupes,
         "nb_groupes": len(groupes),
+        "nb_concernes": len(concernes),
+        "nb_marques": nb_marques,
     })
 
 
