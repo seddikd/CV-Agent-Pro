@@ -5,7 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
 
-from web_core import require_user, render, DB_PATH, connect
+from web_core import require_user, render, connect
 
 router = APIRouter()
 
@@ -41,9 +41,9 @@ CRITERES = [
 
 @router.get("/doublons")
 def doublons(request: Request):
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
 
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         rows = conn.execute(
             "SELECT id, nom, prenom, email, telephone, poste_recherche, "
             "statut, duplicate_of "
@@ -85,12 +85,12 @@ def doublons(request: Request):
 
 @router.post("/doublons/{cid}/mark")
 def marquer_doublon(cid: int, request: Request, original_id: int = Form(...)):
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
 
     if original_id == cid:
         raise HTTPException(status_code=400, detail="Un candidat ne peut pas être son propre doublon.")
 
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         # L'original doit exister.
         orig = conn.execute(
             "SELECT id FROM candidates WHERE id = ?", (original_id,)

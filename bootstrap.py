@@ -1,7 +1,8 @@
-"""First-run bootstrap: init DB, seed settings, create initial admin user.
+"""Bootstrap de premier lancement : init base, réglages, création du 1er admin.
 
-Idempotent — safe to re-run. Imports settings from config.yaml if present,
-otherwise uses defaults; prompts for admin credentials if none exist."""
+Idempotent — relançable sans risque. Importe les réglages depuis config.yaml s'il
+existe, sinon utilise les défauts ; demande les identifiants admin si aucun n'existe.
+Nécessite PostgreSQL (variable CV_AGENT_DB_URL)."""
 
 import getpass
 import sys
@@ -13,12 +14,12 @@ app_runtime.force_utf8_streams()  # éviter un crash cp1252 sur ✓/→ pendant 
 import yaml
 
 import app_paths
+import db
 import state_db
 import web_db
 import web_auth
 
 
-DB_PATH = str(app_paths.db_path())
 CONFIG_YAML = app_paths.resource("config.yaml")
 
 
@@ -82,14 +83,14 @@ def seed_from_yaml(yaml_path: Path) -> None:
         items[k] = str(v)
 
     if items:
-        web_db.set_settings(DB_PATH, items)
+        web_db.set_settings(items)
         print(f"[✓] {len(items)} paramètres importés depuis config.yaml")
     else:
         print("[i] Rien à importer depuis config.yaml")
 
 
 def create_initial_admin() -> None:
-    if web_db.admin_count(DB_PATH) > 0:
+    if web_db.admin_count() > 0:
         print("[✓] Compte admin déjà existant.")
         return
 
@@ -109,20 +110,24 @@ def create_initial_admin() -> None:
             continue
         break
 
-    if web_db.get_user_by_email(DB_PATH, email):
+    if web_db.get_user_by_email(email):
         print(f"[!] {email} existe déjà — abandon de la création.")
         return
 
     uid = web_db.create_user(
-        DB_PATH, email, name, web_auth.hash_password(pwd1), role="admin"
+        email, name, web_auth.hash_password(pwd1), role="admin"
     )
     print(f"[✓] Admin créé (id={uid}, email={email})")
 
 
 def main() -> None:
     print(">>> Bootstrap CV Agent")
-    state_db.init(DB_PATH)
-    web_db.seed_default_settings(DB_PATH)
+    try:
+        db.db_url()  # échoue tôt avec un message clair si CV_AGENT_DB_URL manque
+    except RuntimeError as e:
+        sys.exit(str(e))
+    state_db.init()
+    web_db.seed_default_settings()
     seed_from_yaml(CONFIG_YAML)
     create_initial_admin()
     print()

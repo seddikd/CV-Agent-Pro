@@ -10,7 +10,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Request
 
-from web_core import require_user, render, DB_PATH, connect
+from web_core import require_user, render, connect
 
 router = APIRouter()
 
@@ -149,9 +149,9 @@ def competences_recherchees(conn, limite: int = TOP_COMPETENCES) -> list[dict]:
 
 @router.get("/statistiques")
 def statistiques(request: Request):
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
 
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         total = conn.execute(
             "SELECT COUNT(*) AS n FROM candidates"
         ).fetchone()["n"]

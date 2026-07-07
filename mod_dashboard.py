@@ -8,7 +8,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Request
 
-from web_core import require_user, render, DB_PATH, connect
+from web_core import require_user, render, connect
 
 router = APIRouter()
 
@@ -88,11 +88,11 @@ def _add_pct(items: list[dict]) -> list[dict]:
 
 @router.get("/dashboard")
 def dashboard(request: Request):
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
 
     cutoff = (date.today() - timedelta(days=7)).isoformat()
 
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         total = conn.execute("SELECT COUNT(*) AS n FROM candidates").fetchone()["n"]
         nouveaux_7j = conn.execute(
             "SELECT COUNT(*) AS n FROM candidates WHERE received_at >= ?",

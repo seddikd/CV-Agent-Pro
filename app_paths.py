@@ -3,8 +3,9 @@
 Deux notions distinctes :
   - RESOURCE_DIR : ressources embarquées en LECTURE SEULE (templates, static,
     config.yaml). En mode figé (PyInstaller), c'est le dossier temporaire _MEIPASS.
-  - DATA_DIR : données en ÉCRITURE (state.db, logs, cv_pdfs, output). En mode figé,
-    c'est %LOCALAPPDATA%\\CV-Agent-Pro (le dossier d'install est en lecture seule).
+  - DATA_DIR : fichiers en ÉCRITURE (logs, cv_pdfs, session.secret). Les données
+    métier vivent en PostgreSQL, pas sur disque. En mode figé, DATA_DIR vaut
+    %LOCALAPPDATA%\\CV-Agent-Pro (le dossier d'install est en lecture seule).
 
 La variable d'environnement CV_AGENT_DATA_DIR force le DATA_DIR quel que soit le
 mode : indispensable en conteneur Docker pour pointer vers un volume monté
@@ -48,8 +49,3 @@ def data_path(rel) -> Path:
     """Résout un chemin de données : relatif -> sous DATA_DIR, absolu -> tel quel."""
     p = Path(rel)
     return p if p.is_absolute() else (DATA_DIR / p)
-
-
-def db_path() -> Path:
-    """Chemin de la base SQLite (toujours en zone d'écriture)."""
-    return DATA_DIR / "state.db"

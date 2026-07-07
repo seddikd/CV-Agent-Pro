@@ -9,7 +9,7 @@ import json
 
 from fastapi import APIRouter, Request, Form
 
-from web_core import require_user, render, DB_PATH, connect, llm_cfg
+from web_core import require_user, render, connect, llm_cfg
 import llm_provider
 
 router = APIRouter()
@@ -131,7 +131,7 @@ def _construire_sql(filtres: dict):
 
 @router.get("/recherche-ia")
 def recherche_ia(request: Request):
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
     # GET simple : on rend uniquement le formulaire, sans appeler le LLM.
     return render(request, "recherche_ia.html", {
         "q": "",
@@ -144,7 +144,7 @@ def recherche_ia(request: Request):
 
 @router.post("/recherche-ia")
 def recherche_ia_post(request: Request, q: str = Form("")):
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
 
     q = (q or "").strip()
     if not q:
@@ -187,7 +187,7 @@ def recherche_ia_post(request: Request, q: str = Form("")):
 
     rows = []
     if sql is not None:
-        with connect(DB_PATH) as conn:
+        with connect() as conn:
             rows = conn.execute(sql, params).fetchall()
 
     # 4) Rendu : filtres interprétés + résultats.

@@ -4,7 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
 
-from web_core import require_user, render, DB_PATH, connect
+from web_core import require_user, render, connect
 import db
 
 router = APIRouter()
@@ -29,8 +29,8 @@ def _get_job(conn, job_id: int) -> dict | None:
 @router.get("/offres")
 def liste_offres(request: Request, statut: str = ""):
     """Liste des offres, filtrable par statut."""
-    user = require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    user = require_user(request)
+    with connect() as conn:
         if statut in STATUTS:
             rows = conn.execute(
                 "SELECT * FROM jobs WHERE statut = ? "
@@ -53,7 +53,7 @@ def liste_offres(request: Request, statut: str = ""):
 @router.get("/offres/nouveau")
 def formulaire_nouvelle_offre(request: Request):
     """Formulaire de création d'une offre."""
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
     return render(
         request,
         "job_form.html",
@@ -74,7 +74,7 @@ def creer_offre(
     statut: str = Form("Brouillon"),
 ):
     """Crée une offre puis redirige vers son détail."""
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
     if statut not in STATUTS:
         raise HTTPException(status_code=400, detail="Statut invalide")
     titre = titre.strip()
@@ -82,7 +82,7 @@ def creer_offre(
         raise HTTPException(status_code=400, detail="Le titre est obligatoire")
     exp = int(experience_min) if experience_min.strip().isdigit() else None
     now = _now()
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         new_id = db.insert_returning_id(
             conn,
             "INSERT INTO jobs "
@@ -110,8 +110,8 @@ def creer_offre(
 @router.get("/offres/{job_id}")
 def detail_offre(request: Request, job_id: int):
     """Détail d'une offre. 404 si absente."""
-    user = require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    user = require_user(request)
+    with connect() as conn:
         offre = _get_job(conn, job_id)
     if offre is None:
         raise HTTPException(status_code=404, detail="Offre introuvable")
@@ -125,8 +125,8 @@ def detail_offre(request: Request, job_id: int):
 @router.get("/offres/{job_id}/modifier")
 def formulaire_modifier_offre(request: Request, job_id: int):
     """Formulaire de modification (réutilise job_form.html préremplit)."""
-    user = require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    user = require_user(request)
+    with connect() as conn:
         offre = _get_job(conn, job_id)
     if offre is None:
         raise HTTPException(status_code=404, detail="Offre introuvable")
@@ -151,14 +151,14 @@ def mettre_a_jour_offre(
     statut: str = Form("Brouillon"),
 ):
     """Met à jour les champs d'une offre existante."""
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
     if statut not in STATUTS:
         raise HTTPException(status_code=400, detail="Statut invalide")
     titre = titre.strip()
     if not titre:
         raise HTTPException(status_code=400, detail="Le titre est obligatoire")
     exp = int(experience_min) if experience_min.strip().isdigit() else None
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         if _get_job(conn, job_id) is None:
             raise HTTPException(status_code=404, detail="Offre introuvable")
         conn.execute(
@@ -188,10 +188,10 @@ def changer_statut_offre(
     statut: str = Form(...),
 ):
     """Change le statut d'une offre (publication / archivage)."""
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
     if statut not in STATUTS:
         raise HTTPException(status_code=400, detail="Statut invalide")
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         if _get_job(conn, job_id) is None:
             raise HTTPException(status_code=404, detail="Offre introuvable")
         conn.execute(
@@ -204,7 +204,7 @@ def changer_statut_offre(
 @router.post("/offres/{job_id}/delete")
 def supprimer_offre(request: Request, job_id: int):
     """Supprime une offre puis redirige vers la liste."""
-    user = require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    user = require_user(request)
+    with connect() as conn:
         conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
     return RedirectResponse("/offres", status_code=303)

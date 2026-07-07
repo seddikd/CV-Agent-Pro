@@ -10,7 +10,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse
 
-from web_core import require_user, render, DB_PATH, connect
+from web_core import require_user, render, connect
 from matching_core import score_candidat  # logique de scoring partagée (réutilisée par les alertes)
 
 router = APIRouter()
@@ -96,8 +96,8 @@ def _lire_classement(conn, job_id: int) -> list:
 @router.get("/matching")
 def liste_matching(request: Request):
     """Liste des offres avec un lien vers le matching de chacune."""
-    user = require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    user = require_user(request)
+    with connect() as conn:
         rows = conn.execute(
             "SELECT id, titre, statut FROM jobs ORDER BY updated_at DESC"
         ).fetchall()
@@ -108,13 +108,13 @@ def liste_matching(request: Request):
 @router.get("/matching/{job_id}")
 def detail_matching(request: Request, job_id: int):
     """Matching d'une offre : lit le cache ou le calcule si absent. 404 si offre absente."""
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
     # Verrou : la séquence « vérifier l'absence de cache puis le remplir » doit être
     # atomique vis-à-vis d'une consultation concurrente de la même offre (sinon
     # double calcul -> lignes dupliquées). Le verrou couvre la connexion entière,
     # donc le commit a lieu avant qu'un second appel ne relise le cache.
     with _matching_lock:
-        with connect(DB_PATH) as conn:
+        with connect() as conn:
             offre = _get_job(conn, job_id)
             if offre is None:
                 raise HTTPException(status_code=404, detail="Offre introuvable")
@@ -134,8 +134,8 @@ def detail_matching(request: Request, job_id: int):
 @router.post("/matching/{job_id}/recompute")
 def recalculer_matching(request: Request, job_id: int):
     """Recalcule tout le matching de l'offre et met à jour le cache."""
-    user = require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    user = require_user(request)
+    with connect() as conn:
         offre = _get_job(conn, job_id)
         if offre is None:
             raise HTTPException(status_code=404, detail="Offre introuvable")

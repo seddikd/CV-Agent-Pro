@@ -24,8 +24,9 @@ ROLES = ("admin", "manager", "rh", "lecture")
 
 
 DEFAULT_SETTINGS = {
-    "imap.host": "imap.gmail.com",
+    "imap.host": "imap.gmail.com",  # exemple ; tout serveur IMAP est accepté
     "imap.port": "993",
+    "imap.security": "SSL",  # SSL (993) | STARTTLS (143) | None (143)
     "imap.user": "",
     "imap.password": "",
     "imap.folder": "INBOX",
@@ -70,8 +71,8 @@ def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def seed_default_settings(db_path: str) -> None:
-    with connect(db_path) as conn:
+def seed_default_settings() -> None:
+    with connect() as conn:
         for k, v in DEFAULT_SETTINGS.items():
             conn.execute(
                 "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) "
@@ -80,9 +81,9 @@ def seed_default_settings(db_path: str) -> None:
             )
 
 
-def get_all_settings(db_path: str) -> dict[str, str]:
+def get_all_settings() -> dict[str, str]:
     """Renvoie les réglages en clair : les secrets sont déchiffrés à la volée."""
-    with connect(db_path) as conn:
+    with connect() as conn:
         rows = conn.execute("SELECT key, value FROM settings").fetchall()
         out: dict[str, str] = {}
         for r in rows:
@@ -93,9 +94,9 @@ def get_all_settings(db_path: str) -> dict[str, str]:
         return out
 
 
-def set_settings(db_path: str, items: dict[str, str]) -> None:
+def set_settings(items: dict[str, str]) -> None:
     now = _now()
-    with connect(db_path) as conn:
+    with connect() as conn:
         for k, v in items.items():
             if k in SECRET_SETTING_KEYS:
                 v = secret_store.encrypt(v)  # chiffré au repos (no-op si vide)
@@ -108,12 +109,12 @@ def set_settings(db_path: str, items: dict[str, str]) -> None:
             )
 
 
-def migrate_encrypt_secrets(db_path: str) -> int:
+def migrate_encrypt_secrets() -> int:
     """Chiffre en place les secrets encore stockés en clair (bases créées avant
     l'ajout du chiffrement). Idempotent. Retourne le nombre de secrets migrés."""
     n = 0
     now = _now()
-    with connect(db_path) as conn:
+    with connect() as conn:
         for key in SECRET_SETTING_KEYS:
             row = conn.execute(
                 "SELECT value FROM settings WHERE key = ?", (key,)
@@ -159,6 +160,7 @@ def settings_to_config(settings: dict[str, str]) -> dict:
         "imap": {
             "host": settings.get("imap.host", DEFAULT_SETTINGS["imap.host"]),
             "port": _int(settings, "imap.port", 993),
+            "security": settings.get("imap.security", "SSL"),
             "user": settings.get("imap.user", ""),
             "password": settings.get("imap.password", ""),
             "folder": settings.get("imap.folder", DEFAULT_SETTINGS["imap.folder"]),
@@ -213,38 +215,38 @@ def settings_to_config(settings: dict[str, str]) -> dict:
     }
 
 
-def list_users(db_path: str) -> list[dict]:
-    with connect(db_path) as conn:
+def list_users() -> list[dict]:
+    with connect() as conn:
         rows = conn.execute(
             "SELECT id, email, name, role, active, created_at FROM users ORDER BY created_at"
         ).fetchall()
         return [dict(r) for r in rows]
 
 
-def get_user_by_email(db_path: str, email: str) -> dict | None:
-    with connect(db_path) as conn:
+def get_user_by_email(email: str) -> dict | None:
+    with connect() as conn:
         row = conn.execute(
             "SELECT * FROM users WHERE email = ? AND active = 1", (email.lower(),)
         ).fetchone()
         return dict(row) if row else None
 
 
-def email_exists(db_path: str, email: str) -> bool:
+def email_exists(email: str) -> bool:
     """True si un compte (même désactivé) utilise déjà cet email.
 
     Distinct de get_user_by_email (qui filtre active=1, pour le login) : la
     contrainte UNIQUE(email) s'applique aussi aux comptes désactivés, donc la
     vérification anti-doublon à la création doit les inclure.
     """
-    with connect(db_path) as conn:
+    with connect() as conn:
         row = conn.execute(
             "SELECT 1 FROM users WHERE email = ?", (email.lower(),)
         ).fetchone()
         return row is not None
 
 
-def get_user_by_id(db_path: str, user_id: int) -> dict | None:
-    with connect(db_path) as conn:
+def get_user_by_id(user_id: int) -> dict | None:
+    with connect() as conn:
         row = conn.execute(
             "SELECT id, email, name, role, active FROM users WHERE id = ?", (user_id,)
         ).fetchone()
@@ -252,11 +254,11 @@ def get_user_by_id(db_path: str, user_id: int) -> dict | None:
 
 
 def create_user(
-    db_path: str, email: str, name: str, password_hash: str, role: str
+    email: str, name: str, password_hash: str, role: str
 ) -> int:
     if role not in ROLES:
         raise ValueError(f"Rôle invalide : {role!r}")
-    with connect(db_path) as conn:
+    with connect() as conn:
         return db.insert_returning_id(
             conn,
             """
@@ -268,7 +270,6 @@ def create_user(
 
 
 def update_user(
-    db_path: str,
     user_id: int,
     name: str | None = None,
     role: str | None = None,
@@ -294,17 +295,17 @@ def update_user(
     if not fields:
         return
     values.append(user_id)
-    with connect(db_path) as conn:
+    with connect() as conn:
         conn.execute(f"UPDATE users SET {', '.join(fields)} WHERE id = ?", values)
 
 
-def delete_user(db_path: str, user_id: int) -> None:
-    with connect(db_path) as conn:
+def delete_user(user_id: int) -> None:
+    with connect() as conn:
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
 
-def admin_count(db_path: str) -> int:
-    with connect(db_path) as conn:
+def admin_count() -> int:
+    with connect() as conn:
         row = conn.execute(
             "SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND active = 1"
         ).fetchone()
@@ -312,7 +313,6 @@ def admin_count(db_path: str) -> int:
 
 
 def insert_candidate(
-    db_path: str,
     candidate_id: int,
     received_at: datetime,
     expediteur: str,
@@ -321,7 +321,7 @@ def insert_candidate(
     pdf_path: str,
 ) -> None:
     now = _now()
-    with connect(db_path) as conn:
+    with connect() as conn:
         # Upsert portable (SQLite/PostgreSQL) : en cas de ré-insertion d'un même
         # id, on rafraîchit les champs extraits mais on PRÉSERVE le suivi RH
         # (statut, commentaires) et created_at — ceux-ci ne figurent pas dans le
@@ -404,7 +404,6 @@ def insert_candidate(
 
 
 def list_candidates(
-    db_path: str,
     search: str = "",
     statut: str = "",
     poste: str = "",
@@ -424,13 +423,13 @@ def list_candidates(
         params.append(f"%{poste}%")
     sql += " ORDER BY received_at DESC LIMIT ?"
     params.append(limit)
-    with connect(db_path) as conn:
+    with connect() as conn:
         rows = conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
 
 
-def get_candidate(db_path: str, candidate_id: int) -> dict | None:
-    with connect(db_path) as conn:
+def get_candidate(candidate_id: int) -> dict | None:
+    with connect() as conn:
         row = conn.execute(
             "SELECT * FROM candidates WHERE id = ?", (candidate_id,)
         ).fetchone()
@@ -438,7 +437,7 @@ def get_candidate(db_path: str, candidate_id: int) -> dict | None:
 
 
 def update_candidate_status(
-    db_path: str, candidate_id: int, statut: str | None = None,
+    candidate_id: int, statut: str | None = None,
     commentaires: str | None = None,
 ) -> None:
     fields = []
@@ -454,14 +453,14 @@ def update_candidate_status(
     fields.append("updated_at = ?")
     values.append(_now())
     values.append(candidate_id)
-    with connect(db_path) as conn:
+    with connect() as conn:
         conn.execute(
             f"UPDATE candidates SET {', '.join(fields)} WHERE id = ?", values
         )
 
 
-def candidate_stats(db_path: str) -> dict:
-    with connect(db_path) as conn:
+def candidate_stats() -> dict:
+    with connect() as conn:
         total = conn.execute("SELECT COUNT(*) AS c FROM candidates").fetchone()["c"]
         by_statut = conn.execute(
             "SELECT statut, COUNT(*) AS c FROM candidates GROUP BY statut"
@@ -472,20 +471,20 @@ def candidate_stats(db_path: str) -> dict:
         }
 
 
-def reset_processing_state(db_path: str) -> dict:
+def reset_processing_state() -> dict:
     """Efface la mémoire de traitement pour re-vérifier tous les emails à zéro.
 
     Supprime les emails déjà vus ET les candidats (sinon un re-scan créerait des
     doublons), et remet le compteur d'ID à zéro."""
-    with connect(db_path) as conn:
+    with connect() as conn:
         emails = conn.execute("DELETE FROM processed_emails").rowcount
         cands = conn.execute("DELETE FROM candidates").rowcount
         conn.execute("UPDATE candidate_counter SET last_id = 0 WHERE id = 1")
     return {"emails_cleared": emails, "candidates_cleared": cands}
 
 
-def create_run(db_path: str, triggered_by: str) -> int:
-    with connect(db_path) as conn:
+def create_run(triggered_by: str) -> int:
+    with connect() as conn:
         return db.insert_returning_id(
             conn,
             "INSERT INTO runs (started_at, status, triggered_by) VALUES (?, 'running', ?)",
@@ -494,7 +493,6 @@ def create_run(db_path: str, triggered_by: str) -> int:
 
 
 def update_run(
-    db_path: str,
     run_id: int,
     status: str | None = None,
     emails_fetched: int | None = None,
@@ -522,38 +520,38 @@ def update_run(
     if not fields:
         return
     values.append(run_id)
-    with connect(db_path) as conn:
+    with connect() as conn:
         conn.execute(f"UPDATE runs SET {', '.join(fields)} WHERE id = ?", values)
 
 
-def list_runs(db_path: str, limit: int = 50) -> list[dict]:
-    with connect(db_path) as conn:
+def list_runs(limit: int = 50) -> list[dict]:
+    with connect() as conn:
         rows = conn.execute(
             "SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,)
         ).fetchall()
         return [dict(r) for r in rows]
 
 
-def last_successful_run(db_path: str) -> dict | None:
-    with connect(db_path) as conn:
+def last_successful_run() -> dict | None:
+    with connect() as conn:
         row = conn.execute(
             "SELECT * FROM runs WHERE status = 'success' ORDER BY id DESC LIMIT 1"
         ).fetchone()
         return dict(row) if row else None
 
 
-def running_run_exists(db_path: str) -> bool:
-    with connect(db_path) as conn:
+def running_run_exists() -> bool:
+    with connect() as conn:
         row = conn.execute(
             "SELECT 1 FROM runs WHERE status = 'running' LIMIT 1"
         ).fetchone()
         return row is not None
 
 
-def wipe_processing_data(db_path: str) -> dict:
+def wipe_processing_data() -> dict:
     """Vide l'historique des cycles + candidats + mémoire des emails vus (remet à zéro).
     Ne touche pas aux réglages ni aux utilisateurs."""
-    with connect(db_path) as conn:
+    with connect() as conn:
         runs = conn.execute("DELETE FROM runs").rowcount
         cands = conn.execute("DELETE FROM candidates").rowcount
         emails = conn.execute("DELETE FROM processed_emails").rowcount
@@ -561,10 +559,10 @@ def wipe_processing_data(db_path: str) -> dict:
     return {"runs": runs, "candidates": cands, "emails": emails}
 
 
-def clear_stale_runs(db_path: str) -> int:
+def clear_stale_runs() -> int:
     """Marque comme échoués les cycles restés 'running' (orphelins d'un process
     fermé pendant un cycle). Retourne le nombre de lignes nettoyées."""
-    with connect(db_path) as conn:
+    with connect() as conn:
         cur = conn.execute(
             "UPDATE runs SET status='failed', "
             "error='interrompu (application fermée pendant le cycle)', "

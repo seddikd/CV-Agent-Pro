@@ -12,7 +12,7 @@ import json
 
 from fastapi import APIRouter, Request
 
-from web_core import require_user, render, DB_PATH, connect, llm_cfg
+from web_core import require_user, render, connect, llm_cfg
 import llm_provider
 
 router = APIRouter()
@@ -121,9 +121,9 @@ def _charger_fiche(brut: str | None) -> dict | None:
 
 @router.get("/candidate/{cid}/resume-ia")
 def resume_ia(request: Request, cid: int):
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
 
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         row = conn.execute(
             "SELECT id, resume_ia FROM candidates WHERE id=?", (cid,)
         ).fetchone()
@@ -139,9 +139,9 @@ def resume_ia(request: Request, cid: int):
 
 @router.post("/candidate/{cid}/resume-ia/generate")
 def resume_ia_generate(request: Request, cid: int):
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
 
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         row = conn.execute(
             f"SELECT {', '.join(_COLONNES)} FROM candidates WHERE id=?", (cid,)
         ).fetchone()
@@ -173,7 +173,7 @@ def resume_ia_generate(request: Request, cid: int):
         })
 
     json_str = json.dumps(fiche, ensure_ascii=False)
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         conn.execute(
             "UPDATE candidates SET resume_ia=? WHERE id=?", (json_str, cid)
         )

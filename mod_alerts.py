@@ -6,7 +6,7 @@ La détection se fait automatiquement dans le pipeline (à chaque nouveau CV) vi
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse
 
-from web_core import require_user, render, DB_PATH, connect
+from web_core import require_user, render, connect
 import alerts_engine
 
 router = APIRouter()
@@ -14,8 +14,8 @@ router = APIRouter()
 
 @router.get("/alertes")
 def liste_alertes(request: Request, msg: str = ""):
-    user = require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    user = require_user(request)
+    with connect() as conn:
         rows = conn.execute(
             "SELECT a.id AS id, a.score AS score, a.created_at AS created_at, "
             "a.seen AS seen, "
@@ -38,24 +38,24 @@ def liste_alertes(request: Request, msg: str = ""):
 
 @router.post("/alertes/{aid}/seen")
 def marquer_lue(request: Request, aid: int):
-    require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    require_user(request)
+    with connect() as conn:
         conn.execute("UPDATE alerts SET seen = 1 WHERE id = ?", (aid,))
     return RedirectResponse("/alertes", status_code=303)
 
 
 @router.post("/alertes/seen-all")
 def marquer_toutes_lues(request: Request):
-    require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    require_user(request)
+    with connect() as conn:
         conn.execute("UPDATE alerts SET seen = 1 WHERE seen = 0")
     return RedirectResponse("/alertes", status_code=303)
 
 
 @router.post("/alertes/rebuild")
 def recalculer(request: Request):
-    require_user(request, DB_PATH)
-    n = alerts_engine.recalculer_toutes_alertes(DB_PATH)
+    require_user(request)
+    n = alerts_engine.recalculer_toutes_alertes()
     return RedirectResponse(
         f"/alertes?msg={n}+nouvelle(s)+alerte(s)+détectée(s)", status_code=303
     )

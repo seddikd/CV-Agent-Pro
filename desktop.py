@@ -134,13 +134,12 @@ def _create_admin_from_file(path: str) -> None:
         return
     email, name, password = lines[0].strip(), lines[1].strip(), lines[2]
 
-    db = str(app_paths.db_path())
     try:
-        state_db.init(db)
-        web_db.seed_default_settings(db)
-        if web_db.admin_count(db) == 0 and email and len(password) >= 8:
+        state_db.init()
+        web_db.seed_default_settings()
+        if web_db.admin_count() == 0 and email and len(password) >= 8:
             web_db.create_user(
-                db, email, name or email, web_auth.hash_password(password), role="admin"
+                email, name or email, web_auth.hash_password(password), role="admin"
             )
             print(f"Admin créé : {email}", flush=True)
         else:
@@ -172,6 +171,14 @@ def _build_tray(url: str, server):
 
 
 def main() -> None:
+    # PostgreSQL est requis : message clair si CV_AGENT_DB_URL n'est pas définie.
+    import db
+    try:
+        db.db_url()
+    except RuntimeError as e:
+        _message_box(str(e))
+        return
+
     # Création de l'admin par l'installeur (one-shot, pas de serveur).
     if "--create-admin" in sys.argv:
         i = sys.argv.index("--create-admin")

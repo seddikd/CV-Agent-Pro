@@ -1,7 +1,7 @@
 """Module « Recherche avancée » : filtres multicritères. Routeur isolé."""
 from fastapi import APIRouter, Request
 
-from web_core import require_user, render, DB_PATH, connect
+from web_core import require_user, render, connect
 
 router = APIRouter()
 
@@ -22,7 +22,7 @@ OPERATEURS = ["AND", "OR", "NOT"]
 
 @router.get("/recherche")
 def recherche(request: Request):
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
 
     # Valeurs saisies (récupérées depuis la query string, sans dépendance externe).
     qp = request.query_params
@@ -71,7 +71,7 @@ def recherche(request: Request):
             f"FROM candidates WHERE {where} "
             "ORDER BY id DESC LIMIT 500"
         )
-        with connect(DB_PATH) as conn:
+        with connect() as conn:
             rows = conn.execute(sql, params).fetchall()
 
     return render(request, "recherche.html", {

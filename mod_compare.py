@@ -6,7 +6,7 @@ formulaire de choix des candidats (soumis en GET vers `/comparer`).
 """
 from fastapi import APIRouter, Request
 
-from web_core import require_user, render, DB_PATH, connect
+from web_core import require_user, render, connect
 
 router = APIRouter()
 
@@ -66,11 +66,11 @@ def _parse_ids(request: Request) -> list[int]:
 
 @router.get("/comparer")
 def comparer(request: Request):
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
 
     ids = _parse_ids(request)[:MAX_CANDIDATS]
 
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         # NB : on passe par conn.execute(...) (jamais conn.cursor(), non exposé par
         # l'adaptateur PostgreSQL de db.py) pour rester portable SQLite/PostgreSQL.
         candidats: list[dict] = []

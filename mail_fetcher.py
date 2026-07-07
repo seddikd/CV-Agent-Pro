@@ -5,26 +5,47 @@ import logging
 import re
 import socket
 
-from imap_tools import MailBox, AND
+from imap_tools import MailBox, MailBoxStartTls, MailBoxUnencrypted, AND
 from imap_tools.errors import MailboxLoginError, MailboxFolderSelectError
 
 
 log = logging.getLogger(__name__)
 
 
+def _open_mailbox(host: str, port: int, security: str = "SSL", timeout=None):
+    """Instancie la bonne classe imap_tools selon le mode de sécurité choisi.
+
+    Générique (tout fournisseur IMAP, pas seulement Gmail) :
+      - SSL       -> MailBox (IMAPS, port 993 typique) ;
+      - STARTTLS  -> MailBoxStartTls (port 143 typique) ;
+      - None      -> MailBoxUnencrypted (clair, port 143 — à éviter).
+    """
+    sec = (security or "SSL").strip().upper()
+    kwargs = {"port": port}
+    if timeout is not None:
+        kwargs["timeout"] = timeout
+    if sec in ("STARTTLS", "TLS"):
+        return MailBoxStartTls(host, **kwargs)
+    if sec in ("NONE", "AUCUNE", "PLAIN", ""):
+        return MailBoxUnencrypted(host, **kwargs)
+    return MailBox(host, **kwargs)  # SSL par défaut
+
+
 def check_connection(
-    host: str, port: int, user: str, password: str, folder: str
+    host: str, port: int, user: str, password: str, folder: str,
+    security: str = "SSL",
 ) -> tuple[bool, str]:
     """Test de connexion IMAP : login + sélection du dossier. Retourne (ok, message)."""
     if not (host and user and password):
         return False, "Serveur, utilisateur et mot de passe requis."
     try:
-        with MailBox(host, port=port, timeout=15).login(
+        with _open_mailbox(host, port, security, timeout=15).login(
             user, password, initial_folder=folder
         ):
             return True, f"Connexion réussie — dossier « {folder} » accessible."
     except MailboxLoginError:
-        return False, "Authentification refusée (pour Gmail : mot de passe d'application requis)."
+        return False, ("Authentification refusée. Vérifiez identifiants et sécurité ; "
+                       "certains fournisseurs (Gmail, Outlook…) exigent un mot de passe d'application.")
     except MailboxFolderSelectError:
         return False, f"Connecté, mais dossier « {folder} » introuvable."
     except (socket.gaierror, socket.timeout, ConnectionError, OSError) as e:
@@ -85,12 +106,13 @@ def fetch_new_emails(
     since_days: int,
     max_emails: int,
     already_processed: callable,
+    security: str = "SSL",
 ) -> list[FetchedEmail]:
     """Se connecte en IMAP et renvoie les emails non traités reçus depuis since_days jours."""
     since_date = (datetime.now() - timedelta(days=since_days)).date()
     fetched: list[FetchedEmail] = []
 
-    with MailBox(host, port=port).login(user, password, initial_folder=folder) as mailbox:
+    with _open_mailbox(host, port, security).login(user, password, initial_folder=folder) as mailbox:
         criteria = AND(date_gte=since_date)
         # reverse=True : les emails les plus RÉCENTS d'abord. Essentiel : avec un
         # plafond max_emails, les candidatures récentes doivent être traitées en

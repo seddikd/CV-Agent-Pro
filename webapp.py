@@ -58,7 +58,6 @@ app_runtime.force_utf8_streams()
 
 
 HERE = app_paths.RESOURCE_DIR          # templates / static (lecture seule)
-DB_PATH = str(app_paths.db_path())     # base SQLite (zone d'écriture)
 
 
 def _load_session_secret() -> str:
@@ -87,20 +86,20 @@ scheduler = BackgroundScheduler(daemon=True)
 
 
 def setup_logging() -> None:
-    settings = web_db.get_all_settings(DB_PATH)
+    settings = web_db.get_all_settings()
     log_file = str(app_paths.data_path(settings.get("paths.log_file", "logs/agent.log")))
     app_runtime.configure_logging(log_file)
 
 
 def _scheduled_run() -> None:
     try:
-        web_pipeline.run_pipeline(DB_PATH, triggered_by="scheduler")
+        web_pipeline.run_pipeline(triggered_by="scheduler")
     except Exception as e:
         log.exception("Scheduled run failed: %s", e)
 
 
 def reschedule_from_settings() -> None:
-    settings = web_db.get_all_settings(DB_PATH)
+    settings = web_db.get_all_settings()
     enabled = settings.get("scheduler.enabled", "true").lower() == "true"
     interval = max(1, int(settings.get("scheduler.interval_minutes", "60")))
 
@@ -123,22 +122,22 @@ def reschedule_from_settings() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    state_db.init(DB_PATH)
-    web_db.seed_default_settings(DB_PATH)
+    state_db.init()
+    web_db.seed_default_settings()
     setup_logging()
 
     # Chiffre au repos les secrets encore en clair (bases antérieures au chiffrement).
-    migrated = web_db.migrate_encrypt_secrets(DB_PATH)
+    migrated = web_db.migrate_encrypt_secrets()
     if migrated:
         log.info("%d secret(s) chiffré(s) au repos (migration DPAPI)", migrated)
 
     # Au démarrage, aucun cycle ne peut être réellement en cours : nettoyer les
     # cycles 'running' orphelins (app fermée pendant un cycle) qui bloqueraient l'UI.
-    stale = web_db.clear_stale_runs(DB_PATH)
+    stale = web_db.clear_stale_runs()
     if stale:
         log.warning("%d cycle(s) orphelin(s) nettoyé(s) au démarrage", stale)
 
-    if web_db.admin_count(DB_PATH) == 0:
+    if web_db.admin_count() == 0:
         log.warning(
             "Aucun compte admin — la page /setup permet d'en créer un au premier accès."
         )
@@ -160,7 +159,7 @@ class WriteGuardMiddleware(BaseHTTPMiddleware):
         if request.method in ("POST", "PUT", "PATCH", "DELETE"):
             uid = request.session.get("user_id")
             if uid:
-                u = web_db.get_user_by_id(DB_PATH, int(uid))
+                u = web_db.get_user_by_id(int(uid))
                 if u and u.get("role") == "lecture":
                     return JSONResponse(
                         {"detail": "Lecture seule : action non autorisée."},
@@ -242,7 +241,7 @@ def _reset_login_attempts(email: str) -> None:
 @app.get("/setup", response_class=HTMLResponse)
 def setup_page(request: Request, err: str = ""):
     # Premier lancement (aucun admin) : formulaire de création. Sinon → login.
-    if web_db.admin_count(DB_PATH) > 0:
+    if web_db.admin_count() > 0:
         return RedirectResponse("/login", status_code=303)
     return render(request, "setup.html", {"err": err})
 
@@ -255,7 +254,7 @@ def setup_submit(
     password: str = Form(...),
     password2: str = Form(...),
 ):
-    if web_db.admin_count(DB_PATH) > 0:
+    if web_db.admin_count() > 0:
         return RedirectResponse("/login", status_code=303)
     email = email.strip().lower()
     if len(password) < 8:
@@ -267,7 +266,7 @@ def setup_submit(
             "/setup?err=Les+mots+de+passe+ne+correspondent+pas", status_code=303
         )
     uid = web_db.create_user(
-        DB_PATH, email, name.strip() or email,
+        email, name.strip() or email,
         web_auth.hash_password(password), role="admin",
     )
     request.session["user_id"] = uid
@@ -278,9 +277,9 @@ def setup_submit(
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request, err: str = ""):
     # Pas encore d'admin → forcer la page de premier lancement.
-    if web_db.admin_count(DB_PATH) == 0:
+    if web_db.admin_count() == 0:
         return RedirectResponse("/setup", status_code=303)
-    if web_auth.current_user(request, DB_PATH):
+    if web_auth.current_user(request):
         return RedirectResponse("/", status_code=302)
     return render(request, "login.html", {"err": err})
 
@@ -295,7 +294,7 @@ def login_submit(request: Request, email: str = Form(...), password: str = Form(
             f"/login?err=Trop+d'essais.+Réessayez+dans+{wait}+s", status_code=303
         )
 
-    user = web_db.get_user_by_email(DB_PATH, email)
+    user = web_db.get_user_by_email(email)
     if not user or not web_auth.verify_password(password, user["password_hash"]):
         _register_login_failure(email_norm)
         return RedirectResponse("/login?err=Identifiants+invalides", status_code=303)
@@ -315,10 +314,10 @@ def logout(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, search: str = "", statut: str = "", poste: str = ""):
-    user = web_auth.require_user(request, DB_PATH)
-    rows = web_db.list_candidates(DB_PATH, search=search, statut=statut, poste=poste)
-    stats = web_db.candidate_stats(DB_PATH)
-    last = web_db.last_successful_run(DB_PATH)
+    user = web_auth.require_user(request)
+    rows = web_db.list_candidates(search=search, statut=statut, poste=poste)
+    stats = web_db.candidate_stats()
+    last = web_db.last_successful_run()
     return render(
         request, "dashboard.html",
         {
@@ -333,8 +332,8 @@ def dashboard(request: Request, search: str = "", statut: str = "", poste: str =
 
 @app.get("/candidate/{cid}", response_class=HTMLResponse)
 def candidate_page(request: Request, cid: int):
-    user = web_auth.require_user(request, DB_PATH)
-    c = web_db.get_candidate(DB_PATH, cid)
+    user = web_auth.require_user(request)
+    c = web_db.get_candidate(cid)
     if not c:
         raise HTTPException(404, "Candidat introuvable")
     # Les expériences détaillées sont stockées en JSON : on les décode pour le rendu.
@@ -356,17 +355,17 @@ def candidate_update(
     statut: str | None = Form(None),
     commentaires: str | None = Form(None),
 ):
-    user = web_auth.require_user(request, DB_PATH)
-    c = web_db.get_candidate(DB_PATH, cid)
+    user = web_auth.require_user(request)
+    c = web_db.get_candidate(cid)
     if not c:
         raise HTTPException(404)
     if statut is not None and statut not in web_db.STATUTS:
         raise HTTPException(400, "Statut invalide")
     web_db.update_candidate_status(
-        DB_PATH, cid, statut=statut, commentaires=commentaires
+        cid, statut=statut, commentaires=commentaires
     )
     if request.headers.get("HX-Request"):
-        c = web_db.get_candidate(DB_PATH, cid)
+        c = web_db.get_candidate(cid)
         return render(request, "_status_cell.html",
                       {"c": c, "statuts": web_db.STATUTS})
     return RedirectResponse(f"/candidate/{cid}", status_code=303)
@@ -374,8 +373,8 @@ def candidate_update(
 
 @app.get("/candidate/{cid}/pdf")
 def candidate_pdf(request: Request, cid: int):
-    web_auth.require_user(request, DB_PATH)
-    c = web_db.get_candidate(DB_PATH, cid)
+    web_auth.require_user(request)
+    c = web_db.get_candidate(cid)
     if not c or not c["pdf_path"]:
         raise HTTPException(404)
     path = Path(c["pdf_path"])
@@ -400,8 +399,8 @@ def candidate_pdf(request: Request, cid: int):
 
 @app.get("/export.xlsx")
 def export_xlsx(request: Request):
-    web_auth.require_user(request, DB_PATH)
-    data = excel_export.export_to_bytes(DB_PATH)
+    web_auth.require_user(request)
+    data = excel_export.export_to_bytes()
     fname = f"candidats_{datetime.now():%Y%m%d_%H%M}.xlsx"
 
     def iter_bytes():
@@ -418,17 +417,17 @@ def export_xlsx(request: Request):
 
 @app.post("/run-now")
 def run_now(request: Request, reset_all: str = Form("")):
-    web_auth.require_cycle(request, DB_PATH)
-    if web_db.running_run_exists(DB_PATH):
+    web_auth.require_cycle(request)
+    if web_db.running_run_exists():
         return RedirectResponse(
             "/admin/runs?msg=Un+cycle+est+déjà+en+cours", status_code=303
         )
     if reset_all:
         # "Recommencer à zéro" : on efface la mémoire de traitement + les candidats.
-        web_db.reset_processing_state(DB_PATH)
+        web_db.reset_processing_state()
     scheduler.add_job(
         web_pipeline.run_pipeline,
-        args=[DB_PATH, "manual"],
+        args=["manual"],
         id=f"manual_{datetime.now().timestamp()}",
         misfire_grace_time=None,
     )
@@ -438,12 +437,12 @@ def run_now(request: Request, reset_all: str = Form("")):
 
 @app.post("/admin/runs/clear")
 def admin_runs_clear(request: Request):
-    web_auth.require_admin(request, DB_PATH)
+    web_auth.require_admin(request)
     if web_pipeline.is_active():
         return RedirectResponse(
             "/admin/runs?msg=Impossible+:+un+cycle+est+en+cours", status_code=303
         )
-    r = web_db.wipe_processing_data(DB_PATH)
+    r = web_db.wipe_processing_data()
     return RedirectResponse(
         f"/admin/runs?msg=Vidé+:+{r['runs']}+cycle(s)+et+{r['candidates']}+candidat(s)",
         status_code=303,
@@ -452,14 +451,14 @@ def admin_runs_clear(request: Request):
 
 @app.post("/admin/runs/stop")
 def admin_runs_stop(request: Request):
-    web_auth.require_cycle(request, DB_PATH)
+    web_auth.require_cycle(request)
     web_pipeline.request_cancel()
     if web_pipeline.is_active():
         # Un vrai cycle tourne : annulation coopérative (effet après l'email en cours).
         msg = "Arrêt+demandé+(l'email+en+cours+se+termine)"
     else:
         # Aucun cycle actif mais une ligne 'running' subsiste -> orphelin : on nettoie.
-        n = web_db.clear_stale_runs(DB_PATH)
+        n = web_db.clear_stale_runs()
         msg = "Cycle+bloqué+nettoyé" if n else "Aucun+cycle+en+cours"
     return RedirectResponse(f"/admin/runs?msg={msg}", status_code=303)
 
@@ -468,8 +467,8 @@ def admin_runs_stop(request: Request):
 
 @app.get("/admin/users", response_class=HTMLResponse)
 def admin_users(request: Request, msg: str = ""):
-    web_auth.require_admin(request, DB_PATH)
-    users = web_db.list_users(DB_PATH)
+    web_auth.require_admin(request)
+    users = web_db.list_users()
     return render(request, "admin_users.html", {"users": users, "msg": msg})
 
 
@@ -481,17 +480,17 @@ def admin_users_create(
     password: str = Form(...),
     role: str = Form(...),
 ):
-    web_auth.require_admin(request, DB_PATH)
+    web_auth.require_admin(request)
     if role not in web_db.ROLES:
         raise HTTPException(400, "Rôle invalide")
     # Inclut les comptes désactivés : UNIQUE(email) s'y applique aussi (sinon
     # recréer l'email d'un compte désactivé lèverait une IntegrityError -> 500).
-    if web_db.email_exists(DB_PATH, email):
+    if web_db.email_exists(email):
         return RedirectResponse(
             "/admin/users?msg=Email+déjà+utilisé", status_code=303
         )
     web_db.create_user(
-        DB_PATH, email, name, web_auth.hash_password(password), role
+        email, name, web_auth.hash_password(password), role
     )
     return RedirectResponse("/admin/users?msg=Utilisateur+créé", status_code=303)
 
@@ -504,17 +503,17 @@ def admin_users_update(
     active: str = Form("0"),
     password: str = Form(""),
 ):
-    admin = web_auth.require_admin(request, DB_PATH)
+    admin = web_auth.require_admin(request)
     if role not in web_db.ROLES:
         raise HTTPException(400)
 
-    target = web_db.get_user_by_id(DB_PATH, uid)
+    target = web_db.get_user_by_id(uid)
     if not target:
         raise HTTPException(404)
 
     new_active = active == "1"
     if (target["role"] == "admin" and (role != "admin" or not new_active)):
-        if web_db.admin_count(DB_PATH) <= 1:
+        if web_db.admin_count() <= 1:
             return RedirectResponse(
                 "/admin/users?msg=Impossible+:+il+doit+rester+1+admin+actif",
                 status_code=303,
@@ -522,7 +521,7 @@ def admin_users_update(
 
     pwd_hash = web_auth.hash_password(password) if password else None
     web_db.update_user(
-        DB_PATH, uid, name=name, role=role, active=new_active,
+        uid, name=name, role=role, active=new_active,
         password_hash=pwd_hash,
     )
     return RedirectResponse("/admin/users?msg=Utilisateur+mis+à+jour", status_code=303)
@@ -530,8 +529,8 @@ def admin_users_update(
 
 @app.post("/admin/users/{uid}/delete")
 def admin_users_delete(request: Request, uid: int):
-    admin = web_auth.require_admin(request, DB_PATH)
-    target = web_db.get_user_by_id(DB_PATH, uid)
+    admin = web_auth.require_admin(request)
+    target = web_db.get_user_by_id(uid)
     if not target:
         raise HTTPException(404)
     if target["id"] == admin["id"]:
@@ -539,12 +538,12 @@ def admin_users_delete(request: Request, uid: int):
             "/admin/users?msg=Impossible+de+supprimer+votre+propre+compte",
             status_code=303,
         )
-    if target["role"] == "admin" and web_db.admin_count(DB_PATH) <= 1:
+    if target["role"] == "admin" and web_db.admin_count() <= 1:
         return RedirectResponse(
             "/admin/users?msg=Impossible+:+il+doit+rester+1+admin",
             status_code=303,
         )
-    web_db.delete_user(DB_PATH, uid)
+    web_db.delete_user(uid)
     return RedirectResponse("/admin/users?msg=Utilisateur+supprimé", status_code=303)
 
 
@@ -554,8 +553,9 @@ def admin_users_delete(request: Request, uid: int):
 MAIL_FIELDS = [
     ("imap.host", "Serveur IMAP", "text"),
     ("imap.port", "Port IMAP", "number"),
+    ("imap.security", "Sécurité IMAP", "select"),
     ("imap.user", "Utilisateur (email)", "text"),
-    ("imap.password", "Mot de passe d'application", "password"),
+    ("imap.password", "Mot de passe (ou d'application selon le fournisseur)", "password"),
     ("imap.folder", "Dossier IMAP", "text"),
     ("processing.fetch_since_days", "Profondeur historique (jours)", "number"),
     ("processing.max_emails_per_run", "Max emails / cycle", "number"),
@@ -590,7 +590,7 @@ _SETTINGS_SECRETS = web_db.SECRET_SETTING_KEYS  # chiffrés au repos (voir secre
 
 
 def _render_settings(request, fields, section, title, action, msg):
-    values = web_db.get_all_settings(DB_PATH)
+    values = web_db.get_all_settings()
     return render(request, "admin_settings.html", {
         "fields": fields, "values": values, "msg": msg,
         "section": section, "title": title, "action": action,
@@ -598,7 +598,7 @@ def _render_settings(request, fields, section, title, action, msg):
 
 
 async def _save_settings(request, fields, redirect_to):
-    web_auth.require_admin(request, DB_PATH)
+    web_auth.require_admin(request)
     form = await request.form()
     items = {}
     for key, _, _ in fields:
@@ -607,26 +607,26 @@ async def _save_settings(request, fields, redirect_to):
     for secret in _SETTINGS_SECRETS:  # ne pas écraser un secret laissé vide
         if secret in items and items[secret] == "":
             items.pop(secret)
-    web_db.set_settings(DB_PATH, items)
+    web_db.set_settings(items)
     reschedule_from_settings()
     return RedirectResponse(f"{redirect_to}?msg=Paramètres+enregistrés", status_code=303)
 
 
 @app.get("/admin/settings", response_class=HTMLResponse)
 def admin_settings(request: Request):
-    web_auth.require_admin(request, DB_PATH)
+    web_auth.require_admin(request)
     return RedirectResponse("/admin/settings/mail", status_code=303)
 
 
 @app.get("/admin/settings/mail", response_class=HTMLResponse)
 def admin_settings_mail(request: Request, msg: str = ""):
-    web_auth.require_admin(request, DB_PATH)
+    web_auth.require_admin(request)
     return _render_settings(request, MAIL_FIELDS, "mail", "Paramètres Mail", "/admin/settings/mail", msg)
 
 
 @app.get("/admin/settings/llm", response_class=HTMLResponse)
 def admin_settings_llm(request: Request, msg: str = ""):
-    web_auth.require_admin(request, DB_PATH)
+    web_auth.require_admin(request)
     return _render_settings(request, LLM_FIELDS, "llm", "Paramètres LLM", "/admin/settings/llm", msg)
 
 
@@ -646,10 +646,10 @@ def admin_test_openrouter(
     model: str = Form(""),
     api_key: str = Form(""),
 ):
-    web_auth.require_admin(request, DB_PATH)
+    web_auth.require_admin(request)
     # Config OpenRouter courante (clé env/base), surchargée par les valeurs du
     # formulaire si elles sont renseignées — permet de tester AVANT d'enregistrer.
-    cfg = web_db.settings_to_config(web_db.get_all_settings(DB_PATH))
+    cfg = web_db.settings_to_config(web_db.get_all_settings())
     orc = dict(cfg["llm"]["openrouter"])
     if model.strip():
         orc["model"] = model.strip()
@@ -666,8 +666,8 @@ def admin_test_ollama(
     model: str = Form(""),
     host: str = Form(""),
 ):
-    web_auth.require_admin(request, DB_PATH)
-    cfg = web_db.settings_to_config(web_db.get_all_settings(DB_PATH))
+    web_auth.require_admin(request)
+    cfg = web_db.settings_to_config(web_db.get_all_settings())
     oc = dict(cfg["llm"]["ollama"])
     if model.strip():
         oc["model"] = model.strip()
@@ -682,30 +682,32 @@ def admin_test_imap(
     request: Request,
     host: str = Form(""),
     port: str = Form(""),
+    security: str = Form(""),
     user: str = Form(""),
     password: str = Form(""),
     folder: str = Form(""),
 ):
-    web_auth.require_admin(request, DB_PATH)
-    s = web_db.get_all_settings(DB_PATH)
+    web_auth.require_admin(request)
+    s = web_db.get_all_settings()
     h = host.strip() or s.get("imap.host", "")
     u = user.strip() or s.get("imap.user", "")
     # Champ mot de passe vide (non re-saisi) -> on utilise celui enregistré.
     pw = password.strip() or s.get("imap.password", "")
     f = folder.strip() or s.get("imap.folder", "INBOX")
+    sec = security.strip() or s.get("imap.security", "SSL")
     try:
         p = int(port.strip()) if port.strip() else int(s.get("imap.port", "993"))
     except ValueError:
         p = 993
-    ok, message = mail_fetcher.check_connection(h, p, u, pw, f)
+    ok, message = mail_fetcher.check_connection(h, p, u, pw, f, security=sec)
     return _test_result_html(ok, message)
 
 
 @app.post("/admin/settings/test-smtp", response_class=HTMLResponse)
 async def admin_test_smtp(request: Request):
-    web_auth.require_admin(request, DB_PATH)
+    web_auth.require_admin(request)
     form = await request.form()
-    s = web_db.get_all_settings(DB_PATH)
+    s = web_db.get_all_settings()
 
     def val(field, default=""):
         # Valeur du formulaire (nom pointé) sinon celle enregistrée.
@@ -754,10 +756,10 @@ def _test_result_html(ok: bool, message: str) -> HTMLResponse:
 
 @app.get("/admin/runs", response_class=HTMLResponse)
 def admin_runs(request: Request, msg: str = ""):
-    web_auth.require_user(request, DB_PATH)
-    runs = web_db.list_runs(DB_PATH, limit=50)
-    last = web_db.last_successful_run(DB_PATH)
-    running = web_db.running_run_exists(DB_PATH)
+    web_auth.require_user(request)
+    runs = web_db.list_runs(limit=50)
+    last = web_db.last_successful_run()
+    running = web_db.running_run_exists()
     return render(
         request, "admin_runs.html",
         {"runs": runs, "last": last, "running": running, "msg": msg},
@@ -768,7 +770,7 @@ def admin_runs(request: Request, msg: str = ""):
 
 @app.get("/healthz")
 def healthz():
-    last = web_db.last_successful_run(DB_PATH)
+    last = web_db.last_successful_run()
     return {
         "status": "ok",
         "last_success": last["finished_at"] if last else None,

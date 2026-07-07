@@ -78,8 +78,8 @@ def _build_workbook(rows: list[dict]) -> Workbook:
     return wb
 
 
-def export_to_path(db_path: str, output_path: str) -> Path:
-    rows = web_db.list_candidates(db_path, limit=100000)
+def export_to_path(output_path: str) -> Path:
+    rows = web_db.list_candidates(limit=100000)
     wb = _build_workbook(rows)
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -87,8 +87,8 @@ def export_to_path(db_path: str, output_path: str) -> Path:
     return out
 
 
-def export_to_bytes(db_path: str) -> bytes:
-    rows = web_db.list_candidates(db_path, limit=100000)
+def export_to_bytes() -> bytes:
+    rows = web_db.list_candidates(limit=100000)
     wb = _build_workbook(rows)
     buf = BytesIO()
     wb.save(buf)

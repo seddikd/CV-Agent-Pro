@@ -4,7 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import Response
 
-from web_core import require_user, render, DB_PATH, connect
+from web_core import require_user, render, connect
 
 router = APIRouter()
 
@@ -33,8 +33,8 @@ def _now() -> str:
 @router.get("/pipeline")
 def tableau_pipeline(request: Request):
     """Tableau kanban : une colonne par étape, les candidats regroupés par `stage`."""
-    user = require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    user = require_user(request)
+    with connect() as conn:
         rows = conn.execute(
             "SELECT id, nom, prenom, poste_recherche, statut, stage "
             "FROM candidates ORDER BY updated_at DESC"
@@ -60,10 +60,10 @@ def tableau_pipeline(request: Request):
 @router.post("/pipeline/{cid}/stage")
 def changer_etape(request: Request, cid: int, stage: str = Form(...)):
     """Déplace un candidat vers une nouvelle étape (appel AJAX du glisser-déposer)."""
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
     if stage not in ETAPES:
         raise HTTPException(status_code=400, detail="Étape invalide")
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         conn.execute(
             "UPDATE candidates SET stage = ?, updated_at = ? WHERE id = ?",
             (stage, _now(), cid),

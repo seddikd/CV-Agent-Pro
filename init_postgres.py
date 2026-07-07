@@ -49,18 +49,16 @@ def _create_database_if_missing(url: str) -> str:
 
 
 def main() -> None:
-    if not db.is_postgres():
-        raise SystemExit(
-            "CV_AGENT_DB_URL non définie : ce script cible PostgreSQL. "
-            "Posez-la avant de relancer."
-        )
+    try:
+        url = db.db_url()  # lève une erreur explicite si CV_AGENT_DB_URL manque
+    except RuntimeError as e:
+        raise SystemExit(str(e))
 
-    dbname = _create_database_if_missing(db.db_url())
+    dbname = _create_database_if_missing(url)
 
-    # En mode PostgreSQL, le chemin passé à connect()/init() est ignoré (l'URL prime).
-    state_db.init("")
-    web_db.seed_default_settings("")
-    n = len(web_db.get_all_settings(""))
+    state_db.init()
+    web_db.seed_default_settings()
+    n = len(web_db.get_all_settings())
 
     print(f"Schéma créé + {n} réglages par défaut dans « {dbname} ».")
     print("Prochaine étape : démarrer l'application et créer l'admin via /setup.")

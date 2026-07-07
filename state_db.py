@@ -1,13 +1,11 @@
 import db
-# `connect` est ré-exporté depuis db.py : selon CV_AGENT_DB_URL il ouvre une
-# connexion SQLite (défaut, local) ou PostgreSQL. Les appelants (web_db, main…)
-# continuent d'importer `from state_db import connect` sans changement.
+# `connect` est ré-exporté depuis db.py (PostgreSQL). Les appelants continuent
+# d'importer `from state_db import connect` sans changement de nom.
 from db import connect
 
 
-# Schéma commun aux deux moteurs. « {PK} » = clé primaire auto-incrémentée
-# (INTEGER…AUTOINCREMENT en SQLite, SERIAL en PostgreSQL — voir db.pk()).
-# Les upserts sont écrits en ON CONFLICT portable (SQLite ≥ 3.24 et PostgreSQL).
+# Schéma PostgreSQL. « {PK} » = clé primaire auto-incrémentée (SERIAL), rendue par
+# db.pk(). Les upserts sont écrits en ON CONFLICT (portable).
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS processed_emails (
     uid TEXT NOT NULL,
@@ -80,8 +78,6 @@ CREATE TABLE IF NOT EXISTS runs (
 CREATE INDEX IF NOT EXISTS idx_runs_started_at ON runs(started_at DESC);
 
 -- ─── Tables ATS (modules avancés) ────────────────────────────────────────────
--- Créées de façon centralisée ici pour que chaque module reste isolé (routeur
--- + templates) sans toucher au schéma. Portable SQLite/PostgreSQL.
 
 -- Offres d'emploi (module « Gestion des offres »).
 CREATE TABLE IF NOT EXISTS jobs (
@@ -136,7 +132,6 @@ CREATE INDEX IF NOT EXISTS idx_matches_job ON matches(job_id);
 CREATE INDEX IF NOT EXISTS idx_matches_candidate ON matches(candidate_id);
 
 -- Alertes : un candidat correspond fortement à une offre publiée (module « Alertes »).
--- UNIQUE(candidate_id, job_id) : une seule alerte par paire (dédup via ON CONFLICT).
 CREATE TABLE IF NOT EXISTS alerts (
     id {PK},
     candidate_id INTEGER NOT NULL,
@@ -150,19 +145,16 @@ CREATE INDEX IF NOT EXISTS idx_alerts_seen ON alerts(seen);
 """
 
 
-def init(db_path: str) -> None:
-    db.init_dir(db_path)
-    with connect(db_path) as conn:
+def init() -> None:
+    with connect() as conn:
         conn.executescript(SCHEMA.replace("{PK}", db.pk()))
-    migrate(db_path)
+    migrate()
 
 
 # ─── Migrations idempotentes ─────────────────────────────────────────────────
-# Colonnes ajoutées après coup (parsing enrichi, ATS…). Non destructif : on ne
-# fait qu'ajouter la colonne si elle manque. Portable SQLite/PostgreSQL.
-# Pour ajouter un champ : ajouter une ligne (table, colonne, type SQL).
+# Colonnes ajoutées après coup. Non destructif : on n'ajoute la colonne que si
+# elle manque. Pour ajouter un champ : ajouter une ligne (table, colonne, type SQL).
 _MIGRATIONS: list[tuple[str, str, str]] = [
-    # Parsing avancé (Module 1) — champs extraits du CV en plus des colonnes d'origine.
     ("candidates", "universite", "TEXT"),
     ("candidates", "entreprises", "TEXT"),
     ("candidates", "certifications", "TEXT"),
@@ -179,29 +171,24 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("candidates", "resume_ia", "TEXT"),
     # Marque un candidat comme doublon d'un autre (module « Détection de doublons »).
     ("candidates", "duplicate_of", "INTEGER"),
-    # Étape dans le pipeline de recrutement (module « Pipeline »). Défaut applicatif : « CV reçu ».
+    # Étape dans le pipeline de recrutement (module « Pipeline »).
     ("candidates", "stage", "TEXT"),
 ]
 
 
 def _column_exists(conn, table: str, column: str) -> bool:
-    if db.is_postgres():
-        row = conn.execute(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_name = ? AND column_name = ?",
-            (table, column),
-        ).fetchone()
-        return row is not None
-    # SQLite : PRAGMA non paramétrable ; table est un littéral contrôlé (jamais
-    # une entrée utilisateur), donc sûr.
-    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
-    return any(r["name"] == column for r in rows)
+    row = conn.execute(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = ? AND column_name = ?",
+        (table, column),
+    ).fetchone()
+    return row is not None
 
 
-def migrate(db_path: str) -> int:
+def migrate() -> int:
     """Applique les migrations manquantes. Idempotent. Retourne le nb de colonnes ajoutées."""
     added = 0
-    with connect(db_path) as conn:
+    with connect() as conn:
         for table, column, coltype in _MIGRATIONS:
             if not _column_exists(conn, table, column):
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
@@ -209,8 +196,8 @@ def migrate(db_path: str) -> int:
     return added
 
 
-def is_processed(db_path: str, uid: str, folder: str) -> bool:
-    with connect(db_path) as conn:
+def is_processed(uid: str, folder: str) -> bool:
+    with connect() as conn:
         row = conn.execute(
             "SELECT 1 FROM processed_emails WHERE uid = ? AND folder = ?",
             (uid, folder),
@@ -219,7 +206,6 @@ def is_processed(db_path: str, uid: str, folder: str) -> bool:
 
 
 def mark_processed(
-    db_path: str,
     uid: str,
     folder: str,
     processed_at: str,
@@ -227,7 +213,7 @@ def mark_processed(
     candidate_id: int | None = None,
     notes: str | None = None,
 ) -> None:
-    with connect(db_path) as conn:
+    with connect() as conn:
         conn.execute(
             """
             INSERT INTO processed_emails
@@ -243,8 +229,8 @@ def mark_processed(
         )
 
 
-def next_candidate_id(db_path: str) -> int:
-    with connect(db_path) as conn:
+def next_candidate_id() -> int:
+    with connect() as conn:
         conn.execute(
             "UPDATE candidate_counter SET last_id = last_id + 1 WHERE id = 1"
         )

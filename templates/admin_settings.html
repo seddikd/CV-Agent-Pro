@@ -38,6 +38,13 @@
         <option value="SSL" {% if sec == 'SSL' %}selected{% endif %}>SSL (port 465)</option>
         <option value="None" {% if sec == 'None' %}selected{% endif %}>Aucune (port 25)</option>
       </select>
+      {% elif kind == 'select' and key == 'imap.security' %}
+      {% set isec = values.get('imap.security', 'SSL') %}
+      <select name="{{ key }}">
+        <option value="SSL" {% if isec == 'SSL' %}selected{% endif %}>SSL (port 993)</option>
+        <option value="STARTTLS" {% if isec == 'STARTTLS' %}selected{% endif %}>STARTTLS (port 143)</option>
+        <option value="None" {% if isec == 'None' %}selected{% endif %}>Aucune (port 143)</option>
+      </select>
       {% elif kind == 'password' %}
       <input type="password" name="{{ key }}" placeholder="(inchangé si vide)">
       {% else %}
@@ -50,7 +57,7 @@
     <div style="margin-top:.4rem">
       <button type="button" class="btn"
               hx-post="/admin/settings/test-imap"
-              hx-include="[name='imap.host'],[name='imap.port'],[name='imap.user'],[name='imap.password'],[name='imap.folder']"
+              hx-include="[name='imap.host'],[name='imap.port'],[name='imap.security'],[name='imap.user'],[name='imap.password'],[name='imap.folder']"
               hx-target="#imap-test-result" hx-swap="innerHTML">
         📬 Tester la connexion à la boîte mail
       </button>

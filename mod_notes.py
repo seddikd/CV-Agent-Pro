@@ -3,7 +3,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Request, Form
 
-from web_core import require_user, render, DB_PATH, connect
+from web_core import require_user, render, connect
 import db
 
 router = APIRouter()
@@ -11,7 +11,7 @@ router = APIRouter()
 
 def _list_notes(cid: int) -> list[dict]:
     """Renvoie les notes d'un candidat, les plus récentes d'abord."""
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         rows = conn.execute(
             """
             SELECT id, candidate_id, author_id, author_name, body, created_at
@@ -27,7 +27,7 @@ def _list_notes(cid: int) -> list[dict]:
 @router.get("/candidate/{cid}/notes")
 def get_notes(request: Request, cid: int):
     """Fragment « Notes internes » : liste des notes + formulaire d'ajout."""
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
     notes = _list_notes(cid)
     return render(request, "_notes.html", {"cid": cid, "notes": notes})
 
@@ -35,10 +35,10 @@ def get_notes(request: Request, cid: int):
 @router.post("/candidate/{cid}/notes")
 def add_note(request: Request, cid: int, body: str = Form("")):
     """Ajoute une note (si non vide) puis renvoie le fragment à jour."""
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
     texte = (body or "").strip()
     if texte:
-        with connect(DB_PATH) as conn:
+        with connect() as conn:
             db.insert_returning_id(
                 conn,
                 """

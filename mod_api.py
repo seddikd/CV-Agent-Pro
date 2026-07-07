@@ -12,13 +12,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Query
 
 import web_db
 import web_auth
-from web_core import DB_PATH, connect
+from web_core import connect
 from matching_core import score_candidat
 
 
 def _require_api_user(request: Request) -> dict:
     """Auth API : renvoie l'utilisateur courant ou 401 (pas de redirection HTML)."""
-    user = web_auth.current_user(request, DB_PATH)
+    user = web_auth.current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentification requise")
     return user
@@ -37,13 +37,13 @@ def api_candidates(
     poste: str = Query("", description="Filtre par poste recherché"),
     limit: int = Query(500, ge=1, le=2000, description="Nombre max de résultats"),
 ):
-    return web_db.list_candidates(DB_PATH, search=search, statut=statut,
+    return web_db.list_candidates(search=search, statut=statut,
                                   poste=poste, limit=limit)
 
 
 @router.get("/candidates/{cid}", summary="Détail d'un candidat")
 def api_candidate(cid: int):
-    c = web_db.get_candidate(DB_PATH, cid)
+    c = web_db.get_candidate(cid)
     if not c:
         raise HTTPException(status_code=404, detail="Candidat introuvable")
     return c
@@ -51,7 +51,7 @@ def api_candidate(cid: int):
 
 @router.get("/jobs", summary="Lister les offres d'emploi")
 def api_jobs(statut: str = Query("", description="Filtre par statut d'offre")):
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         if statut:
             rows = conn.execute(
                 "SELECT * FROM jobs WHERE statut = ? ORDER BY updated_at DESC",
@@ -64,7 +64,7 @@ def api_jobs(statut: str = Query("", description="Filtre par statut d'offre")):
 
 @router.get("/jobs/{jid}", summary="Détail d'une offre")
 def api_job(jid: int):
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         row = conn.execute("SELECT * FROM jobs WHERE id = ?", (jid,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Offre introuvable")
@@ -74,13 +74,13 @@ def api_job(jid: int):
 @router.get("/stats", summary="Statistiques agrégées",
             description="Total des candidats et répartition par statut.")
 def api_stats():
-    return web_db.candidate_stats(DB_PATH)
+    return web_db.candidate_stats()
 
 
 @router.get("/matching/{jid}", summary="Classement des candidats pour une offre",
             description="Score de correspondance (déterministe) de chaque candidat vis-à-vis de l'offre, classé.")
 def api_matching(jid: int):
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         job = conn.execute("SELECT * FROM jobs WHERE id = ?", (jid,)).fetchone()
         if not job:
             raise HTTPException(status_code=404, detail="Offre introuvable")
@@ -103,7 +103,7 @@ def api_matching(jid: int):
 @router.get("/pipeline", summary="Candidats par étape du pipeline (workflow)")
 def api_pipeline():
     import mod_pipeline
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         rows = [dict(r) for r in conn.execute(
             "SELECT id, nom, prenom, poste_recherche, statut, stage FROM candidates"
         ).fetchall()]
@@ -125,5 +125,5 @@ def api_alerts(seen: int | None = Query(None, description="1=lues, 0=non lues, a
         sql += " WHERE a.seen = ?"
         params.append(seen)
     sql += " ORDER BY a.seen ASC, a.score DESC, a.id DESC"
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         return [dict(r) for r in conn.execute(sql, params).fetchall()]

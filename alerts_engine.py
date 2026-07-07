@@ -64,12 +64,12 @@ def _generer_pour_candidat(conn, cand: dict, offres: list[dict]) -> list[dict]:
     return nouvelles
 
 
-def generer_alertes_pour_candidat(db_path: str, candidate_id: int) -> list[dict]:
+def generer_alertes_pour_candidat(candidate_id: int) -> list[dict]:
     """Score un candidat vs toutes les offres publiées ; crée les alertes ≥ seuil.
 
     Retourne la liste des alertes NOUVELLEMENT créées (pour la notification).
     """
-    with connect(db_path) as conn:
+    with connect() as conn:
         row = conn.execute(
             "SELECT * FROM candidates WHERE id = ?", (candidate_id,)
         ).fetchone()
@@ -78,7 +78,7 @@ def generer_alertes_pour_candidat(db_path: str, candidate_id: int) -> list[dict]
         return _generer_pour_candidat(conn, dict(row), _offres_publiees(conn))
 
 
-def generer_alertes_pour_candidats(db_path: str, candidate_ids: list[int]) -> list[dict]:
+def generer_alertes_pour_candidats(candidate_ids: list[int]) -> list[dict]:
     """Version par lot : une seule connexion, offres publiées chargées une fois.
 
     Utilisée par le pipeline pour les nouveaux CV d'un cycle (évite N connexions
@@ -87,7 +87,7 @@ def generer_alertes_pour_candidats(db_path: str, candidate_ids: list[int]) -> li
     if not candidate_ids:
         return []
     nouvelles = []
-    with connect(db_path) as conn:
+    with connect() as conn:
         offres = _offres_publiees(conn)
         if not offres:
             return []
@@ -100,7 +100,7 @@ def generer_alertes_pour_candidats(db_path: str, candidate_ids: list[int]) -> li
     return nouvelles
 
 
-def recalculer_toutes_alertes(db_path: str) -> int:
+def recalculer_toutes_alertes() -> int:
     """Recalcule les alertes pour TOUS les candidats vs toutes les offres publiées.
 
     Utile après création d'offres postérieures aux CV. Idempotent (dédup UNIQUE).
@@ -108,7 +108,7 @@ def recalculer_toutes_alertes(db_path: str) -> int:
     Retourne le nombre d'alertes nouvellement créées.
     """
     total = 0
-    with connect(db_path) as conn:
+    with connect() as conn:
         offres = _offres_publiees(conn)
         if not offres:
             return 0

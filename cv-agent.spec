@@ -10,10 +10,14 @@ from PyInstaller.utils.hooks import collect_submodules, collect_all
 # pystray charge son backend dynamiquement : collect_all embarque tout le paquet.
 _ps_datas, _ps_binaries, _ps_hidden = collect_all("pystray")
 
+# psycopg (PostgreSQL) et son binaire : collect_all pour embarquer les libs natives.
+_pg_datas, _pg_binaries, _pg_hidden = collect_all("psycopg")
+_pgb_datas, _pgb_binaries, _pgb_hidden = collect_all("psycopg_binary")
+
 # uvicorn charge dynamiquement ses boucles/protocoles/lifespan : à forcer.
 hiddenimports = (
     collect_submodules("uvicorn")
-    + _ps_hidden
+    + _ps_hidden + _pg_hidden + _pgb_hidden
     + [
         "app_paths", "app_runtime", "webapp", "web_db", "web_auth", "web_pipeline",
         "db", "state_db", "secret_store", "excel_export", "mail_fetcher", "pdf_extractor",
@@ -33,12 +37,12 @@ datas = [
     ("templates", "templates"),
     ("static", "static"),
     ("config.yaml", "."),
-] + _ps_datas
+] + _ps_datas + _pg_datas + _pgb_datas
 
 a = Analysis(
     ["desktop.py"],
     pathex=["."],
-    binaries=_ps_binaries,
+    binaries=_ps_binaries + _pg_binaries + _pgb_binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],

@@ -1,14 +1,18 @@
 # syntax=docker/dockerfile:1
 #
 # Image « tout-en-un » de CV Agent Pro (serveur web FastAPI/uvicorn).
-# Base de données : SQLite par défaut (dans le volume /data) OU PostgreSQL si
-# CV_AGENT_DB_URL est défini. Aucune dépendance Windows (DPAPI remplacé par le
-# chiffrement portable enc:v2 via CV_AGENT_SECRET, obligatoire ici).
+# Base de données : PostgreSQL (obligatoire, via CV_AGENT_DB_URL). Aucune
+# dépendance Windows (DPAPI remplacé par le chiffrement portable enc:v2 via
+# CV_AGENT_SECRET, obligatoire ici). Le volume /data ne porte que les fichiers
+# (cv_pdfs, logs) ; les données métier vivent dans PostgreSQL.
 #
-# Build :  docker build -t cv-agent-pro:latest .
-# Run   :  docker run -d -p 6060:6060 -e CV_AGENT_SECRET=<hex> \
-#              -v cvagent-data:/data cv-agent-pro:latest
-# (ou : docker compose up -d  — avec PostgreSQL inclus)
+# Recommandé :  docker compose up -d   (application + PostgreSQL fournis ensemble)
+# Ou image seule contre un PostgreSQL existant :
+#   docker build -t cv-agent-pro:latest .
+#   docker run -d -p 6060:6060 -v cvagent-data:/data \
+#     -e CV_AGENT_SECRET=<hex> \
+#     -e CV_AGENT_DB_URL=postgresql://cvagent:motdepasse@HOTE:5432/cvagent \
+#     cv-agent-pro:latest
 
 FROM python:3.12-slim
 

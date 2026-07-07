@@ -3,10 +3,10 @@
 Chaque module avancé (offres, recherche, comparaison…) vit dans son propre
 fichier `mod_<nom>.py` exposant un `APIRouter`. Pour éviter tout import circulaire
 avec `webapp.py`, ces routeurs importent d'ici (jamais `webapp`) :
-  - `DB_PATH`     : chemin de la base (zone d'écriture, exe-aware) ;
   - `render()`    : rend un template en injectant l'utilisateur courant ;
   - `templates`   : instance Jinja partagée (mêmes dossier/réglages que webapp) ;
   - `llm_cfg()`   : config LLM prête pour `llm_provider.chat_json` ;
+  - `connect()`   : connexion PostgreSQL (ré-export de state_db/db) ;
   - ré-exports d'auth (`require_user`, `require_admin`, `current_user`).
 
 `webapp.py` se contente d'inclure chaque routeur (`app.include_router(...)`).
@@ -26,14 +26,13 @@ from state_db import connect  # noqa: F401
 
 
 HERE = app_paths.RESOURCE_DIR
-DB_PATH = str(app_paths.db_path())
 
 templates = Jinja2Templates(directory=HERE / "templates")
 
 
 def render(request: Request, template: str, ctx: dict | None = None) -> HTMLResponse:
     """Rend un template en injectant `user` + drapeaux de permission (comme webapp.render)."""
-    user = web_auth.current_user(request, DB_PATH)
+    user = web_auth.current_user(request)
     base = {
         "user": user,
         "can_write": web_auth.can_write(user),
@@ -46,5 +45,5 @@ def render(request: Request, template: str, ctx: dict | None = None) -> HTMLResp
 
 def llm_cfg() -> dict:
     """Config LLM courante, prête pour `llm_provider.chat_json(llm_cfg(), ...)`."""
-    settings = web_db.get_all_settings(DB_PATH)
+    settings = web_db.get_all_settings()
     return web_db.settings_to_config(settings)["llm"]

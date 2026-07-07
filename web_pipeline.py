@@ -45,7 +45,7 @@ def is_active() -> bool:
     return _active_event.is_set()
 
 
-def _process_email(email, cfg: dict, db_path: str) -> bool:
+def _process_email(email, cfg: dict) -> bool:
     """Retourne un dict-résumé du candidat si c'est un CV stocké, sinon None.
 
     Un id candidat et le fichier PDF définitif ne sont créés QU'APRÈS confirmation
@@ -59,7 +59,7 @@ def _process_email(email, cfg: dict, db_path: str) -> bool:
 
     if not email.attachments:
         log.info("[%s] pas de pièce jointe exploitable", uid)
-        state_db.mark_processed(db_path, uid, folder, now_iso, is_cv=False, notes="no_attachment")
+        state_db.mark_processed(uid, folder, now_iso, is_cv=False, notes="no_attachment")
         return None
 
     primary_att = email.attachments[0]
@@ -72,7 +72,7 @@ def _process_email(email, cfg: dict, db_path: str) -> bool:
         if not cv_text:
             log.warning("[%s] aucun texte extractible", uid)
             state_db.mark_processed(
-                db_path, uid, folder, now_iso, is_cv=False,
+                uid, folder, now_iso, is_cv=False,
                 notes="no_text_in_attachment",
             )
             return None
@@ -92,7 +92,7 @@ def _process_email(email, cfg: dict, db_path: str) -> bool:
         threshold = cfg["processing"]["classification_confidence_threshold"]
         if not classification.is_cv or classification.confidence < threshold:
             state_db.mark_processed(
-                db_path, uid, folder, now_iso, is_cv=False,
+                uid, folder, now_iso, is_cv=False,
                 notes=f"non_cv: {classification.reason[:100]}",
             )
             return None
@@ -111,7 +111,7 @@ def _process_email(email, cfg: dict, db_path: str) -> bool:
 
         # CV confirmé + extraction réussie : on alloue l'id et on écrit le fichier
         # définitif. En cas d'échec avant ce point, aucun id/fichier n'est consommé.
-        candidate_id = state_db.next_candidate_id(db_path)
+        candidate_id = state_db.next_candidate_id()
         saved_path = mail_fetcher.save_attachment(
             primary_att, storage, prefix=f"id{candidate_id:04d}"
         )
@@ -121,7 +121,6 @@ def _process_email(email, cfg: dict, db_path: str) -> bool:
             f"{email.from_name} <{email.from_addr}>" if email.from_name else email.from_addr
         )
         web_db.insert_candidate(
-            db_path=db_path,
             candidate_id=candidate_id,
             received_at=email.received_at,
             expediteur=expediteur,
@@ -130,7 +129,7 @@ def _process_email(email, cfg: dict, db_path: str) -> bool:
             pdf_path=str(saved_path.resolve()),
         )
         state_db.mark_processed(
-            db_path, uid, folder, now_iso, is_cv=True,
+            uid, folder, now_iso, is_cv=True,
             candidate_id=candidate_id, notes="ok",
         )
         log.info("[%s] TERMINÉ candidate_id=%d", uid, candidate_id)
@@ -146,9 +145,9 @@ def _process_email(email, cfg: dict, db_path: str) -> bool:
         tmp_path.unlink(missing_ok=True)
 
 
-def run_pipeline(db_path: str, triggered_by: str = "scheduler") -> dict:
+def run_pipeline(triggered_by: str = "scheduler") -> dict:
     """Un cycle complet. Retourne un petit dict-résumé."""
-    state_db.init(db_path)
+    state_db.init()
 
     # Verrou non bloquant : si un cycle tourne déjà dans ce process, on abandonne
     # immédiatement (le job planifié et « Lancer maintenant » ne peuvent pas se
@@ -157,25 +156,25 @@ def run_pipeline(db_path: str, triggered_by: str = "scheduler") -> dict:
         log.warning("Cycle déjà en cours (verrou process) — ignoré")
         return {"skipped": True, "reason": "already_running"}
     try:
-        return _run_pipeline_locked(db_path, triggered_by)
+        return _run_pipeline_locked(triggered_by)
     finally:
         _run_lock.release()
 
 
-def _run_pipeline_locked(db_path: str, triggered_by: str) -> dict:
+def _run_pipeline_locked(triggered_by: str) -> dict:
     """Corps du cycle, exécuté sous _run_lock (un seul cycle à la fois)."""
-    if web_db.running_run_exists(db_path):
+    if web_db.running_run_exists():
         log.warning("Pipeline already running, skipping")
         return {"skipped": True, "reason": "already_running"}
 
-    settings = web_db.get_all_settings(db_path)
+    settings = web_db.get_all_settings()
     cfg = web_db.settings_to_config(settings)
 
     if not cfg["imap"]["user"] or not cfg["imap"]["password"]:
         log.error("Identifiants IMAP non configurés")
         return {"skipped": True, "reason": "no_imap_credentials"}
 
-    run_id = web_db.create_run(db_path, triggered_by=triggered_by)
+    run_id = web_db.create_run(triggered_by=triggered_by)
     log.info("=== Run %d started (triggered_by=%s) ===", run_id, triggered_by)
     _cancel_event.clear()  # repartir d'un état non-annulé
     _active_event.set()
@@ -187,13 +186,14 @@ def _run_pipeline_locked(db_path: str, triggered_by: str) -> dict:
             user=cfg["imap"]["user"],
             password=cfg["imap"]["password"],
             folder=cfg["imap"]["folder"],
+            security=cfg["imap"]["security"],
             since_days=cfg["processing"]["fetch_since_days"],
             max_emails=cfg["processing"]["max_emails_per_run"],
             already_processed=lambda uid: state_db.is_processed(
-                db_path, uid, cfg["imap"]["folder"]
+                uid, cfg["imap"]["folder"]
             ),
         )
-        web_db.update_run(db_path, run_id, emails_fetched=len(emails))
+        web_db.update_run(run_id, emails_fetched=len(emails))
         log.info("Run %d: %d new emails to process", run_id, len(emails))
 
         cvs = 0
@@ -205,7 +205,7 @@ def _run_pipeline_locked(db_path: str, triggered_by: str) -> dict:
                 log.info("Run %d: arrêt demandé par l'utilisateur", run_id)
                 break
             try:
-                candidate = _process_email(email, cfg, db_path)
+                candidate = _process_email(email, cfg)
                 if candidate:
                     cvs += 1
                     new_candidates.append(candidate)
@@ -216,7 +216,7 @@ def _run_pipeline_locked(db_path: str, triggered_by: str) -> dict:
                 log.exception("[%s] échec du traitement : %s", email.uid, e)
                 try:
                     state_db.mark_processed(
-                        db_path, email.uid, cfg["imap"]["folder"],
+                        email.uid, cfg["imap"]["folder"],
                         datetime.now().isoformat(timespec="seconds"),
                         is_cv=False, notes=f"erreur: {str(e)[:150]}",
                     )
@@ -228,7 +228,7 @@ def _run_pipeline_locked(db_path: str, triggered_by: str) -> dict:
         new_alerts = []
         try:
             new_alerts = alerts_engine.generer_alertes_pour_candidats(
-                db_path, [c["id"] for c in new_candidates]
+                [c["id"] for c in new_candidates]
             )
         except Exception as e:
             log.warning("Alertes : %s", e)
@@ -244,7 +244,7 @@ def _run_pipeline_locked(db_path: str, triggered_by: str) -> dict:
             log.warning("Notification alertes échouée : %s", e)
 
         web_db.update_run(
-            db_path, run_id, status="cancelled" if cancelled else "success",
+            run_id, status="cancelled" if cancelled else "success",
             cvs_detected=cvs, finished=True,
         )
         log.info(
@@ -259,7 +259,7 @@ def _run_pipeline_locked(db_path: str, triggered_by: str) -> dict:
     except Exception as e:
         log.exception("Run %d failed: %s", run_id, e)
         web_db.update_run(
-            db_path, run_id, status="failed",
+            run_id, status="failed",
             error=str(e)[:500], finished=True,
         )
         return {"run_id": run_id, "error": str(e)}

@@ -1,6 +1,8 @@
 imap:
+  # Tout serveur IMAP est accepté (Gmail, Outlook/Office365, OVH, Zoho, serveur interne…).
   host: imap.gmail.com
   port: 993
+  security: SSL          # SSL (993) | STARTTLS (143) | None (143)
   user: votre.email@gmail.com
   password: MOT_DE_PASSE_APPLICATION
   folder: INBOX
@@ -31,8 +33,9 @@ openrouter:
 paths:
   pdf_storage: cv_pdfs
   excel_output: output/candidats.xlsx
-  state_db: state.db
   log_file: logs/agent.log
+# La base de données est PostgreSQL, définie par la variable d'environnement
+# CV_AGENT_DB_URL (ex. postgresql://cvagent:motdepasse@localhost:5432/cvagent).
 
 # Notifications email (optionnel) : prévenir des destinataires à chaque nouveau candidat.
 notify:

@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 
-from web_core import require_user, render, DB_PATH, connect
+from web_core import require_user, render, connect
 import db
 import app_paths
 
@@ -30,7 +30,7 @@ def _docs_dir() -> Path:
 
 def _list_documents(cid: int) -> list[dict]:
     """Renvoie les documents d'un candidat, les plus récents d'abord."""
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         rows = conn.execute(
             """
             SELECT id, candidate_id, doc_type, filename, stored_path,
@@ -57,7 +57,7 @@ def _fragment(request: Request, cid: int):
 @router.get("/candidate/{cid}/documents")
 def get_documents(request: Request, cid: int):
     """Fragment « Documents » : liste des pièces jointes + formulaire d'upload."""
-    require_user(request, DB_PATH)
+    require_user(request)
     return _fragment(request, cid)
 
 
@@ -69,7 +69,7 @@ async def add_document(
     doc_type: str = Form("Autre"),
 ):
     """Enregistre un fichier sur disque + une ligne en base, puis rend le fragment."""
-    user = require_user(request, DB_PATH)
+    user = require_user(request)
 
     # Refuse si aucun fichier réellement transmis.
     if fichier is None or not fichier.filename:
@@ -104,7 +104,7 @@ async def add_document(
         raise HTTPException(status_code=400, detail="Fichier vide.")
     stored_path.write_bytes(bytes(data))
 
-    with connect(DB_PATH) as conn:
+    with connect() as conn:
         db.insert_returning_id(
             conn,
             """
@@ -129,8 +129,8 @@ async def add_document(
 @router.get("/document/{doc_id}")
 def download_document(request: Request, doc_id: int):
     """Télécharge le fichier associé à un document (404 si absent base ou disque)."""
-    require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    require_user(request)
+    with connect() as conn:
         row = conn.execute(
             "SELECT filename, stored_path FROM candidate_documents WHERE id = ?",
             (doc_id,),
@@ -146,8 +146,8 @@ def download_document(request: Request, doc_id: int):
 @router.post("/document/{doc_id}/delete")
 def delete_document(request: Request, doc_id: int):
     """Supprime la ligne en base ET le fichier disque, puis rend le fragment à jour."""
-    require_user(request, DB_PATH)
-    with connect(DB_PATH) as conn:
+    require_user(request)
+    with connect() as conn:
         row = conn.execute(
             "SELECT candidate_id, stored_path FROM candidate_documents WHERE id = ?",
             (doc_id,),
