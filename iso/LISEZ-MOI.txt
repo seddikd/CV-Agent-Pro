@@ -1,0 +1,57 @@
+============================================================
+   CV AGENT PRO — Support d'installation Windows 10 / 11
+============================================================
+
+CONTENU DU SUPPORT
+------------------
+  Installer.ps1 .................. Installateur automatique (TOUT-EN-UN)
+  GUIDE_INSTALLATION.md .......... Guide détaillé + dépannage
+  Application\ ................... L'application (exécutable)
+  Prerequis\ ..................... Script d'installation PostgreSQL (secours)
+  Config\ ....................... (réservé)
+  Manuels\
+     Manuel_Utilisateur\ ......... Manuel pour l'équipe RH (PDF + Markdown)
+     Manuel_Deploiement\ ......... Manuel pour l'informaticien (PDF + Markdown)
+
+
+INSTALLATION RAPIDE (recommandée)
+---------------------------------
+  1. Clic DROIT sur « Installer.ps1 »  ->  « Exécuter avec PowerShell »
+     (accepter l'élévation administrateur).
+
+     Ou, dans une invite PowerShell ADMINISTRATEUR, dans ce dossier :
+        powershell -ExecutionPolicy Bypass -File .\Installer.ps1
+
+     Pour installer aussi le moteur IA local (Ollama, gratuit) :
+        powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -InstallOllama
+
+  2. L'installateur met en place automatiquement :
+       - PostgreSQL 17            (base de données)
+       - la base « cvagent »      (rôle + base dédiés)
+       - les variables système    (connexion + secret de chiffrement)
+       - l'application            (dans C:\CV-Agent-Pro + raccourcis)
+
+  3. À la fin, l'application se lance et ouvre votre navigateur sur la page
+     de CRÉATION DU COMPTE ADMINISTRATEUR. Suivez-la.
+
+  4. Connectez-vous, puis allez dans « Administration -> Paramètres » pour
+     saisir votre boîte mail (IMAP + Sécurité), le moteur IA (Ollama ou cloud)
+     et, si besoin, l'envoi d'emails (SMTP).
+
+
+PRÉREQUIS DE LA MACHINE
+-----------------------
+  - Windows 10 ou 11 (64 bits)
+  - Droits administrateur
+  - Connexion Internet pendant l'installation (téléchargement de PostgreSQL)
+  - « App Installer » (winget) — présent par défaut sur Windows 10/11 à jour
+
+  Aucune boîte Gmail obligatoire : TOUT serveur IMAP est accepté
+  (Gmail, Outlook / Office 365, OVH, Zoho, serveur interne…).
+
+
+BESOIN D'AIDE ?
+---------------
+  Ouvrez « GUIDE_INSTALLATION.md » (détails, mode réseau, dépannage) et les
+  manuels du dossier « Manuels\ ».
+============================================================
