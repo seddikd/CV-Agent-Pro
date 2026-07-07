@@ -108,33 +108,49 @@ ne doit **jamais** contenir de vrais identifiants (il est embarqué dans l'exe d
 | Variable | Effet |
 |---|---|
 | `CV_AGENT_DB_URL` | Bascule vers PostgreSQL (ex. `postgresql://user:pw@host:5432/cvagent`). Absente → SQLite. |
-| `CV_AGENT_SECRET` | Secret partagé : (1) stabilise le cookie de session, (2) **active le chiffrement portable des secrets** (`enc:v2:`) déchiffrable par tous les postes qui partagent la même valeur. Obligatoire pour un déploiement PostgreSQL multi-postes. |
+| `CV_AGENT_SECRET` | Secret partagé : (1) stabilise le cookie de session, (2) **active le chiffrement portable des secrets** (`enc:v2:`) déchiffrable par toute instance partageant la même valeur. Obligatoire seulement si **plusieurs instances serveur** partagent la même base PostgreSQL. |
 | `CV_AGENT_HTTPS_ONLY` | `1` pose le drapeau `Secure` sur le cookie de session (à activer derrière un reverse-proxy HTTPS). |
 | `OPENROUTER_API_KEY` | Clé cloud (prioritaire sur la valeur stockée en base). |
 
-### Déploiement multi-postes (PostgreSQL partagé)
+### Déploiement serveur central (postes clients = navigateur)
 
-Pour que plusieurs postes RH partagent une **même base centralisée** :
+Architecture : **une seule instance** de l'application tourne sur un poste
+« serveur » ; les autres postes RH y accèdent via un **navigateur** — rien à
+installer côté client, aucune configuration IMAP côté client. La relève IMAP, le
+pipeline LLM et le planificateur s'exécutent **uniquement sur le serveur**. La
+« synchronisation » (bouton *Lancer maintenant*) déclenchée depuis un client
+s'exécute donc sur le serveur.
 
-1. Installer PostgreSQL sur un serveur du réseau, créer une base `cvagent`.
-2. Générer **une** valeur secrète partagée :
-   `python -c "import secrets; print(secrets.token_hex(32))"`
-3. Sur **chaque** poste, définir les **deux** variables (identiques partout ;
-   `/M` = niveau machine, requiert une invite admin) :
-   ```powershell
-   setx /M CV_AGENT_DB_URL "postgresql://user:pw@SERVEUR:5432/cvagent"
-   setx /M CV_AGENT_SECRET "<la_valeur_générée_à_l_étape_2>"
+**Sur le serveur** (PostgreSQL peut rester en `localhost` : seule l'appli du
+serveur y accède — ne pas exposer 5432 au réseau) :
+
+1. Créer un rôle et provisionner la base :
+   ```sql
+   CREATE ROLE cvagent LOGIN PASSWORD '…';
+   ALTER ROLE cvagent CREATEDB;
    ```
-4. Provisionner la base **une fois** (crée base + schéma + réglages par défaut) :
    ```powershell
+   setx /M CV_AGENT_DB_URL "postgresql://cvagent:…@localhost:5432/cvagent"
+   setx /M CV_AGENT_SECRET  "<python -c ""import secrets;print(secrets.token_hex(32))"">"
+   # rouvrir le terminal (setx n'affecte que les nouveaux processus), puis :
    .\.venv\Scripts\python.exe init_postgres.py
    ```
-5. Au premier démarrage, créer l'admin via `/setup` puis saisir les réglages
-   (IMAP, SMTP, clé API) dans **Administration → Paramètres**. Les secrets sont
-   alors chiffrés en `enc:v2:` (portable) et lisibles depuis tous les postes.
+2. Ouvrir le **port applicatif 6060** au LAN et lancer l'appli :
+   ```powershell
+   New-NetFirewallRule -DisplayName "CV-Agent 6060 LAN" -Direction Inbound `
+     -Protocol TCP -LocalPort 6060 -Action Allow -RemoteAddress <sous-réseau>/24
+   .\run_web.bat
+   ```
+3. Créer l'admin via `http://localhost:6060/setup`, puis configurer IMAP/SMTP/LLM
+   dans **Administration → Paramètres**.
 
-> ⚠️ Sans `CV_AGENT_SECRET`, les secrets sont chiffrés en DPAPI **lié à la machine**
-> et ne se déchiffrent que sur le poste d'origine — à réserver au mono-poste.
+**Sur les postes clients :** ouvrir `http://<ip-serveur>:6060` dans un navigateur.
+Aucune installation, aucune variable, aucun accès IMAP côté client.
+
+> `CV_AGENT_SECRET` n'est **obligatoire** que si vous faites tourner **plusieurs**
+> instances serveur sur la même base (chiffrement portable `enc:v2:`). Pour une
+> instance unique, DPAPI suffit ; le définir reste recommandé pour stabiliser le
+> cookie de session entre redémarrages.
 
 ---
 
