@@ -1,0 +1,51 @@
+# Contexte de build minimal : on n'envoie au démon Docker que le code utile.
+
+# Données & secrets — NE JAMAIS embarquer dans l'image
+state.db
+state.db-*
+*.sqlite
+*.sqlite3
+session.secret
+cv_pdfs/
+logs/
+output/
+.env
+
+# Environnement Python local / caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Git & CI
+.git/
+.gitignore
+.gitattributes
+
+# Artefacts de build Windows (inutiles en conteneur Linux)
+build/
+dist/
+Output/
+*.exe
+*.spec
+cv-agent.spec
+build_exe.ps1
+build_installer.ps1
+sign.ps1
+installer.iss
+install*.ps1
+*_autostart.ps1
+version_info.txt
+make_icon.py
+
+# Docs volumineuses régénérables
+*.pdf
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

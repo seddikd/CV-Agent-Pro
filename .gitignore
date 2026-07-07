@@ -6,6 +6,8 @@ state.db-*
 *.sqlite3
 # Secret de session (généré au 1er lancement).
 session.secret
+# Fichier d'environnement Docker (secrets : CV_AGENT_SECRET, POSTGRES_PASSWORD).
+.env
 # CV et pièces jointes reçus (données personnelles candidats).
 cv_pdfs/
 # Journaux d'exécution.

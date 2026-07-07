@@ -1,0 +1,48 @@
+# CV Agent Pro — déploiement « batteries incluses » : application + PostgreSQL.
+# Une seule commande :  docker compose up -d   (puis http://<hote>:6060/setup)
+#
+# Les valeurs sensibles viennent d'un fichier .env à côté de ce fichier
+# (voir .env.example). Volumes nommés => données persistantes hors conteneurs.
+#
+# Variante SANS PostgreSQL (SQLite, façon Uptime Kuma) : ne pas utiliser compose,
+#   docker run -d -p 6060:6060 -e CV_AGENT_SECRET=<hex> -v cvagent-data:/data cv-agent-pro
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cvagent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD dans .env}
+      POSTGRES_DB: cvagent
+    volumes:
+      - cvagent-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cvagent -d cvagent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Pas de port publié : la base n'est accessible qu'au réseau interne compose.
+
+  app:
+    build: .
+    image: cv-agent-pro:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Le schéma et les réglages par défaut sont créés automatiquement au 1er
+      # démarrage (lifespan FastAPI) ; l'admin se crée ensuite via /setup.
+      CV_AGENT_DB_URL: postgresql://cvagent:${POSTGRES_PASSWORD}@db:5432/cvagent
+      # Secret partagé OBLIGATOIRE (chiffrement des secrets + cookie de session).
+      CV_AGENT_SECRET: ${CV_AGENT_SECRET:?definir CV_AGENT_SECRET dans .env}
+      CV_AGENT_DATA_DIR: /data
+    volumes:
+      - cvagent-data:/data          # cv_pdfs, logs (la base vit dans PostgreSQL)
+    ports:
+      - "6060:6060"
+
+volumes:
+  cvagent-db:
+  cvagent-data:

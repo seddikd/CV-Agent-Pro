@@ -1,0 +1,19 @@
+# Dépendances RUNTIME pour l'image Docker (serveur web uniquement).
+# Sous-ensemble de requirements.txt : on retire les outils desktop/build inutiles
+# en conteneur (pystray, pillow, pyinstaller, markdown pour le PDF).
+imap-tools>=1.5.0
+ollama>=0.3.0
+requests>=2.31.0
+pypdf>=4.0.0
+python-docx>=1.1.0
+openpyxl>=3.1.0
+PyYAML>=6.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+jinja2>=3.1.0
+python-multipart>=0.0.9
+bcrypt>=4.1.0
+itsdangerous>=2.1.0
+apscheduler>=3.10.0
+psycopg[binary]>=3.1.0
+cryptography>=42.0.0

@@ -88,6 +88,42 @@ python main.py
 Puis ouvrez `http://localhost:6060` (ou `http://<ip-machine>:6060` depuis un autre poste du LAN)
 et connectez-vous avec le compte admin créé au bootstrap.
 
+## Docker (recommandé — tout-en-un, multiplateforme)
+
+L'image conteneurise tout (aucune dépendance à installer). Elle tourne sur
+Windows / Linux / macOS. Les postes clients restent de simples navigateurs.
+
+**Option 1 — « batteries incluses » (app + PostgreSQL) en une commande :**
+
+```bash
+cp .env.example .env      # puis renseignez CV_AGENT_SECRET et POSTGRES_PASSWORD
+docker compose up -d
+```
+
+Générez le secret : `docker run --rm python:3.12-slim python -c "import secrets;print(secrets.token_hex(32))"`.
+Le schéma et les réglages par défaut se créent automatiquement au 1er démarrage.
+
+**Option 2 — conteneur unique avec SQLite (façon Uptime Kuma) :**
+
+```bash
+docker build -t cv-agent-pro:latest .
+docker run -d --name cv-agent -p 6060:6060 --restart unless-stopped \
+  -e CV_AGENT_SECRET=<hex_généré> \
+  -v cvagent-data:/data \
+  cv-agent-pro:latest
+```
+
+Dans les deux cas : ouvrez `http://<hôte>:6060/setup` pour créer l'admin, puis
+configurez IMAP/SMTP/LLM dans **Administration → Paramètres**. Les données
+persistent dans les volumes (`cvagent-data`, et `cvagent-db` pour PostgreSQL).
+
+> `CV_AGENT_SECRET` est **obligatoire** en conteneur : sous Linux le chiffrement
+> DPAPI (Windows) n'existe pas ; c'est le chiffrement portable `enc:v2:` qui
+> protège les secrets, et il dérive sa clé de cette variable.
+>
+> **LLM** : le conteneur doit joindre Ollama (`ollama.host` = `http://host.docker.internal:11434`
+> pour un Ollama sur l'hôte) ou utiliser le fournisseur cloud OpenRouter.
+
 ## Construire l'exécutable Windows
 
 ```powershell
