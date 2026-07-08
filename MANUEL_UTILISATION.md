@@ -545,6 +545,15 @@ Selon le moteur choisi, les champs correspondants s'affichent :
 | **Ollama** | Modèle, URL du serveur Ollama, délai d'attente (timeout). |
 | **Cloud** | URL de base (compatible OpenAI), modèle, **clé API**, timeout. |
 
+> **URL du serveur Ollama** — la bonne valeur dépend de l'emplacement d'Ollama :
+> - App installée en local (`.exe`) : `http://localhost:11434`
+> - Application en conteneur Docker, Ollama sur le même serveur : `http://host.docker.internal:11434`
+> - Ollama sur une autre machine : `http://<IP_du_serveur>:11434`
+>
+> Si le test échoue avec « serveur injoignable », c'est presque toujours cette URL.
+> Astuce : Ollama doit être lancé avec `OLLAMA_HOST=0.0.0.0` pour être joignable
+> depuis un conteneur ou un autre poste (par défaut il n'écoute qu'en local).
+
 ### Réglages communs
 
 - **Seuil de confiance CV (0-1)** : niveau à partir duquel un email est considéré comme

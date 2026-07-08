@@ -132,8 +132,11 @@ vivent dans PostgreSQL ; le volume `cvagent-data` ne porte que les fichiers (cv_
 > protège les secrets, et il dérive sa clé de cette variable. `CV_AGENT_DB_URL` est
 > également **obligatoire** (fournie automatiquement par `docker compose`).
 >
-> **LLM** : le conteneur doit joindre Ollama (`ollama.host` = `http://host.docker.internal:11434`
-> pour un Ollama sur l'hôte) ou utiliser le fournisseur cloud OpenRouter.
+> **LLM** : le conteneur doit joindre Ollama. Régler `ollama.host` selon l'emplacement :
+> `http://host.docker.internal:11434` (Ollama sur l'hôte, mappé par le `extra_hosts`
+> du compose) ou `http://<IP_du_serveur>:11434` (Ollama sur une autre machine).
+> Dans les deux cas, lancer Ollama avec `OLLAMA_HOST=0.0.0.0` pour qu'il accepte les
+> connexions externes. Sinon, utiliser le fournisseur cloud OpenRouter.
 
 ## Construire l'exécutable Windows
 

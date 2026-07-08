@@ -214,9 +214,13 @@ avoir les droits — voir [§6.1](#61-créer-le-rôle-applicatif-et-la-base)).
 Le conteneur doit joindre le moteur LLM :
 
 - **Ollama sur l'hôte** : réglez `ollama.host` = `http://host.docker.internal:11434`
-  dans **Administration → Paramètres**. Sous Linux, ajoutez si besoin
-  `--add-host=host.docker.internal:host-gateway` au `docker run` (ou le mapping
-  équivalent dans compose).
+  dans **Administration → Paramètres** (le défaut `http://localhost:11434` ne
+  fonctionne **que** pour l'app desktop `.exe` : dans un conteneur, `localhost`
+  désigne le conteneur lui-même, pas l'hôte). Le `docker-compose.yml` fourni
+  mappe déjà `host.docker.internal` (bloc `extra_hosts`), y compris sous Docker
+  Linux natif. Avec `docker run`, ajoutez `--add-host=host.docker.internal:host-gateway`.
+  Vérifiez enfin qu'Ollama écoute au-delà de `127.0.0.1` (lancez-le avec
+  `OLLAMA_HOST=0.0.0.0`) pour qu'il accepte les connexions du conteneur.
 - **OpenRouter (cloud)** : choisissez le fournisseur `openrouter` et renseignez la clé
   (ou passez `OPENROUTER_API_KEY` en variable d'environnement).
 
@@ -507,8 +511,22 @@ automatique. Réglé dans **Administration → Paramètres**.
 
 | Fournisseur | À préparer côté déployeur |
 |---|---|
-| **Ollama** (local, recommandé) | Installer Ollama, télécharger le modèle (`ollama pull qwen2.5:14b`), vérifier qu'il écoute sur `http://localhost:11434`. En Docker : `ollama.host` = `http://host.docker.internal:11434`. 100 % local, aucune donnée envoyée. |
+| **Ollama** (local, recommandé) | Installer Ollama, télécharger le modèle (`ollama pull qwen2.5:14b`), vérifier qu'il écoute sur `http://localhost:11434`. La valeur de `ollama.host` dépend de **où** tourne Ollama (voir tableau ci-dessous). 100 % local, aucune donnée envoyée. |
 | **OpenRouter** (cloud) | Renseigner `openrouter.base_url`, `openrouter.model` et la clé API. La clé peut aussi venir de la variable d'environnement `OPENROUTER_API_KEY` (prioritaire sur la valeur stockée). ⚠️ Les CV sont alors envoyés au service cloud. |
+
+**Valeur de `ollama.host` selon l'emplacement du serveur Ollama :**
+
+| Où tourne Ollama | `ollama.host` |
+|---|---|
+| App desktop `.exe` (même PC) | `http://localhost:11434` |
+| Conteneur Docker, Ollama sur l'**hôte** | `http://host.docker.internal:11434` |
+| Ollama sur une **autre machine** | `http://<IP_du_serveur>:11434` |
+
+> ⚠️ Par défaut, Ollama n'écoute que sur `127.0.0.1`. Pour qu'il soit joignable
+> depuis un conteneur ou une autre machine, le lancer avec `OLLAMA_HOST=0.0.0.0`
+> et ouvrir le port **11434/tcp** dans le pare-feu. Le `docker-compose.yml` fourni
+> mappe déjà `host.docker.internal` (bloc `extra_hosts`), y compris sous Docker
+> Linux natif. Test rapide depuis l'hôte : `curl http://<cible>:11434/api/tags`.
 
 Le classifieur et l'extracteur passent tous deux par la même fonction et attendent un
 objet JSON en retour.
@@ -600,7 +618,8 @@ le volume `cvagent-data`.
 | L'exe plante avec `ModuleNotFoundError` | Module top-level manquant dans `hiddenimports` de `cv-agent.spec`. Ajoutez-le et reconstruisez. |
 | L'exe ne trouve pas `cryptography` / `psycopg` | Exe construit **avant** l'ajout de la dépendance. Reconstruisez (`build_exe.ps1`). |
 | Variables d'environnement ignorées | `setx` n'affecte que les nouveaux processus : **rouvrez** le terminal (et redémarrez la tâche planifiée) après les avoir posées. |
-| L'IA ne répond pas | Ollama non démarré / modèle non téléchargé, ou clé OpenRouter absente/invalide. En Docker, `ollama.host` doit pointer vers `host.docker.internal`. Voir `logs\agent.log`. |
+| L'IA ne répond pas | Ollama non démarré / modèle non téléchargé, ou clé OpenRouter absente/invalide. Voir `logs\agent.log`. |
+| Test Ollama : « serveur injoignable » (`Connection refused` sur `:11434`) | Mauvaise `ollama.host`. En Docker : `http://host.docker.internal:11434` (Ollama sur l'hôte) ou `http://<IP_du_serveur>:11434` (autre machine). Vérifier aussi qu'Ollama écoute sur `0.0.0.0` (pas seulement `127.0.0.1`) et que le port 11434 est ouvert. Test : `curl http://<cible>:11434/api/tags`. |
 
 ---
 

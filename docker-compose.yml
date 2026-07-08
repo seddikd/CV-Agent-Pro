@@ -40,6 +40,12 @@ services:
       CV_AGENT_DATA_DIR: /data
     volumes:
       - cvagent-data:/data          # cv_pdfs, logs (la base vit dans PostgreSQL)
+    # Permet au conteneur de joindre Ollama qui tourne sur l'hôte via
+    # `ollama.host = http://host.docker.internal:11434` (Administration → Paramètres).
+    # Sur Docker Desktop (Windows/Mac) le nom existe déjà ; cette ligne le rend
+    # aussi valable sous Docker Linux natif.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "6060:6060"
 

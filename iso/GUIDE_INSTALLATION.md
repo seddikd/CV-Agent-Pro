@@ -64,6 +64,8 @@ iso\
    - **Mail** : serveur IMAP, **Sécurité IMAP** (SSL 993 / STARTTLS 143 / Aucune),
      utilisateur, mot de passe, dossier. Bouton « Tester la connexion ».
    - **LLM** : Ollama local (`http://localhost:11434`) ou cloud OpenRouter.
+     Si Ollama tourne sur une **autre machine**, mettre `http://<IP_du_serveur>:11434`
+     (et lancer ce serveur avec `OLLAMA_HOST=0.0.0.0`).
    - **SMTP** (optionnel) : pour les notifications par email.
 
 ## 4. Accès partagé depuis d'autres postes (mode serveur LAN)
@@ -110,6 +112,7 @@ serveur centralisé. Non nécessaire pour une installation poste simple.
 | Connexion mail refusée | Vérifiez la **Sécurité IMAP** (SSL/STARTTLS) et le port. Gmail/Outlook exigent un **mot de passe d'application**. |
 | PostgreSQL non installé automatiquement | Lancez `Prerequis\Installer-PostgreSQL.ps1`, puis reportez l'URL affichée dans la variable `CV_AGENT_DB_URL`. |
 | Le modèle IA ne répond pas | Ollama lancé ? Modèle téléchargé (`ollama pull qwen2.5:14b`) ? Sinon basculez sur le fournisseur cloud OpenRouter dans les Paramètres LLM. |
+| Test Ollama : « serveur injoignable » | Vérifiez l'URL dans **Param. LLM** : `http://localhost:11434` (même PC) ou `http://<IP_du_serveur>:11434` (Ollama sur une autre machine, lancé avec `OLLAMA_HOST=0.0.0.0`). |
 
 ---
 
