@@ -44,6 +44,21 @@ make_icon.py
 # Docs volumineuses régénérables
 *.pdf
 
+# Assets de travail / captures / exports — hors code serveur (grossissent l'image)
+UI/
+*.mp4
+*.mkv
+*.mov
+*.xlsx
+
+# Fichiers Outlook déposés pour import (montés au runtime, jamais dans l'image)
+import/
+*.pst
+*.ost
+
+# Assets d'installation Windows (inutiles dans l'image Linux)
+iso/
+
 # IDE / OS
 .vscode/
 .idea/

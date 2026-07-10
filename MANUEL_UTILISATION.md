@@ -140,6 +140,7 @@ Une fois connecté, une **barre de menu** en haut donne accès à toutes les rub
 | **Recherche IA** | Recherche en langage naturel |
 | **Stats** | Statistiques RH |
 | **Cycles** | Historique et déclenchement des synchronisations |
+| **Import Outlook** *(manager/admin)* | Import de CV depuis un fichier `.pst` / `.ost` |
 | **Utilisateurs** *(admin)* | Gestion des comptes |
 | **Param. Mail** *(admin)* | Réglages boîte mail, planificateur, notifications |
 | **Param. LLM** *(admin)* | Réglages moteur d'IA |
@@ -455,6 +456,34 @@ ne cochez jamais cette case.**
 
 > L'administrateur dispose aussi, sur la page Cycles, d'un bouton **🗑 Vider historique +
 > candidats** — action **irréversible** réservée à la maintenance.
+
+---
+
+## 17bis. Import de fichiers Outlook (PST / OST)
+
+*Menu **📥 Import Outlook*** *(manager/admin)*. En complément de l'IMAP, vous pouvez
+importer les CV contenus dans une **archive Outlook** `.pst` ou `.ost`. Un tel fichier
+est un **instantané** : il est parcouru **une fois**, puis le traitement habituel
+s'applique (détection de CV, extraction, dédup). Les messages **sans pièce jointe
+PDF/DOCX** sont ignorés, et **réimporter le même fichier ne crée pas de doublons**.
+
+Trois façons de fournir le fichier :
+
+1. **Téléverser** (section 1 de la page) : pratique pour un fichier de taille modérée.
+2. **Déposer dans le dossier serveur** puis choisir le fichier dans la liste (section 2).
+   Recommandé pour les **gros fichiers** (plusieurs Go) : en Docker, déposez-les dans le
+   dossier monté (par défaut `./import`).
+3. **Chemin serveur** (section 3) : indiquez le chemin absolu d'un fichier accessible par
+   le serveur.
+
+Pour chaque fichier, le bouton **🔍 Tester** vérifie qu'il est lisible et compte les
+messages exploitables ; **▶ Importer** lance le traitement. Le **suivi et les résultats**
+apparaissent dans la page **Cycles** (source `import_outlook`), comme un cycle normal —
+vous pouvez d'ailleurs l'**arrêter** depuis cette page.
+
+> **OST** : le format de cache hors-ligne est lu au mieux. Certains OST récents
+> (chiffrés / liés au profil) peuvent échouer : convertissez-les alors en PST depuis
+> Outlook avant l'import.
 
 ---
 

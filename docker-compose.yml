@@ -40,6 +40,9 @@ services:
       CV_AGENT_DATA_DIR: /data
     volumes:
       - cvagent-data:/data          # cv_pdfs, logs (la base vit dans PostgreSQL)
+      # Import Outlook : déposez vos .pst/.ost dans ./import (à côté de ce fichier),
+      # ils apparaissent dans « Import Outlook ». Pratique pour les fichiers de plusieurs Go.
+      - ./import:/data/import
     # Permet au conteneur de joindre Ollama qui tourne sur l'hôte via
     # `ollama.host = http://host.docker.internal:11434` (Administration → Paramètres).
     # Sur Docker Desktop (Windows/Mac) le nom existe déjà ; cette ligne le rend

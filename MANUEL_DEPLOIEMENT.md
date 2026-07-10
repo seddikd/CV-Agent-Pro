@@ -224,6 +224,22 @@ Le conteneur doit joindre le moteur LLM :
 - **OpenRouter (cloud)** : choisissez le fournisseur `openrouter` et renseignez la clé
   (ou passez `OPENROUTER_API_KEY` en variable d'environnement).
 
+### 5.6bis Import de fichiers Outlook (PST/OST)
+
+La page **Import Outlook** permet de traiter une archive `.pst`/`.ost` en plus de l'IMAP
+(voir manuel utilisateur §17bis). Côté déploiement :
+
+- **Docker (Linux)** : la lecture utilise `libpff` (paquet `libpff-python`), **compilé au
+  build** de l'image (le `Dockerfile` installe `build-essential` le temps de la compilation
+  puis le purge). Le `docker-compose.yml` monte `./import` → `/data/import` : déposez-y les
+  fichiers volumineux (plusieurs Go), ils apparaissent dans la page. Réglage du dossier :
+  `outlook.import_dir` (relatif à `/data`).
+- **Windows (.exe)** : le backend fiable est **Outlook via `pywin32`** (Outlook doit être
+  installé). `libpff-python` (backend `pypff`) fonctionne aussi si un compilateur/wheel est
+  disponible. Le choix se règle via `outlook.backend` (`auto` | `pypff` | `win32com`).
+- Un import se suit comme un cycle (page **Cycles**, source `import_outlook`) et respecte le
+  même invariant « un seul traitement à la fois ».
+
 ### 5.7 Exploitation Docker
 
 ```bash

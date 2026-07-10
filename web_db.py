@@ -57,6 +57,11 @@ DEFAULT_SETTINGS = {
     # Rappels d'entretien : email automatique X heures avant l'entretien.
     "entretiens.reminder_enabled": "true",
     "entretiens.reminder_hours_before": "24",
+    # Import de fichiers Outlook (PST/OST). `import_dir` : dossier serveur où déposer
+    # les fichiers (relatif à DATA_DIR ; ex. /data/import en Docker). `backend` :
+    # auto | pypff (libpff, multiplateforme) | win32com (Outlook, Windows).
+    "outlook.import_dir": "import",
+    "outlook.backend": "auto",
 }
 
 
@@ -214,6 +219,13 @@ def settings_to_config(settings: dict[str, str]) -> dict:
             ),
             "pdf_max_chars": _int(settings, "processing.pdf_max_chars", 30000),
             "fetch_since_days": _int(settings, "processing.fetch_since_days", 30),
+        },
+        "outlook": {
+            # Dossier serveur des fichiers PST/OST, résolu en zone d'écriture (DATA_DIR)
+            # pour rester valide une fois figé en .exe (comme paths.pdf_storage).
+            "import_dir": str(app_paths.data_path(
+                settings.get("outlook.import_dir", DEFAULT_SETTINGS["outlook.import_dir"]))),
+            "backend": settings.get("outlook.backend", DEFAULT_SETTINGS["outlook.backend"]),
         },
     }
 

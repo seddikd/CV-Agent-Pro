@@ -17,3 +17,4 @@ itsdangerous>=2.1.0
 apscheduler>=3.10.0
 psycopg[binary]>=3.1.0
 cryptography>=42.0.0
+libpff-python>=20231205        # lecture des fichiers Outlook PST/OST (import) — compilé au build

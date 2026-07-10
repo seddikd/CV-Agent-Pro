@@ -45,6 +45,9 @@ exécutable Windows (`.exe` : uvicorn sur la boucle locale + icône de la zone d
   via l'interface d'administration.
 - **Toute boîte IMAP** est supportée via le réglage `imap.security` (`SSL` / `STARTTLS` / `None`) —
   pas seulement Gmail.
+- **Import de fichiers Outlook `.pst` / `.ost`** (page *Import Outlook*) : traitement ponctuel
+  d'une archive Outlook, en plus de l'IMAP. Lecture via `libpff` (pypff, multiplateforme) ou
+  Outlook/`pywin32` (Windows). Dépôt par upload ou chemin serveur (volume monté).
 - **Fournisseur LLM au choix** (pas de bascule automatique) : Ollama (local) ou point d'accès
   compatible OpenAI (OpenRouter / Gemini / …), selon le réglage `llm.provider`.
 - **Secrets chiffrés au repos** : `enc:v2:` (Fernet portable, clé dérivée de `CV_AGENT_SECRET`) ou,

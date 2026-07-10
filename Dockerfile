@@ -25,17 +25,25 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # 1) Dépendances d'abord (couche cache indépendante du code applicatif).
-#    Les wheels binaires (cryptography, psycopg) s'installent sans toolchain.
+#    Les wheels binaires (cryptography, psycopg) s'installent sans toolchain, MAIS
+#    libpff-python (lecture PST/OST) se compile : on ajoute build-essential le temps
+#    du build puis on le purge pour garder l'image légère (le .so reste utilisable).
 COPY requirements-docker.txt ./
-RUN pip install --no-cache-dir -r requirements-docker.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    && pip install --no-cache-dir -r requirements-docker.txt \
+    && apt-get purge -y --auto-remove build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# 2) Code applicatif.
-COPY . .
-
-# 3) Utilisateur non-root + volume de données inscriptible.
+# 2) Utilisateur non-root + volume de données inscriptible (AVANT la copie du code
+#    pour pouvoir utiliser COPY --chown : évite une couche de duplication du /app
+#    qu'un `chown -R /app` créerait après coup).
 RUN useradd --create-home --uid 10001 cvagent \
     && mkdir -p /data \
-    && chown -R cvagent:cvagent /data /app
+    && chown cvagent:cvagent /data
+
+# 3) Code applicatif, directement au bon propriétaire.
+COPY --chown=cvagent:cvagent . .
 USER cvagent
 
 EXPOSE 6060

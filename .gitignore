@@ -14,6 +14,10 @@ cv_pdfs/
 logs/
 # Export Excel généré.
 output/
+# Fichiers Outlook déposés pour l'import (PST/OST) — dossier runtime, données perso.
+import/
+*.pst
+*.ost
 # NB : config.yaml EST versionné — c'est le gabarit de premier lancement bundlé
 # dans l'exe (valeurs d'exemple uniquement, jamais de vrais identifiants).
 

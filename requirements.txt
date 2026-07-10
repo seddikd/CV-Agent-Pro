@@ -18,3 +18,7 @@ cryptography>=42.0.0          # chiffrement portable des secrets (enc:v2, clé C
 pystray>=0.19.0
 pillow>=10.0
 pyinstaller>=6.3.0
+# Import Outlook (PST/OST). Sous Windows, le backend fiable est Outlook via pywin32.
+# libpff-python (backend pypff, multiplateforme) nécessite un compilateur C sous
+# Windows : à installer manuellement si un wheel n'est pas disponible.
+pywin32>=306; sys_platform == "win32"

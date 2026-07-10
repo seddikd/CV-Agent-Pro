@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Import Outlook{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Import Outlook (PST / OST)</h1>
+</div>
+
+{% if msg %}<div class="alert info">{{ msg }}</div>{% endif %}
+
+{% if not backends %}
+<div class="alert warning">
+  ⚠️ Aucun lecteur Outlook disponible sur ce serveur. Installez
+  <code>libpff-python</code> (pypff, multiplateforme) ou, sous Windows,
+  <code>pywin32</code> avec Outlook installé.
+</div>
+{% else %}
+<div class="alert info">Lecteur(s) disponible(s) : <strong>{{ backends|join(', ') }}</strong></div>
+{% endif %}
+
+{% if running %}
+<div class="alert warning">⏳ Un traitement est déjà en cours — attendez sa fin avant d'importer.</div>
+{% endif %}
+
+<p class="small">
+  Un fichier PST/OST est un <em>instantané</em> : l'import parcourt ses messages une
+  fois et réutilise le pipeline habituel (détection de CV, extraction, dédup). Les
+  messages sans pièce jointe PDF/DOCX sont ignorés. Réimporter le même fichier ne
+  crée pas de doublons. Suivi et résultats dans <a href="/admin/runs">Cycles</a>.
+</p>
+
+<h2>1. Déposer un fichier</h2>
+<form method="post" action="/admin/import/upload" enctype="multipart/form-data"
+      id="upload-form" style="margin-bottom:1.5rem">
+  <input type="file" name="file" id="upload-file" accept=".pst,.ost" required>
+  <button type="submit" class="btn" id="upload-btn">⬆ Téléverser</button>
+  <div id="upload-progress" style="display:none;margin-top:.6rem">
+    <div style="background:var(--border,#e5e7eb);border-radius:6px;height:16px;
+                overflow:hidden;max-width:480px">
+      <div id="upload-bar" style="background:#2563eb;height:100%;width:0%;
+                                  transition:width .15s"></div>
+    </div>
+    <div id="upload-pct" class="small" style="margin-top:.35rem">0 %</div>
+  </div>
+  <div class="small" style="margin-top:.4rem;color:#666">
+    Les gros fichiers (plusieurs Go) : préférez le dépôt direct dans le dossier
+    serveur <code>{{ import_dir }}</code> (volume monté), puis utilisez la section 3.
+  </div>
+</form>
+
+<script>
+(function () {
+  var form = document.getElementById('upload-form');
+  if (!form) return;
+  var input = document.getElementById('upload-file');
+  var btn = document.getElementById('upload-btn');
+  var box = document.getElementById('upload-progress');
+  var bar = document.getElementById('upload-bar');
+  var pct = document.getElementById('upload-pct');
+
+  function fmt(o) {
+    if (o >= 1073741824) return (o / 1073741824).toFixed(2) + ' Go';
+    if (o >= 1048576) return (o / 1048576).toFixed(1) + ' Mo';
+    return (o / 1024).toFixed(0) + ' Ko';
+  }
+
+  form.addEventListener('submit', function (e) {
+    // Pas de fichier -> on laisse la validation native (required) jouer.
+    if (!input.files || !input.files.length) return;
+    e.preventDefault();
+
+    var fd = new FormData(form);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', form.action, true);
+
+    box.style.display = 'block';
+    btn.disabled = true;
+    input.disabled = true;
+    bar.style.width = '0%';
+    pct.textContent = '0 %';
+
+    xhr.upload.addEventListener('progress', function (ev) {
+      if (!ev.lengthComputable) return;
+      var p = Math.round(ev.loaded / ev.total * 100);
+      bar.style.width = p + '%';
+      pct.textContent = p < 100
+        ? p + ' % (' + fmt(ev.loaded) + ' / ' + fmt(ev.total) + ')'
+        : 'Finalisation côté serveur…';
+    });
+
+    xhr.addEventListener('load', function () {
+      if (xhr.status >= 200 && xhr.status < 400) {
+        // Le serveur redirige (303) vers /admin/import : XHR suit la redirection,
+        // responseURL pointe alors sur la page finale (avec le message).
+        window.location = xhr.responseURL || '/admin/import';
+      } else {
+        pct.textContent = 'Échec du téléversement (HTTP ' + xhr.status + ').';
+        btn.disabled = false; input.disabled = false;
+      }
+    });
+    xhr.addEventListener('error', function () {
+      pct.textContent = 'Erreur réseau pendant le téléversement.';
+      btn.disabled = false; input.disabled = false;
+    });
+
+    xhr.send(fd);
+  });
+})();
+</script>
+
+<h2>2. Fichiers présents dans le dossier serveur</h2>
+{% if files %}
+<table class="table">
+  <thead><tr><th>Fichier</th><th>Taille</th><th>Actions</th></tr></thead>
+  <tbody>
+  {% for f in files %}
+    <tr>
+      <td>{{ f.name }}</td>
+      <td class="small">{{ f.size_mb }} Mo</td>
+      <td>
+        <form method="post" action="/admin/import/test" style="display:inline">
+          <input type="hidden" name="filename" value="{{ f.name }}">
+          <button type="submit" class="btn">🔍 Tester</button>
+        </form>
+        <form method="post" action="/admin/import/run" style="display:inline"
+              onsubmit="return confirm('Importer les CV de {{ f.name }} ?');">
+          <input type="hidden" name="filename" value="{{ f.name }}">
+          <button type="submit" class="btn primary" {% if running or not backends %}disabled{% endif %}>
+            ▶ Importer
+          </button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="small">Aucun fichier .pst/.ost dans <code>{{ import_dir }}</code>.</p>
+{% endif %}
+
+<h2>3. Importer par chemin serveur</h2>
+<form method="post" action="/admin/import/run"
+      onsubmit="return confirm('Lancer l\'import de ce fichier ?');">
+  <input type="text" name="server_path" placeholder="/data/import/archive.pst"
+         style="width:min(480px,100%)">
+  <button type="submit" class="btn" formaction="/admin/import/test">🔍 Tester</button>
+  <button type="submit" class="btn primary" {% if running or not backends %}disabled{% endif %}>
+    ▶ Importer
+  </button>
+  <div class="small" style="margin-top:.4rem;color:#666">
+    Chemin absolu d'un fichier accessible par le serveur (utile pour un fichier
+    volumineux déposé via un partage réseau ou un volume Docker monté).
+  </div>
+</form>
+
+{% endblock %}

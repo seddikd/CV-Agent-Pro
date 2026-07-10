@@ -14,13 +14,28 @@ _ps_datas, _ps_binaries, _ps_hidden = collect_all("pystray")
 _pg_datas, _pg_binaries, _pg_hidden = collect_all("psycopg")
 _pgb_datas, _pgb_binaries, _pgb_hidden = collect_all("psycopg_binary")
 
+# Backends d'import Outlook (PST/OST), optionnels selon l'environnement de build :
+# pypff (libpff, extension C) et win32com (Outlook). collect_all/submodules guardés
+# pour ne pas casser le build si l'un n'est pas installé sur la machine de build.
+_ol_datas, _ol_binaries, _ol_hidden = [], [], []
+try:
+    _pf_datas, _pf_binaries, _pf_hidden = collect_all("pypff")
+    _ol_datas += _pf_datas; _ol_binaries += _pf_binaries; _ol_hidden += _pf_hidden
+except Exception:
+    pass
+try:
+    _ol_hidden += collect_submodules("win32com") + ["pythoncom", "pywintypes", "win32api"]
+except Exception:
+    pass
+
 # uvicorn charge dynamiquement ses boucles/protocoles/lifespan : à forcer.
 hiddenimports = (
     collect_submodules("uvicorn")
-    + _ps_hidden + _pg_hidden + _pgb_hidden
+    + _ps_hidden + _pg_hidden + _pgb_hidden + _ol_hidden
     + [
         "app_paths", "app_runtime", "webapp", "web_db", "web_auth", "web_pipeline",
         "db", "state_db", "secret_store", "excel_export", "mail_fetcher", "pdf_extractor",
+        "outlook_fetcher",
         "llm_provider", "llm_classifier", "llm_extractor", "notifier",
         # Socle + logique partagés des modules ATS.
         "web_core", "matching_core", "alerts_engine", "entretien_reminders",
@@ -38,12 +53,12 @@ datas = [
     ("templates", "templates"),
     ("static", "static"),
     ("config.yaml", "."),
-] + _ps_datas + _pg_datas + _pgb_datas
+] + _ps_datas + _pg_datas + _pgb_datas + _ol_datas
 
 a = Analysis(
     ["desktop.py"],
     pathex=["."],
-    binaries=_ps_binaries + _pg_binaries + _pgb_binaries,
+    binaries=_ps_binaries + _pg_binaries + _pgb_binaries + _ol_binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],

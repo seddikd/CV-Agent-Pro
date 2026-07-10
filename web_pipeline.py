@@ -9,6 +9,7 @@ from datetime import datetime
 import state_db
 import web_db
 import mail_fetcher
+import outlook_fetcher
 import pdf_extractor
 import llm_classifier
 import llm_extractor
@@ -45,16 +46,19 @@ def is_active() -> bool:
     return _active_event.is_set()
 
 
-def _process_email(email, cfg: dict) -> bool:
+def _process_email(email, cfg: dict, folder: str | None = None) -> bool:
     """Retourne un dict-résumé du candidat si c'est un CV stocké, sinon None.
 
     Un id candidat et le fichier PDF définitif ne sont créés QU'APRÈS confirmation
     que le document est bien un CV (classification OK) ET extraction réussie :
     sinon on ne consomme pas d'id et on ne laisse aucun fichier orphelin. Le
     fichier temporaire d'extraction est toujours supprimé (bloc finally).
+
+    `folder` sert de clé de dédup (table `processed_emails`) : IMAP -> dossier IMAP ;
+    import PST/OST -> étiquette propre au fichier (voir `outlook_fetcher.folder_label`).
     """
     uid = email.uid
-    folder = cfg["imap"]["folder"]
+    folder = folder or cfg["imap"]["folder"]
     now_iso = datetime.now().isoformat(timespec="seconds")
 
     if not email.attachments:
@@ -262,6 +266,110 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
             run_id, status="failed",
             error=str(e)[:500], finished=True,
         )
+        return {"run_id": run_id, "error": str(e)}
+    finally:
+        _active_event.clear()
+
+
+# ─── Import ponctuel depuis un fichier Outlook PST/OST ───────────────────────────
+
+def run_outlook_import(path: str, backend: str | None = None,
+                       triggered_by: str = "import_outlook") -> dict:
+    """Importe les CV d'un fichier PST/OST en réutilisant tout le pipeline.
+
+    Même invariant que le cycle IMAP : un seul traitement à la fois (verrou process),
+    annulation coopérative, ligne `runs` pour le suivi. La dédup utilise une étiquette
+    de dossier propre au fichier pour ne pas télescoper l'historique IMAP.
+    """
+    state_db.init()
+    if not _run_lock.acquire(blocking=False):
+        log.warning("Traitement déjà en cours (verrou process) — import ignoré")
+        return {"skipped": True, "reason": "already_running"}
+    try:
+        return _run_outlook_import_locked(path, backend, triggered_by)
+    finally:
+        _run_lock.release()
+
+
+def _run_outlook_import_locked(path: str, backend: str | None, triggered_by: str) -> dict:
+    if web_db.running_run_exists():
+        log.warning("Traitement déjà en cours, import ignoré")
+        return {"skipped": True, "reason": "already_running"}
+
+    settings = web_db.get_all_settings()
+    cfg = web_db.settings_to_config(settings)
+    label = outlook_fetcher.folder_label(path)
+
+    run_id = web_db.create_run(triggered_by=triggered_by)
+    log.info("=== Import %d démarré (%s) ===", run_id, path)
+    _cancel_event.clear()
+    _active_event.set()
+
+    try:
+        emails = outlook_fetcher.fetch_emails(
+            path=path,
+            max_emails=cfg["processing"]["max_emails_per_run"],
+            already_processed=lambda uid: state_db.is_processed(uid, label),
+            backend=backend or cfg["outlook"]["backend"],
+        )
+        web_db.update_run(run_id, emails_fetched=len(emails))
+        log.info("Import %d : %d message(s) à traiter", run_id, len(emails))
+
+        cvs = 0
+        new_candidates = []
+        cancelled = False
+        for email in emails:
+            if _cancel_event.is_set():
+                cancelled = True
+                log.info("Import %d : arrêt demandé par l'utilisateur", run_id)
+                break
+            try:
+                candidate = _process_email(email, cfg, folder=label)
+                if candidate:
+                    cvs += 1
+                    new_candidates.append(candidate)
+            except Exception as e:
+                log.exception("[%s] échec du traitement : %s", email.uid, e)
+                try:
+                    state_db.mark_processed(
+                        email.uid, label,
+                        datetime.now().isoformat(timespec="seconds"),
+                        is_cv=False, notes=f"erreur: {str(e)[:150]}",
+                    )
+                except Exception as e2:
+                    log.warning("[%s] marquage 'traité' impossible : %s", email.uid, e2)
+
+        new_alerts = []
+        try:
+            new_alerts = alerts_engine.generer_alertes_pour_candidats(
+                [c["id"] for c in new_candidates]
+            )
+        except Exception as e:
+            log.warning("Alertes : %s", e)
+
+        try:
+            notifier.notify_new_candidates(cfg["notify"], cfg["smtp"], new_candidates)
+        except Exception as e:
+            log.warning("Notification échouée : %s", e)
+        try:
+            alerts_engine.notifier_alertes(cfg["notify"], cfg["smtp"], new_alerts)
+        except Exception as e:
+            log.warning("Notification alertes échouée : %s", e)
+
+        web_db.update_run(
+            run_id, status="cancelled" if cancelled else "success",
+            cvs_detected=cvs, finished=True,
+        )
+        log.info("=== Import %d %s (CVs détectés=%d) ===",
+                 run_id, "annulé" if cancelled else "terminé", cvs)
+        return {
+            "run_id": run_id, "emails_fetched": len(emails),
+            "cvs_detected": cvs, "cancelled": cancelled,
+        }
+
+    except Exception as e:
+        log.exception("Import %d échoué : %s", run_id, e)
+        web_db.update_run(run_id, status="failed", error=str(e)[:500], finished=True)
         return {"run_id": run_id, "error": str(e)}
     finally:
         _active_event.clear()

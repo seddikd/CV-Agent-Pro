@@ -56,6 +56,7 @@
 
       <div class="side-group">Administration</div>
       {{ navlink('/admin/runs', '🔄', 'Cycles') }}
+      {{ navlink('/admin/import', '📥', 'Import Outlook') }}
       {% if user.role == 'admin' %}
       {{ navlink('/admin/users', '👥', 'Utilisateurs') }}
       {{ navlink('/admin/settings/mail', '✉️', 'Param. Mail') }}

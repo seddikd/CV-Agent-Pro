@@ -13,7 +13,7 @@ from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from fastapi import FastAPI, Form, HTTPException, Request, Response, status
+from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile, status
 from fastapi.responses import (
     FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse,
 )
@@ -30,6 +30,7 @@ import web_pipeline
 import excel_export
 import llm_provider
 import mail_fetcher
+import outlook_fetcher
 import notifier
 
 # Modules ATS avancés : chacun expose un `router` (APIRouter) dans son fichier
@@ -489,6 +490,94 @@ def admin_runs_stop(request: Request):
     return RedirectResponse(f"/admin/runs?msg={msg}", status_code=303)
 
 
+# ─── Import Outlook (PST/OST) ───────────────────────────────────────────────────
+
+def _import_dir() -> Path:
+    cfg = web_db.settings_to_config(web_db.get_all_settings())
+    d = Path(cfg["outlook"]["import_dir"])
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _resolve_import_target(filename: str, server_path: str) -> Path:
+    """Résout la cible d'import : chemin serveur libre, sinon fichier du dossier d'import.
+
+    Un `filename` issu de la liste est réduit à son basename (anti-traversée) ; un
+    `server_path` explicite (fichier déposé ailleurs, ex. volume monté) est accepté tel quel.
+    """
+    if server_path.strip():
+        return Path(server_path.strip()).expanduser().resolve()
+    return (_import_dir() / Path(filename).name).resolve()
+
+
+@app.get("/admin/import", response_class=HTMLResponse)
+def admin_import(request: Request, msg: str = ""):
+    web_auth.require_cycle(request)
+    d = _import_dir()
+    files = []
+    for p in sorted(d.glob("*")):
+        if p.suffix.lower() in (".pst", ".ost") and p.is_file():
+            files.append({"name": p.name, "size_mb": round(p.stat().st_size / (1024 * 1024), 1)})
+    return render(
+        request, "admin_import.html",
+        {
+            "msg": msg,
+            "files": files,
+            "import_dir": str(d),
+            "backends": outlook_fetcher.available_backends(),
+            "running": web_db.running_run_exists(),
+        },
+    )
+
+
+@app.post("/admin/import/upload")
+async def admin_import_upload(request: Request, file: UploadFile = File(...)):
+    web_auth.require_cycle(request)
+    name = Path(file.filename or "").name
+    if Path(name).suffix.lower() not in (".pst", ".ost"):
+        return RedirectResponse("/admin/import?msg=Fichier+refusé+:+.pst+ou+.ost+attendu",
+                                status_code=303)
+    dest = _import_dir() / name
+    # Écriture en flux (par blocs) : les PST peuvent peser plusieurs Go.
+    with open(dest, "wb") as out:
+        while chunk := await file.read(1024 * 1024):
+            out.write(chunk)
+    return RedirectResponse(f"/admin/import?msg=Fichier+déposé+:+{name}", status_code=303)
+
+
+@app.post("/admin/import/test")
+def admin_import_test(request: Request, filename: str = Form(""), server_path: str = Form("")):
+    web_auth.require_cycle(request)
+    target = _resolve_import_target(filename, server_path)
+    ok, message = outlook_fetcher.check_file(str(target))
+    from urllib.parse import quote
+    return RedirectResponse(f"/admin/import?msg={quote(message)}", status_code=303)
+
+
+@app.post("/admin/import/run")
+def admin_import_run(request: Request, filename: str = Form(""), server_path: str = Form("")):
+    web_auth.require_cycle(request)
+    if web_db.running_run_exists():
+        return RedirectResponse("/admin/import?msg=Un+traitement+est+déjà+en+cours",
+                                status_code=303)
+    target = _resolve_import_target(filename, server_path)
+    if not target.exists():
+        return RedirectResponse("/admin/import?msg=Fichier+introuvable", status_code=303)
+    if target.suffix.lower() not in (".pst", ".ost"):
+        return RedirectResponse("/admin/import?msg=Extension+attendue+:+.pst+ou+.ost",
+                                status_code=303)
+    scheduler.add_job(
+        web_pipeline.run_outlook_import,
+        args=[str(target)],
+        id=f"import_{datetime.now().timestamp()}",
+        misfire_grace_time=None,
+    )
+    return RedirectResponse(
+        f"/admin/import?msg=Import+lancé+:+{target.name}+(suivi+dans+Cycles)",
+        status_code=303,
+    )
+
+
 # ─── Admin: users ─────────────────────────────────────────────────────────────
 
 @app.get("/admin/users", response_class=HTMLResponse)
@@ -632,6 +721,8 @@ MAIL_FIELDS = [
     ("smtp.user", "Utilisateur SMTP", "text"),
     ("smtp.password", "Mot de passe SMTP", "password"),
     ("smtp.from", "Expéditeur (adresse From)", "text"),
+    ("outlook.import_dir", "Import Outlook : dossier serveur (relatif aux données)", "text"),
+    ("outlook.backend", "Import Outlook : lecteur (auto / pypff / win32com)", "text"),
 ]
 
 # --- Onglet « Paramètres LLM » : moteur, modèles, extraction
