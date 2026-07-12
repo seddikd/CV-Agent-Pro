@@ -29,11 +29,16 @@
   crée pas de doublons. Suivi et résultats dans <a href="/admin/runs">Cycles</a>.
 </p>
 <p class="small">
-  💡 Après un import, le bouton <strong>« 📁 Ranger les traités »</strong> (fichiers
-  <code>.pst</code> uniquement) déplace tous les mails porteurs d'un CV vers un dossier
-  du PST (par défaut <em>Traités</em>) pour garder l'inbox propre. Cette écriture dans
-  le fichier nécessite <strong>Outlook installé</strong> (backend <code>win32com</code>) ;
-  elle est indisponible avec le seul lecteur <code>pypff</code> (lecture seule).
+  💡 Après un import, le bouton <strong>« 📁 Ranger les traités »</strong> déplace les
+  mails porteurs d'un CV vers un dossier (par défaut <em>Traités</em>) pour garder la
+  boîte propre. Cette écriture nécessite <strong>Outlook installé</strong>
+  (backend <code>win32com</code>) ; indisponible avec le seul lecteur <code>pypff</code>
+  (lecture seule).
+  <br>• <code>.pst</code> : déplacement <em>dans le fichier</em>, sans effet sur le serveur.
+  <br>• <code>.ost</code> : un OST est le cache d'un compte Exchange/Microsoft 365 et ne
+  peut pas être monté seul — l'opération s'applique à la <strong>boîte réelle</strong> du
+  compte (le compte doit être configuré dans Outlook sur ce poste) et
+  <strong>se synchronise vers le serveur</strong>.
 </p>
 
 <h2>1. Déposer un fichier</h2>
@@ -136,18 +141,16 @@
             ▶ Importer
           </button>
         </form>
-        {% if f.name.lower().endswith('.pst') %}
         <form method="post" action="/admin/import/move" style="display:inline"
-              onsubmit="var d=prompt('Déplacer les mails porteurs de CV vers quel dossier du PST ?','Traités'); if(!d){return false;} this.target_folder.value=d; return confirm('Déplacer les mails porteurs de CV de {{ f.name }} vers « '+d+' » ?');">
+              onsubmit="var d=prompt('Déplacer les mails porteurs de CV vers quel dossier ?','Traités'); if(!d){return false;} this.target_folder.value=d; return confirm('Déplacer les mails porteurs de CV de {{ f.name }} vers « '+d+' » ?');">
           <input type="hidden" name="filename" value="{{ f.name }}">
           <input type="hidden" name="target_folder" value="Traités">
           <button type="submit" class="btn"
                   {% if running or not can_move %}disabled{% endif %}
-                  title="{% if not can_move %}Nécessite Outlook installé (win32com) ; pypff est en lecture seule.{% else %}Range les mails porteurs d'un CV dans un dossier du PST{% endif %}">
+                  title="{% if not can_move %}Nécessite Outlook installé (win32com) ; pypff est en lecture seule.{% elif f.name.lower().endswith('.ost') %}OST : opère sur la boîte réelle du compte (synchronisé vers le serveur){% else %}Range les mails porteurs d'un CV dans un dossier du PST{% endif %}">
             📁 Ranger les traités
           </button>
         </form>
-        {% endif %}
       </td>
     </tr>
   {% endfor %}

@@ -356,15 +356,17 @@ def _w32_has_cv_attachment(item) -> bool:
     return False
 
 
-def _w32_collect_cv_messages(folder, skip_entryid: str, out: list) -> None:
-    """Collecte récursivement les mails porteurs d'une PJ CV, hors dossier cible.
+def _w32_collect_cv_messages(folder, skip_entryids: set, out: list) -> None:
+    """Collecte récursivement les mails porteurs d'une PJ CV, hors dossiers exclus.
 
     On collecte AVANT de déplacer : déplacer un item pendant l'itération de la
-    collection `Items` fait sauter des éléments (comportement MAPI connu).
+    collection `Items` fait sauter des éléments (comportement MAPI connu). Les
+    dossiers de `skip_entryids` (cible + dossiers système) sont ignorés, eux et
+    leur sous-arbre.
     """
     try:
-        if skip_entryid and folder.EntryID == skip_entryid:
-            return  # ne pas re-parcourir le dossier cible (déplacements précédents)
+        if folder.EntryID in skip_entryids:
+            return  # dossier cible ou dossier système (Envoyés, Supprimés…)
     except Exception:
         pass
     try:
@@ -380,9 +382,28 @@ def _w32_collect_cv_messages(folder, skip_entryid: str, out: list) -> None:
         log.warning("win32com : dossier illisible au déplacement : %s", e)
     try:
         for sub in list(folder.Folders):
-            _w32_collect_cv_messages(sub, skip_entryid, out)
+            _w32_collect_cv_messages(sub, skip_entryids, out)
     except Exception as e:
         log.warning("win32com : sous-dossiers illisibles au déplacement : %s", e)
+
+
+# Dossiers système à ne jamais balayer (olDefaultFolders) : Supprimés, Boîte d'envoi,
+# Éléments envoyés, Brouillons, Courrier indésirable. Repérés par EntryID (robuste à
+# la langue de l'interface). Certains n'existent pas dans un PST simple → on ignore.
+_W32_SYSTEM_FOLDER_TYPES = (3, 4, 5, 16, 23)
+
+
+def _w32_system_folder_eids(store) -> set:
+    """EntryID des dossiers système du store (ceux qui existent)."""
+    eids: set = set()
+    for ftype in _W32_SYSTEM_FOLDER_TYPES:
+        try:
+            f = store.GetDefaultFolder(ftype)
+            if f is not None:
+                eids.add(f.EntryID)
+        except Exception:
+            continue  # dossier absent pour ce store (ex. PST autonome)
+    return eids
 
 
 def can_move_messages(backend: str | None = None) -> bool:
@@ -390,20 +411,43 @@ def can_move_messages(backend: str | None = None) -> bool:
     return _has_win32com()
 
 
+def _w32_find_store_by_path(outlook, abspath: str):
+    """Retrouve le store Outlook (déjà chargé) dont le fichier == `abspath`."""
+    ref = Path(abspath).resolve()
+    for st in outlook.Stores:
+        try:
+            if st.FilePath and Path(st.FilePath).resolve() == ref:
+                return st
+        except Exception:
+            continue
+    return None
+
+
 def move_cv_messages(path: str, target_folder: str = "Traités",
                      backend: str | None = None) -> tuple[int, str]:
-    """Déplace les mails porteurs d'un CV (PDF/DOCX) vers `target_folder` DANS le PST.
+    """Déplace les mails porteurs d'un CV (PDF/DOCX) vers `target_folder`.
 
-    Écriture dans le fichier : nécessite le backend **win32com** (Outlook installé,
-    Windows). pypff est en lecture seule. Idempotent : les mails déjà rangés dans le
-    dossier cible ne sont pas re-déplacés. Retourne (nb_déplacés, message).
+    Nécessite **win32com** (Outlook installé, Windows) ; pypff est en lecture seule.
+    Deux cas selon le type de fichier :
+
+    - **.pst** : fichier autonome. On le monte (`AddStore`), on déplace, puis on le
+      démonte (`RemoveStore`). Le déplacement reste local au fichier.
+    - **.ost** : cache d'un compte Exchange/Microsoft 365 — un OST NE peut PAS être
+      monté comme fichier indépendant. On opère donc sur le store **déjà chargé** du
+      compte correspondant (repéré par son chemin de fichier). Le déplacement
+      s'applique alors à la **boîte réelle** et se synchronise vers le serveur. Le
+      compte doit être configuré dans l'Outlook de ce poste, sinon on renvoie une
+      erreur explicite (on ne démonte évidemment jamais un compte vivant).
+
+    Idempotent : les mails déjà dans le dossier cible ne sont pas re-déplacés.
+    Retourne (nb_déplacés, message).
     """
     p = Path(path)
     if not p.exists():
         return 0, f"Fichier introuvable : {path}"
-    if p.suffix.lower() != ".pst":
-        # AddStore ne monte de façon fiable que le PST ; l'OST n'est pas déplaçable ici.
-        return 0, "Déplacement possible uniquement sur un fichier .pst (via Outlook)."
+    suffix = p.suffix.lower()
+    if suffix not in (".pst", ".ost"):
+        return 0, "Déplacement possible uniquement sur un fichier .pst ou .ost."
     if not _has_win32com():
         return 0, ("Déplacement indisponible : nécessite Outlook installé "
                    "(pywin32/win32com). pypff est en lecture seule.")
@@ -415,27 +459,32 @@ def move_cv_messages(path: str, target_folder: str = "Traités",
     pythoncom.CoInitialize()
     outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
     abspath = str(p.resolve())
-    outlook.AddStore(abspath)
-    store = None
-    for st in outlook.Stores:
-        try:
-            if st.FilePath and Path(st.FilePath).resolve() == Path(abspath).resolve():
-                store = st
-                break
-        except Exception:
-            continue
+
+    # On réutilise un store déjà chargé s'il existe (cas OST vivant, ou PST déjà monté
+    # par une session précédente) : on ne le démontera pas.
+    store = _w32_find_store_by_path(outlook, abspath)
+    added = False
+    if store is None and suffix == ".pst":
+        outlook.AddStore(abspath)          # un OST ne peut pas être monté ainsi
+        added = True
+        store = _w32_find_store_by_path(outlook, abspath)
     if store is None:
+        if suffix == ".ost":
+            return 0, ("OST non monté : le compte Exchange/Microsoft 365 correspondant "
+                       "doit être configuré dans Outlook sur ce poste (un .ost ne peut "
+                       "pas être monté comme fichier indépendant).")
         return 0, "Outlook n'a pas pu monter le fichier PST."
 
     root = store.GetRootFolder()
     try:
         target = _w32_find_or_create_subfolder(root, target_folder)
+        skip = _w32_system_folder_eids(store)   # Envoyés, Supprimés, Brouillons…
         try:
-            target_eid = target.EntryID
+            skip.add(target.EntryID)            # ne pas re-balayer le dossier cible
         except Exception:
-            target_eid = ""
+            pass
         to_move: list = []
-        _w32_collect_cv_messages(root, target_eid, to_move)
+        _w32_collect_cv_messages(root, skip, to_move)
         moved = 0
         for item in to_move:
             try:
@@ -443,15 +492,20 @@ def move_cv_messages(path: str, target_folder: str = "Traités",
                 moved += 1
             except Exception as e:
                 log.warning("win32com : déplacement d'un message échoué : %s", e)
+        portee = "boîte du compte (synchronisé)" if suffix == ".ost" else p.name
         log.info("Déplacement : %d/%d mail(s) CV rangé(s) dans « %s » (%s)",
-                 moved, len(to_move), target_folder, p.name)
+                 moved, len(to_move), target_folder, portee)
+        note = ("" if suffix == ".pst"
+                else " (boîte du compte — synchronisé vers le serveur)")
         return moved, (f"{moved} mail(s) porteur(s) de CV déplacé(s) vers "
-                       f"« {target_folder} ».")
+                       f"« {target_folder} »{note}.")
     finally:
-        try:
-            outlook.RemoveStore(root)
-        except Exception:
-            pass
+        # NE JAMAIS démonter un store qu'on n'a pas monté (surtout un compte OST vivant).
+        if added:
+            try:
+                outlook.RemoveStore(root)
+            except Exception:
+                pass
 
 
 # ─── API publique ───────────────────────────────────────────────────────────────
