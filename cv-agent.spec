@@ -39,6 +39,8 @@ hiddenimports = (
         "llm_provider", "llm_classifier", "llm_extractor", "notifier",
         # Socle + logique partagés des modules ATS.
         "web_core", "matching_core", "alerts_engine", "entretien_reminders",
+        # Référentiel géographique (wilayas/communes d'Algérie) utilisé par mod_search.
+        "algeria_geo",
         # Routeurs de modules ATS (mod_*.py) — importés au runtime par webapp.
         "mod_dashboard", "mod_search", "mod_jobs", "mod_compare", "mod_notes",
         "mod_duplicates", "mod_summary", "mod_documents", "mod_matching",

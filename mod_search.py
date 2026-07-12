@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Request
 
 from web_core import require_user, render, connect
+from algeria_geo import WILAYAS, COMMUNES_BY_WILAYA
 
 router = APIRouter()
 
@@ -42,19 +43,20 @@ def recherche(request: Request):
     valeurs = {champ: (qp.get(champ) or "").strip() for champ, _, _ in TEXT_FIELDS}
     exp_min_raw = (qp.get("experience") or "").strip()
     wilaya = (qp.get("wilaya") or "").strip()
+    commune = (qp.get("commune") or "").strip()
     situation = (qp.get("situation_familiale") or "").strip()
     tranche_age = (qp.get("tranche_age") or "").strip()
     operateur = (qp.get("operateur") or "AND").upper()
     if operateur not in OPERATEURS:
         operateur = "AND"
 
-    # Options de wilaya : uniquement celles réellement présentes en base (dropdown).
-    with connect() as conn:
-        wilaya_rows = conn.execute(
-            "SELECT DISTINCT wilaya FROM candidates "
-            "WHERE wilaya IS NOT NULL AND wilaya <> '' ORDER BY wilaya"
-        ).fetchall()
-    wilayas = [r["wilaya"] for r in wilaya_rows]
+    # Options de wilaya : référentiel officiel des 58 wilayas d'Algérie (algeria_geo),
+    # et non plus les valeurs libres présentes en base. Le menu « Commune » est
+    # dépendant : il est peuplé côté client (JS) selon la wilaya choisie.
+    wilayas = WILAYAS
+    # Commune retenue seulement si elle appartient bien à la wilaya sélectionnée.
+    if commune and commune not in COMMUNES_BY_WILAYA.get(wilaya, []):
+        commune = ""
 
     # Bornes de la tranche d'âge choisie (None si aucune / invalide).
     age_min = age_max = None
@@ -126,6 +128,9 @@ def recherche(request: Request):
         "experience": exp_min_raw,
         "wilaya": wilaya,
         "wilayas": wilayas,
+        "commune": commune,
+        # Mapping wilaya -> communes, sérialisé côté template pour le menu dépendant.
+        "communes_by_wilaya": COMMUNES_BY_WILAYA,
         "situation_familiale": situation,
         "situations": SITUATIONS,
         "tranche_age": tranche_age,

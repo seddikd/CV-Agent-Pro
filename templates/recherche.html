@@ -3,135 +3,324 @@
 {% block content %}
 
 <style>
-  .recherche-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: .75rem;
-    margin-bottom: 1rem;
+  /* ── Styles scopés au module Recherche ───────────────────────────────── */
+  .rech-sub { color: var(--muted); font-size: 13px; margin: -6px 0 18px; }
+
+  /* Carte de filtres */
+  .rech-form { padding: 18px 18px 16px; }
+  .rech-fieldset { border: 0; margin: 0 0 16px; padding: 0; }
+  .rech-fieldset > legend {
+    font-size: 11.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
+    color: var(--accent); padding: 0; margin: 0 0 10px;
   }
-  .recherche-grid label { display: block; }
-  .recherche-grid .lbl { font-size: .8em; color: var(--muted, #888); }
-  .recherche-grid input { width: 100%; box-sizing: border-box; }
-  .op-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-  .op-row .op-choices { display: flex; gap: 1rem; }
-  .op-row label { font-size: .9em; }
+  .rech-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px 14px;
+  }
+  .rech-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .rech-field .lbl { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .rech-field input,
+  .rech-field select {
+    width: 100%; box-sizing: border-box;
+    padding: 9px 11px; font-size: 14px;
+    border: 1px solid var(--border-strong); border-radius: 9px;
+    background: var(--surface-2); color: var(--text);
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .rech-field input:focus,
+  .rech-field select:focus {
+    outline: none; border-color: var(--primary); box-shadow: var(--ring);
+  }
+  .rech-field select:disabled { opacity: .55; cursor: not-allowed; }
+
+  /* Barre opérateur (segmenté) + actions */
+  .rech-footer {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding-top: 4px;
+  }
+  .rech-op { display: flex; flex-direction: column; gap: 6px; }
+  .rech-op .lbl { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .rech-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 9px; overflow: hidden; }
+  .rech-seg label { position: relative; }
+  .rech-seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .rech-seg label span {
+    display: block; padding: 8px 16px; font-size: 13px; font-weight: 700;
+    color: var(--muted); cursor: pointer; user-select: none;
+    border-left: 1px solid var(--border);
+  }
+  .rech-seg label:first-child span { border-left: 0; }
+  .rech-seg label:hover span { background: var(--surface-2); color: var(--text); }
+  .rech-seg input:checked + span { background: var(--primary); color: #fff; }
+  .rech-seg input:focus-visible + span { box-shadow: var(--ring) inset; }
+  .rech-hint { color: var(--muted); font-size: 12px; flex: 1 1 220px; min-width: 180px; }
+  .rech-actions { display: flex; gap: 10px; margin-left: auto; }
+
+  /* Barre de résultats */
+  .rech-resbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 18px 0 12px;
+  }
+  .rech-count { font-size: 14px; font-weight: 700; color: var(--heading); }
+  .rech-count b { color: var(--primary); }
+  .rech-limit {
+    font-size: 11px; font-weight: 700; letter-spacing: .3px;
+    padding: 2px 9px; border-radius: 999px;
+    background: var(--warning-bg, var(--surface-2)); color: var(--warning, var(--muted));
+  }
+
+  /* Tableau de résultats */
+  .rech-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  .rech-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 820px; }
+  .rech-table th, .rech-table td {
+    padding: 11px 14px; text-align: left; vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+  }
+  .rech-table thead th {
+    position: sticky; top: 0; z-index: 2;
+    background: var(--surface-2); color: var(--muted);
+    font-size: 11.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
+    border-bottom: 2px solid var(--border-strong); white-space: nowrap;
+  }
+  .rech-table tbody tr:last-child td { border-bottom: 0; }
+  .rech-table tbody tr:hover td { background: var(--primary-soft); }
+
+  /* Cellule candidat : avatar + nom + email */
+  .rech-cand { display: flex; align-items: center; gap: 11px; min-width: 190px; }
+  .rech-av {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 13px; letter-spacing: .3px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+  }
+  .rech-cand .n { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+  .rech-cand .n a { font-weight: 700; color: var(--heading); }
+  .rech-cand .n a:hover { color: var(--primary); }
+  .rech-cand .n .mail { font-size: 11.5px; color: var(--muted); }
+  .rech-muted { color: var(--muted); }
+
+  .rech-loc { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+
+  /* Puces compétences */
+  .rech-chips { display: flex; flex-wrap: wrap; gap: 5px; max-width: 260px; }
+  .rech-chip {
+    display: inline-block; padding: 2px 9px; border-radius: 999px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    font-size: 11.5px; color: var(--text); line-height: 1.5;
+  }
+  .rech-chip.more { color: var(--muted); background: transparent; border-style: dashed; }
+
+  /* Expérience */
+  .rech-exp { font-weight: 700; }
+
+  /* Badge statut */
+  .rech-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 700; white-space: nowrap;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+  }
+
+  /* État vide */
+  .rech-empty {
+    text-align: center; padding: 40px 20px; color: var(--muted);
+    border: 1px dashed var(--border-strong); border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .rech-empty .ic { font-size: 30px; display: block; margin-bottom: 8px; opacity: .8; }
 </style>
 
 <div class="page-head">
   <h1>Recherche avancée</h1>
 </div>
+<p class="rech-sub">
+  Croisez les critères (compétences, localisation, expérience…) pour cibler les profils.
+  Wilaya et commune proviennent du référentiel officiel des 58 wilayas d'Algérie.
+</p>
 
-<form method="get" action="/recherche" class="card">
-  <div class="recherche-grid">
-    {% for champ, colonne, libelle in text_fields %}
-    <label>
-      <span class="lbl">{{ libelle }}</span>
-      <input type="text" name="{{ champ }}" value="{{ valeurs[champ] }}"
-             placeholder="{{ libelle }}...">
-    </label>
-    {% endfor %}
-    <label>
-      <span class="lbl">Expérience min. (années)</span>
-      <input type="number" name="experience" min="0" step="1"
-             value="{{ experience }}" placeholder="0">
-    </label>
-    <label>
-      <span class="lbl">Wilaya</span>
-      <select name="wilaya">
-        <option value="">Toutes</option>
-        {% for w in wilayas %}
-        <option value="{{ w }}" {% if wilaya == w %}selected{% endif %}>{{ w }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label>
-      <span class="lbl">Situation familiale</span>
-      <select name="situation_familiale">
-        <option value="">Toutes</option>
-        {% for s in situations %}
-        <option value="{{ s }}" {% if situation_familiale == s %}selected{% endif %}>{{ s }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label>
-      <span class="lbl">Tranche d'âge</span>
-      <select name="tranche_age">
-        <option value="">Toutes</option>
-        {% for t in tranches_age %}
-        <option value="{{ t }}" {% if tranche_age == t %}selected{% endif %}>{{ t }} ans</option>
-        {% endfor %}
-      </select>
-    </label>
-  </div>
-
-  <div class="op-row">
-    <span class="lbl">Opérateur logique :</span>
-    <span class="op-choices">
-      {% for op in operateurs %}
-      <label>
-        <input type="radio" name="operateur" value="{{ op }}"
-               {% if operateur == op %}checked{% endif %}>
-        {{ op }}
+<form method="get" action="/recherche" class="card rech-form">
+  <fieldset class="rech-fieldset">
+    <legend>Profil &amp; compétences</legend>
+    <div class="rech-grid">
+      {% for champ, colonne, libelle in text_fields %}
+      <label class="rech-field">
+        <span class="lbl">{{ libelle }}</span>
+        <input type="text" name="{{ champ }}" value="{{ valeurs[champ] }}"
+               placeholder="{{ libelle }}…">
       </label>
       {% endfor %}
-    </span>
-    <span class="small muted">
-      AND = tous les critères · OR = au moins un · NOT = exclut les correspondances
-    </span>
-  </div>
+      <label class="rech-field">
+        <span class="lbl">Expérience min. (années)</span>
+        <input type="number" name="experience" min="0" step="1"
+               value="{{ experience }}" placeholder="0">
+      </label>
+    </div>
+  </fieldset>
 
-  <button type="submit" class="btn">🔍 Rechercher</button>
-  <a href="/recherche" class="btn ghost">Réinitialiser</a>
+  <fieldset class="rech-fieldset">
+    <legend>Localisation &amp; profil personnel</legend>
+    <div class="rech-grid">
+      <label class="rech-field">
+        <span class="lbl">Wilaya</span>
+        <select name="wilaya" id="filtre-wilaya">
+          <option value="">Toutes</option>
+          {% for w in wilayas %}
+          <option value="{{ w }}" {% if wilaya == w %}selected{% endif %}>{{ w }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="rech-field">
+        <span class="lbl">Commune</span>
+        <select name="commune" id="filtre-commune">
+          <option value="">Toutes</option>
+          {# Peuplé côté client selon la wilaya (voir script en bas). #}
+        </select>
+      </label>
+      <label class="rech-field">
+        <span class="lbl">Situation familiale</span>
+        <select name="situation_familiale">
+          <option value="">Toutes</option>
+          {% for s in situations %}
+          <option value="{{ s }}" {% if situation_familiale == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="rech-field">
+        <span class="lbl">Tranche d'âge</span>
+        <select name="tranche_age">
+          <option value="">Toutes</option>
+          {% for t in tranches_age %}
+          <option value="{{ t }}" {% if tranche_age == t %}selected{% endif %}>{{ t }} ans</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+  </fieldset>
+
+  <div class="rech-footer">
+    <div class="rech-op">
+      <span class="lbl">Opérateur logique</span>
+      <div class="rech-seg">
+        {% for op in operateurs %}
+        <label>
+          <input type="radio" name="operateur" value="{{ op }}"
+                 {% if operateur == op %}checked{% endif %}>
+          <span>{{ op }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <span class="rech-hint">
+      <b>AND</b> = tous les critères · <b>OR</b> = au moins un · <b>NOT</b> = exclut les correspondances
+    </span>
+    <div class="rech-actions">
+      <a href="/recherche" class="btn ghost">Réinitialiser</a>
+      <button type="submit" class="btn">🔍 Rechercher</button>
+    </div>
+  </div>
 </form>
 
 {% if aucun_critere %}
-  <p class="muted" style="margin-top:1rem">
+  <div class="rech-empty" style="margin-top:18px">
+    <span class="ic">🔎</span>
     Saisissez au moins un critère puis lancez la recherche.
-  </p>
+  </div>
 {% else %}
-  <p class="small muted" style="margin-top:1rem">
-    {{ nb_resultats }} résultat(s){% if nb_resultats == 500 %} (limité à 500){% endif %}.
-  </p>
+  <div class="rech-resbar">
+    <span class="rech-count"><b>{{ nb_resultats }}</b> résultat{{ 's' if nb_resultats != 1 else '' }}</span>
+    {% if nb_resultats == 500 %}<span class="rech-limit">limité à 500</span>{% endif %}
+  </div>
 
-  <table class="table">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Candidat</th>
-        <th>Poste</th>
-        <th>Spécialité</th>
-        <th>Wilaya</th>
-        <th>Sit. fam.</th>
-        <th>Âge</th>
-        <th>Exp.</th>
-        <th>Compétences</th>
-        <th>Statut</th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for c in rows %}
-      <tr>
-        <td>{{ c.id }}</td>
-        <td>
-          <a href="/candidate/{{ c.id }}" class="cand-link">
-            <strong>{{ (c.prenom or '') }} {{ (c.nom or '') }}</strong>
-          </a><br>
-          <span class="small muted">{{ c.email or '' }}</span>
-        </td>
-        <td class="small">{{ c.poste_recherche or '—' }}</td>
-        <td class="small">{{ c.specialite or '—' }}</td>
-        <td class="small">{{ c.wilaya or '—' }}</td>
-        <td class="small">{{ c.situation_familiale or '—' }}</td>
-        <td>{{ c.age if c.age is not none else '—' }}</td>
-        <td>{{ c.annees_experience if c.annees_experience is not none else '—' }}</td>
-        <td class="small">{{ (c.competences or '')[:80] }}{% if c.competences and c.competences|length > 80 %}…{% endif %}</td>
-        <td>{{ c.statut or '—' }}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="10" class="empty">Aucun candidat ne correspond à ces critères.</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
+  {% if rows %}
+  <div class="rech-wrap">
+    <table class="rech-table">
+      <thead>
+        <tr>
+          <th>Candidat</th>
+          <th>Poste</th>
+          <th>Spécialité</th>
+          <th>Wilaya</th>
+          <th>Sit. fam.</th>
+          <th>Âge</th>
+          <th>Exp.</th>
+          <th>Compétences</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in rows %}
+        {% set ini = ((c.prenom or c.nom or '?')|trim)[:1]|upper ~ ((c.nom or '')|trim)[:1]|upper %}
+        {% set hue = (c.id * 47) % 360 %}
+        <tr>
+          <td>
+            <div class="rech-cand">
+              <span class="rech-av" style="background: hsl({{ hue }} 52% 45%)">{{ ini or '?' }}</span>
+              <span class="n">
+                <a href="/candidate/{{ c.id }}">{{ (c.prenom or '') }} {{ (c.nom or '') }}</a>
+                <span class="mail">{{ c.email or '#' ~ c.id }}</span>
+              </span>
+            </div>
+          </td>
+          <td>{{ c.poste_recherche or '—' }}</td>
+          <td>{{ c.specialite or '—' }}</td>
+          <td>
+            {% if c.wilaya %}<span class="rech-loc">📍 {{ c.wilaya }}</span>{% else %}<span class="rech-muted">—</span>{% endif %}
+          </td>
+          <td>{{ c.situation_familiale or '—' }}</td>
+          <td>{{ c.age if c.age is not none else '—' }}</td>
+          <td class="rech-exp">{{ c.annees_experience if c.annees_experience is not none else '—' }}</td>
+          <td>
+            {% set comps = (c.competences or '').replace(';', ',').split(',') | map('trim') | select | list %}
+            {% if comps %}
+            <div class="rech-chips">
+              {% for sk in comps[:4] %}<span class="rech-chip">{{ sk }}</span>{% endfor %}
+              {% if comps|length > 4 %}<span class="rech-chip more">+{{ comps|length - 4 }}</span>{% endif %}
+            </div>
+            {% else %}<span class="rech-muted">—</span>{% endif %}
+          </td>
+          <td><span class="rech-badge">{{ c.statut or '—' }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="rech-empty">
+    <span class="ic">🫥</span>
+    Aucun candidat ne correspond à ces critères.
+  </div>
+  {% endif %}
 {% endif %}
+
+<script id="communes-data" type="application/json">{{ communes_by_wilaya | tojson }}</script>
+<script>
+  // Menu « Commune » dépendant du menu « Wilaya » (données du référentiel Algérie).
+  (function () {
+    var communesParWilaya = JSON.parse(
+      document.getElementById("communes-data").textContent
+    );
+    var selWilaya = document.getElementById("filtre-wilaya");
+    var selCommune = document.getElementById("filtre-commune");
+    var communeChoisie = {{ commune | tojson }};
+
+    function remplirCommunes(garderSelection) {
+      var communes = communesParWilaya[selWilaya.value] || [];
+      selCommune.innerHTML = '<option value="">Toutes</option>';
+      communes.forEach(function (c) {
+        var opt = document.createElement("option");
+        opt.value = c;
+        opt.textContent = c;
+        if (garderSelection && c === communeChoisie) opt.selected = true;
+        selCommune.appendChild(opt);
+      });
+      // Pas de commune choisie possible sans wilaya, ou après changement de wilaya.
+      selCommune.disabled = communes.length === 0;
+    }
+
+    remplirCommunes(true);
+    selWilaya.addEventListener("change", function () {
+      communeChoisie = "";
+      remplirCommunes(false);
+    });
+  })();
+</script>
 
 {% endblock %}
