@@ -340,9 +340,24 @@ def logout(request: Request):
 # ─── Dashboard ────────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request, search: str = "", statut: str = "", poste: str = ""):
+def dashboard(request: Request, search: str = "", statut: str = "", poste: str = "",
+              sort: str = web_db.DEFAULT_SORT, page: int = 1,
+              per_page: int = web_db.DEFAULT_PER_PAGE):
     user = web_auth.require_user(request)
-    rows = web_db.list_candidates(search=search, statut=statut, poste=poste)
+    # Tri normalisé sur la whitelist (retombe sur le défaut si valeur inconnue).
+    if sort not in web_db.SORT_OPTIONS:
+        sort = web_db.DEFAULT_SORT
+    # Taille de page normalisée sur les valeurs autorisées (50/100/250/500).
+    if per_page not in web_db.PER_PAGE_OPTIONS:
+        per_page = web_db.DEFAULT_PER_PAGE
+    total = web_db.count_candidates(search=search, statut=statut, poste=poste)
+    # Nombre de pages (au moins 1) et page courante bornée dans [1, total_pages].
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = max(1, min(page, total_pages))
+    rows = web_db.list_candidates(
+        search=search, statut=statut, poste=poste, sort=sort,
+        limit=per_page, offset=(page - 1) * per_page,
+    )
     stats = web_db.candidate_stats()
     last = web_db.last_successful_run()
     return render(
@@ -351,8 +366,14 @@ def dashboard(request: Request, search: str = "", statut: str = "", poste: str =
             "rows": rows,
             "stats": stats,
             "statuts": web_db.STATUTS,
-            "search": search, "statut": statut, "poste": poste,
+            "search": search, "statut": statut, "poste": poste, "sort": sort,
             "last_run": last,
+            # Pagination.
+            "page": page, "per_page": per_page, "total": total,
+            "total_pages": total_pages,
+            "per_page_options": web_db.PER_PAGE_OPTIONS,
+            "first_index": 0 if total == 0 else (page - 1) * per_page + 1,
+            "last_index": min(page * per_page, total),
         },
     )
 

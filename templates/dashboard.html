@@ -55,15 +55,48 @@
     {% endfor %}
   </select>
   <input type="text" name="poste" value="{{ poste }}" placeholder="Poste...">
+  <select name="sort" title="Trier les candidats" onchange="this.form.submit()">
+    <option value="recu_desc" {% if sort == 'recu_desc' %}selected{% endif %}>Reçu (récent → ancien)</option>
+    <option value="recu_asc" {% if sort == 'recu_asc' %}selected{% endif %}>Reçu (ancien → récent)</option>
+    <option value="id_desc" {% if sort == 'id_desc' %}selected{% endif %}>ID (décroissant)</option>
+    <option value="id_asc" {% if sort == 'id_asc' %}selected{% endif %}>ID (croissant)</option>
+  </select>
+  <select name="per_page" title="Candidats par page" onchange="this.form.submit()">
+    {% for n in per_page_options %}
+    <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }} / page</option>
+    {% endfor %}
+  </select>
   <button type="submit" class="btn">Filtrer</button>
   <a href="/" class="btn ghost">Réinitialiser</a>
 </form>
 
+<style>
+  .th-sort { color: inherit; white-space: nowrap; }
+  .th-sort:hover { color: var(--primary); }
+  .th-sort .arw { font-size: .8em; opacity: .35; margin-left: 3px; }
+  .th-sort.active { color: var(--primary); font-weight: 700; }
+  .th-sort.active .arw { opacity: 1; }
+</style>
+
+{# Filtres courants préservés dans les liens de tri des en-têtes (per_page inclus ;
+   changer le tri ramène à la page 1 en omettant le paramètre page). #}
+{% set base_qs = 'search=' ~ (search | urlencode) ~ '&statut=' ~ (statut | urlencode) ~ '&poste=' ~ (poste | urlencode) ~ '&per_page=' ~ per_page %}
+
 <table class="table">
   <thead>
     <tr>
-      <th>ID</th>
-      <th>Reçu</th>
+      <th>
+        <a class="th-sort {% if sort in ('id_asc', 'id_desc') %}active{% endif %}"
+           href="/?{{ base_qs }}&sort={{ 'id_asc' if sort == 'id_desc' else 'id_desc' }}">
+          ID<span class="arw">{% if sort == 'id_asc' %}▲{% elif sort == 'id_desc' %}▼{% else %}⇅{% endif %}</span>
+        </a>
+      </th>
+      <th>
+        <a class="th-sort {% if sort in ('recu_asc', 'recu_desc') %}active{% endif %}"
+           href="/?{{ base_qs }}&sort={{ 'recu_asc' if sort == 'recu_desc' else 'recu_desc' }}">
+          Reçu<span class="arw">{% if sort == 'recu_asc' %}▲{% elif sort == 'recu_desc' %}▼{% else %}⇅{% endif %}</span>
+        </a>
+      </th>
       <th>Candidat</th>
       <th>Poste</th>
       <th>Exp.</th>
@@ -94,5 +127,63 @@
   {% endfor %}
   </tbody>
 </table>
+
+{# ─── Pagination ─────────────────────────────────────────────────────────── #}
+{% if total > 0 %}
+{% set pg_qs = base_qs ~ '&sort=' ~ sort %}
+<div class="pagination">
+  <span class="pg-info">
+    {{ first_index }}–{{ last_index }} sur <strong>{{ total }}</strong> candidats
+    · page {{ page }}/{{ total_pages }}
+  </span>
+  <nav class="pg-nav">
+    {% if page > 1 %}
+      <a class="pg-btn" href="/?{{ pg_qs }}&page=1" title="Première page">«</a>
+      <a class="pg-btn" href="/?{{ pg_qs }}&page={{ page - 1 }}">‹ Précédent</a>
+    {% else %}
+      <span class="pg-btn disabled">«</span>
+      <span class="pg-btn disabled">‹ Précédent</span>
+    {% endif %}
+
+    {% set win_start = [1, page - 2] | max %}
+    {% set win_end = [total_pages, page + 2] | min %}
+    {% if win_start > 1 %}<span class="pg-ell">…</span>{% endif %}
+    {% for p in range(win_start, win_end + 1) %}
+      {% if p == page %}
+        <span class="pg-btn current">{{ p }}</span>
+      {% else %}
+        <a class="pg-btn" href="/?{{ pg_qs }}&page={{ p }}">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if win_end < total_pages %}<span class="pg-ell">…</span>{% endif %}
+
+    {% if page < total_pages %}
+      <a class="pg-btn" href="/?{{ pg_qs }}&page={{ page + 1 }}">Suivant ›</a>
+      <a class="pg-btn" href="/?{{ pg_qs }}&page={{ total_pages }}" title="Dernière page">»</a>
+    {% else %}
+      <span class="pg-btn disabled">Suivant ›</span>
+      <span class="pg-btn disabled">»</span>
+    {% endif %}
+  </nav>
+</div>
+{% endif %}
+
+<style>
+  .pagination {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin: 14px 0 4px;
+  }
+  .pg-info { color: var(--muted); font-size: 13px; }
+  .pg-nav { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .pg-btn {
+    display: inline-block; padding: 6px 11px; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: var(--surface);
+    color: var(--text); font-size: 13px; font-weight: 600; line-height: 1;
+  }
+  .pg-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .pg-btn.current { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .pg-btn.disabled { opacity: .4; pointer-events: none; }
+  .pg-ell { color: var(--muted); padding: 0 2px; }
+</style>
 
 {% endblock %}

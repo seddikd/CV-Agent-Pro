@@ -439,26 +439,62 @@ def insert_candidate(
         )
 
 
+# Options de tri autorisées pour la liste des candidats. Clé = valeur du
+# paramètre `sort` (exposée dans l'URL), valeur = clause ORDER BY appliquée.
+# Whitelist stricte : jamais de fragment SQL construit depuis l'entrée utilisateur.
+SORT_OPTIONS: dict[str, str] = {
+    "recu_desc": "received_at DESC, id DESC",
+    "recu_asc": "received_at ASC, id ASC",
+    "id_desc": "id DESC",
+    "id_asc": "id ASC",
+}
+DEFAULT_SORT = "recu_desc"
+
+# Tailles de page proposées pour la pagination de la liste des candidats.
+PER_PAGE_OPTIONS: list[int] = [50, 100, 250, 500]
+DEFAULT_PER_PAGE = 50
+
+
+def _candidates_filter(
+    search: str, statut: str, poste: str
+) -> tuple[str, list[Any]]:
+    """Construit la clause WHERE paramétrée commune à la liste et au comptage."""
+    clause = " WHERE 1=1"
+    params: list[Any] = []
+    if search:
+        clause += " AND (nom LIKE ? OR prenom LIKE ? OR email LIKE ? OR competences LIKE ?)"
+        like = f"%{search}%"
+        params.extend([like, like, like, like])
+    if statut:
+        clause += " AND statut = ?"
+        params.append(statut)
+    if poste:
+        clause += " AND poste_recherche LIKE ?"
+        params.append(f"%{poste}%")
+    return clause, params
+
+
+def count_candidates(search: str = "", statut: str = "", poste: str = "") -> int:
+    """Nombre total de candidats correspondant aux filtres (sans pagination)."""
+    clause, params = _candidates_filter(search, statut, poste)
+    with connect() as conn:
+        row = conn.execute("SELECT COUNT(*) AS n FROM candidates" + clause, params).fetchone()
+        return int(row["n"])
+
+
 def list_candidates(
     search: str = "",
     statut: str = "",
     poste: str = "",
+    sort: str = DEFAULT_SORT,
     limit: int = 500,
+    offset: int = 0,
 ) -> list[dict]:
-    sql = "SELECT * FROM candidates WHERE 1=1"
-    params: list[Any] = []
-    if search:
-        sql += " AND (nom LIKE ? OR prenom LIKE ? OR email LIKE ? OR competences LIKE ?)"
-        like = f"%{search}%"
-        params.extend([like, like, like, like])
-    if statut:
-        sql += " AND statut = ?"
-        params.append(statut)
-    if poste:
-        sql += " AND poste_recherche LIKE ?"
-        params.append(f"%{poste}%")
-    sql += " ORDER BY received_at DESC LIMIT ?"
+    clause, params = _candidates_filter(search, statut, poste)
+    order_by = SORT_OPTIONS.get(sort, SORT_OPTIONS[DEFAULT_SORT])
+    sql = "SELECT * FROM candidates" + clause + f" ORDER BY {order_by} LIMIT ? OFFSET ?"
     params.append(limit)
+    params.append(max(0, offset))
     with connect() as conn:
         rows = conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
