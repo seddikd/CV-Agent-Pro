@@ -357,8 +357,21 @@ Menu **Doublons**. Regroupe les candidats susceptibles d'être en double, par **
 **téléphone** ou **nom**. Dans chaque groupe, le candidat le plus ancien (plus petit ID) est
 considéré comme l'**original**.
 
-Pour marquer un candidat comme doublon d'un autre : cliquez sur **Marquer comme doublon de #X**.
-Le candidat prend alors le statut de doublon rattaché à l'original.
+### Marquer les doublons en lot *(rh/manager/admin)*
+
+Plutôt que de traiter les doublons un par un, vous pouvez en **sélectionner plusieurs** et les
+marquer en une seule fois :
+
+1. **Cochez** les candidats à considérer comme doublons. Chaque case indique déjà de quel
+   original le candidat deviendra le doublon (« → doublon de #X »). Les **originaux** et les
+   candidats **déjà marqués** n'ont pas de case.
+2. Pour aller plus vite : **Sélectionner le groupe** coche tous les doublons d'un groupe, et
+   **Tout sélectionner** (barre du haut) coche l'ensemble des groupes.
+3. La barre du haut affiche le **nombre de candidats sélectionnés**. Cliquez sur
+   **🏷️ Marquer la sélection comme doublons** puis confirmez.
+
+Chaque candidat marqué prend le statut **Doublon**, rattaché à son original. Vous pouvez aussi
+marquer un seul candidat : cochez-le simplement, puis validez.
 
 > Aucun candidat n'est supprimé automatiquement : la détection ne fait que **signaler** les
 > doublons potentiels ; la décision reste manuelle.
@@ -484,6 +497,29 @@ vous pouvez d'ailleurs l'**arrêter** depuis cette page.
 > **OST** : le format de cache hors-ligne est lu au mieux. Certains OST récents
 > (chiffrés / liés au profil) peuvent échouer : convertissez-les alors en PST depuis
 > Outlook avant l'import.
+
+### Ranger les mails traités *(manager/admin)*
+
+Après un import, le bouton **📁 Ranger les traités** (sur chaque ligne de fichier)
+déplace **tous les mails porteurs d'un CV** (PDF/DOCX) vers un dossier dédié — par
+défaut **Traités**, dont le nom vous est demandé — afin de garder la boîte propre et de
+distinguer d'un coup d'œil ce qui a déjà été traité. Une confirmation est demandée.
+
+Le comportement dépend du type de fichier :
+
+- **`.pst`** : les mails sont déplacés **à l'intérieur du fichier** ; aucune incidence sur
+  un serveur.
+- **`.ost`** : un OST est le **cache d'un compte** Exchange / Microsoft 365 et ne peut pas
+  être ouvert isolément. L'opération s'applique donc à la **boîte réelle** du compte
+  (qui doit être configuré dans Outlook sur ce poste) et **se synchronise vers le serveur**.
+
+Les dossiers système (**Éléments envoyés**, **Éléments supprimés**, **Brouillons**, **Boîte
+d'envoi**, **Courrier indésirable**) ne sont jamais touchés.
+
+> ⚠️ **Nécessite Microsoft Outlook installé** sur le serveur (composant `win32com`). Sans
+> Outlook, le bouton est **grisé** : le lecteur `pypff` seul est en lecture seule et ne peut
+> pas déplacer de message. Pour un `.ost`, le déplacement modifie la vraie boîte : cette
+> action **n'est pas annulable en masse**, vérifiez le dossier de destination avant de valider.
 
 ---
 
