@@ -3,96 +3,298 @@
 {% block content %}
 
 <style>
-  /* Styles scopés au module Comparaison. */
-  .cmp-wrap { overflow-x: auto; }
-  .cmp-table { width: 100%; border-collapse: collapse; }
+  /* ── Styles scopés au module Comparaison ─────────────────────────────── */
+  .cmp-sub { color: var(--muted); font-size: 13px; margin: -6px 0 18px; }
+
+  /* Avatars (initiales colorées) */
+  .cmp-av {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 13px; letter-spacing: .3px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+  }
+
+  /* ── Tableau de comparaison ──────────────────────────────────────────── */
+  .cmp-wrap { overflow-x: auto; border-radius: var(--radius); }
+  .cmp-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 640px; }
   .cmp-table th, .cmp-table td {
-    border: 1px solid var(--border, #ccc);
-    padding: .5rem .7rem;
-    vertical-align: top;
-    text-align: left;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 14px; vertical-align: top; text-align: left;
   }
-  .cmp-table thead th { text-align: center; }
-  .cmp-crit { white-space: nowrap; font-weight: 600; }
-  .cmp-best { font-weight: 700; color: #1a7f37; }
-  :root[data-theme="dark"] .cmp-best { color: #4ade80; }
-  .cmp-form label.cmp-check {
-    display: inline-flex; align-items: center; gap: .4rem;
-    margin: .15rem 0; width: 100%;
+  /* En-têtes de colonnes candidats */
+  .cmp-table thead th {
+    position: sticky; top: 0; z-index: 3;
+    background: var(--surface-2); vertical-align: bottom;
+    border-bottom: 2px solid var(--border-strong);
   }
-  .cmp-list { list-style: none; padding: 0; margin: .5rem 0 1rem; }
+  .cmp-head { display: flex; flex-direction: column; gap: 8px; min-width: 170px; }
+  .cmp-head-id { display: flex; align-items: center; gap: 10px; }
+  .cmp-head-id .n { display: flex; flex-direction: column; line-height: 1.2; }
+  .cmp-head-id .n a { font-weight: 700; color: var(--heading); }
+  .cmp-head-id .n a:hover { color: var(--primary); }
+  .cmp-head-id .n .poste { font-size: 11.5px; color: var(--muted); font-weight: 500; }
+  .cmp-head-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .cmp-remove {
+    margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 600;
+    border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px;
+    background: var(--surface); white-space: nowrap;
+  }
+  .cmp-remove:hover { color: var(--danger); border-color: var(--danger); }
+
+  /* 1re colonne = critère, figée à gauche */
+  .cmp-crit {
+    position: sticky; left: 0; z-index: 2;
+    background: var(--surface); font-weight: 600; color: var(--text);
+    white-space: nowrap; min-width: 150px;
+  }
+  .cmp-table thead th:first-child { z-index: 4; left: 0; background: var(--surface-2); }
+
+  /* Ligne d'en-tête de section */
+  .cmp-sec td {
+    background: var(--primary-soft); color: var(--accent);
+    font-size: 11.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
+    padding: 7px 14px; border-bottom: 1px solid var(--border);
+  }
+  .cmp-sec td.cmp-crit { position: sticky; left: 0; background: var(--primary-soft); }
+
+  .cmp-table tbody tr:hover td:not(.cmp-crit) { background: var(--primary-soft); }
+  .cmp-empty { color: var(--muted); }
+
+  /* Puces (compétences, langues…) */
+  .cmp-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .cmp-chip {
+    display: inline-block; padding: 3px 9px; border-radius: 999px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    font-size: 11.5px; color: var(--text); line-height: 1.4;
+  }
+  .cmp-chip.common {
+    background: var(--success-bg); border-color: color-mix(in srgb, var(--success) 35%, transparent);
+    color: var(--success); font-weight: 700;
+  }
+
+  /* Expérience : valeur forte + pastille « max » */
+  .cmp-exp { font-weight: 700; font-size: 15px; }
+  .cmp-max {
+    display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 800;
+    letter-spacing: .4px; padding: 1px 7px; border-radius: 999px; vertical-align: middle;
+    background: var(--success-bg); color: var(--success);
+  }
+
+  .cmp-legend { color: var(--muted); font-size: 12px; margin-top: 12px; display: flex; align-items: center; gap: 6px; }
+  .cmp-legend .cmp-chip.common { font-size: 10.5px; padding: 1px 8px; }
+
+  /* ── Écran de sélection ──────────────────────────────────────────────── */
+  .cmp-pick-bar {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 12px 14px; margin-bottom: 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+  .cmp-search {
+    flex: 1 1 240px; min-width: 180px;
+    padding: 9px 12px; border: 1px solid var(--border-strong); border-radius: 9px;
+    background: var(--surface-2); color: var(--text); font-size: 14px;
+  }
+  .cmp-search:focus { outline: none; box-shadow: var(--ring); border-color: var(--primary); }
+  .cmp-count { font-size: 13px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+  .cmp-count.ok { color: var(--success); }
+
+  .cmp-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 10px; margin: 0;
+  }
+  .cmp-opt { position: relative; }
+  .cmp-opt input { position: absolute; opacity: 0; pointer-events: none; }
+  .cmp-opt label {
+    display: flex; align-items: center; gap: 11px; cursor: pointer;
+    padding: 11px 13px; border: 1.5px solid var(--border); border-radius: 11px;
+    background: var(--surface); transition: border-color .12s, background .12s, box-shadow .12s;
+  }
+  .cmp-opt label:hover { border-color: var(--border-strong); background: var(--surface-2); }
+  .cmp-opt input:checked + label {
+    border-color: var(--primary); background: var(--primary-soft);
+    box-shadow: 0 0 0 1px var(--primary) inset;
+  }
+  .cmp-opt input:focus-visible + label { box-shadow: var(--ring); }
+  .cmp-opt input:disabled + label { opacity: .5; cursor: not-allowed; }
+  .cmp-opt .n { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+  .cmp-opt .n strong { color: var(--heading); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cmp-opt .n .poste { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cmp-opt .tick {
+    margin-left: auto; width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+    border: 1.5px solid var(--border-strong); color: #fff; font-size: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cmp-opt input:checked + label .tick { background: var(--primary); border-color: var(--primary); }
+  .cmp-none { color: var(--muted); text-align: center; padding: 26px; display: none; }
 </style>
+
+{% set palette = ['#2563eb','#7c3aed','#0891b2','#059669','#d97706','#db2777','#4f46e5','#0d9488'] %}
 
 <div class="page-head">
   <h1>Comparaison de candidats</h1>
+  {% if candidats %}
+  <div class="actions">
+    <a href="/comparer?ids={{ candidats|map(attribute='id')|join(',') }}&edit=1" class="btn ghost">✎ Modifier la sélection</a>
+    <a href="/comparer" class="btn">↺ Nouvelle comparaison</a>
+  </div>
+  {% endif %}
 </div>
 
 {% if candidats %}
-  <p class="muted small">{{ candidats|length }} candidats comparés.
-    <a href="/comparer" class="cand-link">Modifier la sélection</a>
-  </p>
+  {# ══════════════════ TABLEAU DE COMPARAISON ══════════════════ #}
+  <p class="cmp-sub">{{ candidats|length }} candidats comparés, côte à côte. Les
+    compétences <strong>communes à tous</strong> sont mises en évidence.</p>
 
-  <div class="card cmp-wrap">
-    <table class="table cmp-table">
+  <div class="card cmp-wrap" style="padding:0">
+    <table class="cmp-table">
       <thead>
         <tr>
-          <th>Critère</th>
+          <th class="cmp-crit">Critère</th>
           {% for c in candidats %}
+          {% set parts = (c.nom_complet or ('#' ~ c.id)).split() %}
+          {% set initials = (parts[0][0] ~ (parts[1][0] if parts|length > 1 else ''))|upper %}
+          {% set autres = candidats|rejectattr('id','equalto',c.id)|map(attribute='id')|join(',') %}
           <th>
-            <a href="/candidate/{{ c.id }}" class="cand-link">
-              {{ c.nom_complet or ('#' ~ c.id) }}
-            </a>
+            <div class="cmp-head">
+              <div class="cmp-head-id">
+                <span class="cmp-av" style="background: {{ palette[c.id % 8] }}">{{ initials }}</span>
+                <span class="n">
+                  <a href="/candidate/{{ c.id }}" class="cand-link">{{ c.nom_complet or ('#' ~ c.id) }}</a>
+                  {% if c.poste_recherche %}<span class="poste">{{ c.poste_recherche }}</span>{% endif %}
+                </span>
+              </div>
+              <div class="cmp-head-meta">
+                {% if c.statut %}<span class="badge status-{{ c.statut|replace(' ','_') }}">{{ c.statut }}</span>{% endif %}
+                {% if autres %}<a class="cmp-remove" href="/comparer?ids={{ autres }}" title="Retirer de la comparaison">✕ Retirer</a>{% endif %}
+              </div>
+            </div>
           </th>
           {% endfor %}
         </tr>
       </thead>
       <tbody>
-        {% for libelle, cle in criteres %}
+        {% for section, lignes in criteres_groupes %}
+        <tr class="cmp-sec">
+          <td class="cmp-crit">{{ section }}</td>
+          {% for c in candidats %}<td></td>{% endfor %}
+        </tr>
+        {% for libelle, cle in lignes %}
         <tr>
           <td class="cmp-crit">{{ libelle }}</td>
           {% for c in candidats %}
-          {% set val = c[cle] %}
-          {% if cle == 'annees_experience' and c.id in best_exp_ids %}
-          <td class="cmp-best">{{ val if val is not none else '—' }}</td>
-          {% else %}
-          <td>{{ val if val is not none and val != '' else '—' }}</td>
-          {% endif %}
+            {% set val = c[cle] %}
+            {% if cle == 'annees_experience' %}
+              <td>
+                {% if val is not none %}
+                  <span class="cmp-exp">{{ val }} <span style="font-weight:500;font-size:12px;color:var(--muted)">ans</span></span>
+                  {% if c.id in best_exp_ids %}<span class="cmp-max">MAX</span>{% endif %}
+                {% else %}<span class="cmp-empty">—</span>{% endif %}
+              </td>
+            {% elif cle == 'statut' %}
+              <td>{% if val %}<span class="badge status-{{ val|replace(' ','_') }}">{{ val }}</span>{% else %}<span class="cmp-empty">—</span>{% endif %}</td>
+            {% elif cle in chip_fields %}
+              {% set items = (val or '').replace(';',',').split(',') %}
+              {% set items = items|map('trim')|reject('equalto','')|list %}
+              <td>
+                {% if items %}
+                <div class="cmp-chips">
+                  {% for it in items %}
+                  <span class="cmp-chip{% if it|lower in communs[cle] %} common{% endif %}">{{ it }}</span>
+                  {% endfor %}
+                </div>
+                {% else %}<span class="cmp-empty">—</span>{% endif %}
+              </td>
+            {% else %}
+              <td>{{ val if val is not none and val != '' else '—' }}</td>
+            {% endif %}
           {% endfor %}
         </tr>
+        {% endfor %}
         {% endfor %}
       </tbody>
     </table>
   </div>
 
-{% else %}
-  <div class="card">
-    <p class="muted">Sélectionnez de {{ min_candidats }} à {{ max_candidats }}
-      candidats à comparer, puis validez.</p>
+  <p class="cmp-legend"><span class="cmp-chip common">exemple</span> = compétence / atout présent chez <strong>tous</strong> les candidats comparés.</p>
 
-    {% if tous %}
-    <form method="get" action="/comparer" class="cmp-form">
-      <ul class="cmp-list">
-        {% for c in tous %}
-        <li>
-          <label class="cmp-check">
-            <input type="checkbox" name="ids" value="{{ c.id }}"
-                   {% if c.id in selection %}checked{% endif %}>
-            <span>
-              <strong>{{ c.prenom or '' }} {{ c.nom or '' }}</strong>
-              <span class="muted small">
-                (#{{ c.id }}{% if c.poste_recherche %} — {{ c.poste_recherche }}{% endif %})
-              </span>
-            </span>
-          </label>
-        </li>
-        {% endfor %}
-      </ul>
-      <button type="submit" class="btn primary">Comparer</button>
-    </form>
-    {% else %}
-    <p class="muted">Aucun candidat disponible pour la comparaison.</p>
-    {% endif %}
-  </div>
+{% else %}
+  {# ══════════════════ ÉCRAN DE SÉLECTION ══════════════════ #}
+  {% if tous %}
+  <p class="cmp-sub">Choisissez de <strong>{{ min_candidats }}</strong> à
+    <strong>{{ max_candidats }}</strong> candidats, puis lancez la comparaison.</p>
+
+  <form method="get" action="/comparer" id="cmp-form">
+    <div class="cmp-pick-bar">
+      <input type="search" class="cmp-search" id="cmp-search" autocomplete="off"
+             placeholder="🔍 Filtrer par nom ou poste…">
+      <span class="cmp-count" id="cmp-count">0 / {{ max_candidats }} sélectionnés</span>
+      <button type="submit" class="btn primary" id="cmp-submit" disabled>Comparer</button>
+    </div>
+
+    <div class="cmp-grid" id="cmp-grid">
+      {% for c in tous %}
+      {% set nm = ((c.prenom or '') ~ ' ' ~ (c.nom or ''))|trim or ('#' ~ c.id) %}
+      {% set parts = nm.split() %}
+      {% set initials = (parts[0][0] ~ (parts[1][0] if parts|length > 1 else ''))|upper %}
+      <div class="cmp-opt" data-search="{{ (nm ~ ' ' ~ (c.poste_recherche or ''))|lower }}">
+        <input type="checkbox" name="ids" value="{{ c.id }}" id="cmp-{{ c.id }}"
+               {% if c.id in selection %}checked{% endif %}>
+        <label for="cmp-{{ c.id }}">
+          <span class="cmp-av" style="background: {{ palette[c.id % 8] }}">{{ initials }}</span>
+          <span class="n">
+            <strong>{{ c.prenom or '' }} {{ c.nom or '' }}</strong>
+            <span class="poste">#{{ c.id }}{% if c.poste_recherche %} · {{ c.poste_recherche }}{% endif %}</span>
+          </span>
+          <span class="tick">✓</span>
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="cmp-none" id="cmp-none">Aucun candidat ne correspond à ce filtre.</p>
+  </form>
+
+  <script>
+  (function () {
+    var form = document.getElementById('cmp-form');
+    if (!form) return;
+    var MIN = {{ min_candidats }}, MAX = {{ max_candidats }};
+    var boxes = Array.prototype.slice.call(form.querySelectorAll('input[name="ids"]'));
+    var count = document.getElementById('cmp-count');
+    var submit = document.getElementById('cmp-submit');
+    var search = document.getElementById('cmp-search');
+    var grid = document.getElementById('cmp-grid');
+    var none = document.getElementById('cmp-none');
+
+    function refresh() {
+      var n = boxes.filter(function (b) { return b.checked; }).length;
+      count.textContent = n + ' / ' + MAX + ' sélectionnés';
+      count.classList.toggle('ok', n >= MIN && n <= MAX);
+      submit.disabled = !(n >= MIN && n <= MAX);
+      // Au plafond : on grise les cases non cochées (encore décochables).
+      boxes.forEach(function (b) { b.disabled = (!b.checked && n >= MAX); });
+    }
+    boxes.forEach(function (b) { b.addEventListener('change', refresh); });
+
+    function filter() {
+      var q = (search.value || '').trim().toLowerCase();
+      var visible = 0;
+      grid.querySelectorAll('.cmp-opt').forEach(function (o) {
+        var show = !q || o.getAttribute('data-search').indexOf(q) !== -1;
+        o.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      none.style.display = visible ? 'none' : 'block';
+    }
+    search.addEventListener('input', filter);
+
+    refresh();
+  })();
+  </script>
+  {% else %}
+  <div class="card"><p class="muted">Aucun candidat disponible pour la comparaison.</p></div>
+  {% endif %}
 {% endif %}
 
 {% endblock %}

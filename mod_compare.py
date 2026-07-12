@@ -14,23 +14,40 @@ router = APIRouter()
 MIN_CANDIDATS = 2
 MAX_CANDIDATS = 5
 
-# Critères comparés : (libellé affiché, clé de colonne candidate).
-CRITERES = [
-    ("Nom", "nom_complet"),
-    ("Poste recherché", "poste_recherche"),
-    ("Spécialité", "specialite"),
-    ("Wilaya", "wilaya"),
-    ("Niveau d'étude", "niveau_etude"),
-    ("Diplôme", "diplome_plus_eleve"),
-    ("Années d'expérience", "annees_experience"),
-    ("Compétences", "competences"),
-    ("Langues", "langues"),
-    ("Soft skills", "soft_skills"),
-    ("Certifications", "certifications"),
-    ("Disponibilité", "disponibilite"),
-    ("Salaire souhaité", "salaire_souhaite"),
-    ("Statut", "statut"),
+# Critères comparés, regroupés par section (libellé de section, [(libellé, clé)]).
+# Le « Nom » n'est plus une ligne : il est porté par l'en-tête de colonne.
+CRITERES_GROUPES = [
+    ("Profil", [
+        ("Poste recherché", "poste_recherche"),
+        ("Spécialité", "specialite"),
+        ("Wilaya", "wilaya"),
+        ("Statut", "statut"),
+    ]),
+    ("Formation & expérience", [
+        ("Niveau d'étude", "niveau_etude"),
+        ("Diplôme", "diplome_plus_eleve"),
+        ("Années d'expérience", "annees_experience"),
+    ]),
+    ("Compétences & atouts", [
+        ("Compétences", "competences"),
+        ("Langues", "langues"),
+        ("Soft skills", "soft_skills"),
+        ("Certifications", "certifications"),
+    ]),
+    ("Conditions", [
+        ("Disponibilité", "disponibilite"),
+        ("Salaire souhaité", "salaire_souhaite"),
+    ]),
 ]
+
+# Champs rendus sous forme de « puces » (valeurs séparées par virgule / point-virgule).
+CHIP_FIELDS = ["competences", "langues", "soft_skills", "certifications"]
+
+
+def _tokens(valeur) -> list[str]:
+    """Découpe un champ liste en éléments nettoyés (virgule ou point-virgule)."""
+    brut = (valeur or "").replace(";", ",")
+    return [t.strip() for t in brut.split(",") if t.strip()]
 
 # Colonnes lues en base (celles des critères + identité/clés techniques).
 _COLONNES = [
@@ -69,6 +86,9 @@ def comparer(request: Request):
     user = require_user(request)
 
     ids = _parse_ids(request)[:MAX_CANDIDATS]
+    # `?edit=1` force l'écran de sélection même avec une sélection valide, en la
+    # pré-cochant → « Modifier la sélection » sans repartir de zéro.
+    edit = request.query_params.get("edit") in ("1", "true", "oui")
 
     with connect() as conn:
         # NB : on passe par conn.execute(...) (jamais conn.cursor(), non exposé par
@@ -87,7 +107,7 @@ def comparer(request: Request):
                 if cid in par_id:
                     candidats.append(par_id[cid])
 
-        if len(candidats) >= MIN_CANDIDATS:
+        if len(candidats) >= MIN_CANDIDATS and not edit:
             # Champ dérivé « Prénom Nom » pour la ligne « Nom ».
             for c in candidats:
                 nom_complet = " ".join(
@@ -107,9 +127,20 @@ def comparer(request: Request):
                 maxi = max(vals.values())
                 best_exp_ids = [cid for cid, v in vals.items() if v == maxi]
 
+            # Éléments COMMUNS à tous les candidats, par champ « puces » (intersection
+            # normalisée en minuscules) → mis en valeur dans le tableau. On stocke les
+            # formes normalisées ; le gabarit compare chaque puce en minuscules.
+            communs: dict[str, list[str]] = {}
+            for champ in CHIP_FIELDS:
+                ensembles = [{t.lower() for t in _tokens(c.get(champ))} for c in candidats]
+                inter = set.intersection(*ensembles) if ensembles else set()
+                communs[champ] = sorted(inter)
+
             return render(request, "compare.html", {
                 "candidats": candidats,
-                "criteres": CRITERES,
+                "criteres_groupes": CRITERES_GROUPES,
+                "chip_fields": CHIP_FIELDS,
+                "communs": communs,
                 "best_exp_ids": best_exp_ids,
                 "min_candidats": MIN_CANDIDATS,
                 "max_candidats": MAX_CANDIDATS,
