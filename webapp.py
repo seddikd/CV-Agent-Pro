@@ -525,6 +525,7 @@ def admin_import(request: Request, msg: str = ""):
             "files": files,
             "import_dir": str(d),
             "backends": outlook_fetcher.available_backends(),
+            "can_move": outlook_fetcher.can_move_messages(),
             "running": web_db.running_run_exists(),
         },
     )
@@ -576,6 +577,33 @@ def admin_import_run(request: Request, filename: str = Form(""), server_path: st
         f"/admin/import?msg=Import+lancé+:+{target.name}+(suivi+dans+Cycles)",
         status_code=303,
     )
+
+
+@app.post("/admin/import/move")
+def admin_import_move(request: Request, filename: str = Form(""),
+                      server_path: str = Form(""), target_folder: str = Form("Traités")):
+    """Range les mails porteurs d'un CV dans un dossier du PST (win32com/Outlook).
+
+    Opération synchrone (comme « Tester ») : nécessite Outlook installé. On refuse
+    si un traitement tourne déjà pour éviter de monter deux fois le même store.
+    """
+    web_auth.require_cycle(request)
+    from urllib.parse import quote
+    if web_db.running_run_exists():
+        return RedirectResponse(
+            "/admin/import?msg=" + quote("Un traitement est en cours — réessayez après."),
+            status_code=303,
+        )
+    target = _resolve_import_target(filename, server_path)
+    if not target.exists():
+        return RedirectResponse("/admin/import?msg=Fichier+introuvable", status_code=303)
+    try:
+        _moved, message = outlook_fetcher.move_cv_messages(
+            str(target), target_folder=target_folder
+        )
+    except Exception as e:
+        message = f"Déplacement échoué : {e}"
+    return RedirectResponse(f"/admin/import?msg={quote(message)}", status_code=303)
 
 
 # ─── Admin: users ─────────────────────────────────────────────────────────────

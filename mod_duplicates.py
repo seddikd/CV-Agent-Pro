@@ -40,7 +40,7 @@ CRITERES = [
 
 
 @router.get("/doublons")
-def doublons(request: Request):
+def doublons(request: Request, msg: str = ""):
     user = require_user(request)
 
     with connect() as conn:
@@ -87,6 +87,7 @@ def doublons(request: Request):
         "nb_groupes": len(groupes),
         "nb_concernes": len(concernes),
         "nb_marques": nb_marques,
+        "msg": msg,
     })
 
 
@@ -119,3 +120,50 @@ def marquer_doublon(cid: int, request: Request, original_id: int = Form(...)):
         conn.commit()
 
     return RedirectResponse("/doublons", status_code=303)
+
+
+@router.post("/doublons/mark-bulk")
+def marquer_doublons_bulk(request: Request, pairs: list[str] = Form(default=[])):
+    """Marque en lot plusieurs candidats comme doublons.
+
+    Chaque valeur cochée est un couple « cid:original_id » (le candidat `cid`
+    devient doublon de `original_id`). On ignore silencieusement les couples
+    invalides, auto-référents ou pointant vers un candidat inexistant, puis on
+    applique tous les marquages valides en une seule transaction.
+    """
+    user = require_user(request)
+
+    from urllib.parse import quote
+
+    # Parse + validation des couples (dédup sur le candidat marqué : un cid ne peut
+    # être marqué qu'une fois, même s'il apparaît dans plusieurs groupes cochés).
+    a_marquer: dict[int, int] = {}
+    for pair in pairs:
+        try:
+            cid_s, orig_s = (pair or "").split(":", 1)
+            cid, original_id = int(cid_s), int(orig_s)
+        except (ValueError, AttributeError):
+            continue
+        if cid == original_id or cid in a_marquer:
+            continue
+        a_marquer[cid] = original_id
+
+    n = 0
+    if a_marquer:
+        with connect() as conn:
+            existants = {
+                r["id"] for r in conn.execute("SELECT id FROM candidates").fetchall()
+            }
+            for cid, original_id in a_marquer.items():
+                if cid not in existants or original_id not in existants:
+                    continue
+                conn.execute(
+                    "UPDATE candidates SET duplicate_of = ?, statut = ? WHERE id = ?",
+                    (original_id, "Doublon", cid),
+                )
+                n += 1
+            conn.commit()
+
+    msg = (f"{n} candidat(s) marqué(s) comme doublon."
+           if n else "Aucun candidat sélectionné.")
+    return RedirectResponse(f"/doublons?msg={quote(msg)}", status_code=303)

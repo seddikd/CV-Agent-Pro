@@ -321,6 +321,139 @@ def _w32_attachments(item, tmpdir: Path) -> list[Attachment]:
     return out
 
 
+# ─── Déplacement des mails traités dans le PST (win32com uniquement) ─────────────
+#
+# Un import PST/OST ne modifie pas le fichier ; la RH veut parfois « ranger » à la
+# main les mails déjà traités dans un dossier dédié du PST (ex. « Traités ») pour
+# garder l'inbox propre. C'est une **écriture** dans le fichier : seul le backend
+# win32com (Outlook installé, Windows) sait le faire — pypff est en lecture seule.
+#
+# On ne peut pas s'appuyer sur la table `processed_emails` : le backend par défaut
+# (pypff) y stocke des identifiants internes pypff, incompatibles avec les EntryID
+# MAPI de win32com. On déplace donc, de façon indépendante du backend d'import,
+# **tous les mails porteurs d'un CV (PDF/DOCX)** — c.-à-d. exactement ceux que
+# l'import prend en charge.
+
+def _w32_find_or_create_subfolder(root, name: str):
+    """Retourne le sous-dossier `name` sous `root`, en le créant s'il manque."""
+    target = name.strip().lower()
+    for f in list(root.Folders):
+        try:
+            if (f.Name or "").strip().lower() == target:
+                return f
+        except Exception:
+            continue
+    return root.Folders.Add(name)
+
+
+def _w32_has_cv_attachment(item) -> bool:
+    for att in list(getattr(item, "Attachments", [])):
+        try:
+            if Path(att.FileName or "").suffix.lower() in ALLOWED_ATTACHMENT_EXTS:
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _w32_collect_cv_messages(folder, skip_entryid: str, out: list) -> None:
+    """Collecte récursivement les mails porteurs d'une PJ CV, hors dossier cible.
+
+    On collecte AVANT de déplacer : déplacer un item pendant l'itération de la
+    collection `Items` fait sauter des éléments (comportement MAPI connu).
+    """
+    try:
+        if skip_entryid and folder.EntryID == skip_entryid:
+            return  # ne pas re-parcourir le dossier cible (déplacements précédents)
+    except Exception:
+        pass
+    try:
+        for item in list(folder.Items):
+            try:
+                if getattr(item, "Class", None) != 43:  # 43 = olMail
+                    continue
+                if _w32_has_cv_attachment(item):
+                    out.append(item)
+            except Exception as e:
+                log.warning("win32com : message ignoré au déplacement : %s", e)
+    except Exception as e:
+        log.warning("win32com : dossier illisible au déplacement : %s", e)
+    try:
+        for sub in list(folder.Folders):
+            _w32_collect_cv_messages(sub, skip_entryid, out)
+    except Exception as e:
+        log.warning("win32com : sous-dossiers illisibles au déplacement : %s", e)
+
+
+def can_move_messages(backend: str | None = None) -> bool:
+    """True si le déplacement de messages est possible (backend win32com dispo)."""
+    return _has_win32com()
+
+
+def move_cv_messages(path: str, target_folder: str = "Traités",
+                     backend: str | None = None) -> tuple[int, str]:
+    """Déplace les mails porteurs d'un CV (PDF/DOCX) vers `target_folder` DANS le PST.
+
+    Écriture dans le fichier : nécessite le backend **win32com** (Outlook installé,
+    Windows). pypff est en lecture seule. Idempotent : les mails déjà rangés dans le
+    dossier cible ne sont pas re-déplacés. Retourne (nb_déplacés, message).
+    """
+    p = Path(path)
+    if not p.exists():
+        return 0, f"Fichier introuvable : {path}"
+    if p.suffix.lower() != ".pst":
+        # AddStore ne monte de façon fiable que le PST ; l'OST n'est pas déplaçable ici.
+        return 0, "Déplacement possible uniquement sur un fichier .pst (via Outlook)."
+    if not _has_win32com():
+        return 0, ("Déplacement indisponible : nécessite Outlook installé "
+                   "(pywin32/win32com). pypff est en lecture seule.")
+    target_folder = (target_folder or "Traités").strip() or "Traités"
+
+    import pythoncom
+    import win32com.client
+
+    pythoncom.CoInitialize()
+    outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
+    abspath = str(p.resolve())
+    outlook.AddStore(abspath)
+    store = None
+    for st in outlook.Stores:
+        try:
+            if st.FilePath and Path(st.FilePath).resolve() == Path(abspath).resolve():
+                store = st
+                break
+        except Exception:
+            continue
+    if store is None:
+        return 0, "Outlook n'a pas pu monter le fichier PST."
+
+    root = store.GetRootFolder()
+    try:
+        target = _w32_find_or_create_subfolder(root, target_folder)
+        try:
+            target_eid = target.EntryID
+        except Exception:
+            target_eid = ""
+        to_move: list = []
+        _w32_collect_cv_messages(root, target_eid, to_move)
+        moved = 0
+        for item in to_move:
+            try:
+                item.Move(target)
+                moved += 1
+            except Exception as e:
+                log.warning("win32com : déplacement d'un message échoué : %s", e)
+        log.info("Déplacement : %d/%d mail(s) CV rangé(s) dans « %s » (%s)",
+                 moved, len(to_move), target_folder, p.name)
+        return moved, (f"{moved} mail(s) porteur(s) de CV déplacé(s) vers "
+                       f"« {target_folder} ».")
+    finally:
+        try:
+            outlook.RemoveStore(root)
+        except Exception:
+            pass
+
+
 # ─── API publique ───────────────────────────────────────────────────────────────
 
 def check_file(path: str, backend: str | None = None) -> tuple[bool, str]:

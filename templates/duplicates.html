@@ -4,14 +4,26 @@
 
 <style>
   .dup-group { margin-bottom: 1.25rem; }
-  .dup-group .crit { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem; }
+  .dup-group .crit { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem; }
   .dup-group .crit .valeur { font-family: monospace; }
+  .dup-group .crit .grp-sel { margin-left: auto; font-size: .8em; white-space: nowrap; }
   .dup-orig { font-size: .75em; opacity: .8; }
+  .dup-actionbar {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    padding: .6rem .8rem; margin: 1rem 0;
+    background: var(--card, #fff); border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+  }
+  .dup-actionbar .count { font-size: .85em; opacity: .8; }
+  .dup-cb { transform: scale(1.15); cursor: pointer; }
 </style>
 
 <div class="page-head">
   <h1>Détection de doublons</h1>
 </div>
+
+{% if msg %}<div class="alert info">{{ msg }}</div>{% endif %}
 
 <div class="kpi-cards">
   <div class="kpi-card kpi-lavender">
@@ -31,25 +43,38 @@
 <p class="small muted">
   Regroupement des candidats potentiellement en double par email, téléphone ou nom.
   Le plus ancien candidat de chaque groupe (plus petit ID) est considéré comme l'original.
+  Cochez les candidats à ranger comme doublons, puis validez en une seule fois.
 </p>
 
 {% if nb_groupes == 0 %}
   <p class="muted" style="margin-top:1rem">Aucun doublon potentiel détecté. 🎉</p>
 {% else %}
-  <p class="small muted" style="margin-top:1rem">
-    {{ nb_groupes }} groupe(s) de doublons potentiels.
-  </p>
+
+<form method="post" action="/doublons/mark-bulk" id="dup-form"
+      onsubmit="return confirm('Marquer les candidats sélectionnés comme doublons de leur original ?');">
+
+  <div class="dup-actionbar">
+    <label><input type="checkbox" id="dup-all"> <strong>Tout sélectionner</strong></label>
+    <span class="count" id="dup-count">0 sélectionné(s)</span>
+    <button type="submit" class="btn primary" id="dup-submit" style="margin-left:auto" disabled>
+      🏷️ Marquer la sélection comme doublons
+    </button>
+  </div>
 
   {% for g in groupes %}
   <div class="card dup-group">
     <div class="crit">
       <span class="badge">{{ g.critere }}</span>
       <span class="valeur muted small">{{ g.valeur }}</span>
+      <label class="grp-sel muted">
+        <input type="checkbox" class="dup-group-all"> Sélectionner le groupe
+      </label>
     </div>
 
     <table class="table">
       <thead>
         <tr>
+          <th style="width:2rem"></th>
           <th>ID</th>
           <th>Candidat</th>
           <th>Téléphone</th>
@@ -61,6 +86,12 @@
       <tbody>
       {% for c in g.membres %}
         <tr>
+          <td>
+            {% if c.id != g.original_id and not c.duplicate_of %}
+              <input type="checkbox" class="dup-cb" name="pairs"
+                     value="{{ c.id }}:{{ g.original_id }}">
+            {% endif %}
+          </td>
           <td>{{ c.id }}</td>
           <td>
             <a href="/candidate/{{ c.id }}" class="cand-link">
@@ -77,10 +108,7 @@
             {% elif c.duplicate_of %}
               <span class="dup-orig muted">Marqué doublon de #{{ c.duplicate_of }}</span>
             {% else %}
-              <form method="post" action="/doublons/{{ c.id }}/mark" style="margin:0">
-                <input type="hidden" name="original_id" value="{{ g.original_id }}">
-                <button type="submit" class="btn small">Marquer comme doublon de #{{ g.original_id }}</button>
-              </form>
+              <span class="dup-orig muted">→ doublon de #{{ g.original_id }}</span>
             {% endif %}
           </td>
         </tr>
@@ -89,6 +117,52 @@
     </table>
   </div>
   {% endfor %}
+</form>
+
+<script>
+(function () {
+  var form = document.getElementById('dup-form');
+  if (!form) return;
+  var boxes = Array.prototype.slice.call(form.querySelectorAll('.dup-cb'));
+  var master = document.getElementById('dup-all');
+  var count = document.getElementById('dup-count');
+  var submit = document.getElementById('dup-submit');
+
+  function refresh() {
+    var n = boxes.filter(function (b) { return b.checked; }).length;
+    count.textContent = n + ' sélectionné(s)';
+    submit.disabled = n === 0;
+    master.checked = n > 0 && n === boxes.length;
+    master.indeterminate = n > 0 && n < boxes.length;
+    // Synchronise chaque case « groupe » avec l'état de ses membres.
+    form.querySelectorAll('.dup-group').forEach(function (grp) {
+      var gb = Array.prototype.slice.call(grp.querySelectorAll('.dup-cb'));
+      var ga = grp.querySelector('.dup-group-all');
+      if (!ga || !gb.length) return;
+      var checked = gb.filter(function (b) { return b.checked; }).length;
+      ga.checked = checked === gb.length;
+      ga.indeterminate = checked > 0 && checked < gb.length;
+    });
+  }
+
+  master.addEventListener('change', function () {
+    boxes.forEach(function (b) { b.checked = master.checked; });
+    refresh();
+  });
+
+  form.querySelectorAll('.dup-group-all').forEach(function (ga) {
+    ga.addEventListener('change', function () {
+      var grp = ga.closest('.dup-group');
+      grp.querySelectorAll('.dup-cb').forEach(function (b) { b.checked = ga.checked; });
+      refresh();
+    });
+  });
+
+  boxes.forEach(function (b) { b.addEventListener('change', refresh); });
+  refresh();
+})();
+</script>
+
 {% endif %}
 
 {% endblock %}
