@@ -3,20 +3,79 @@
 {% block content %}
 
 <style>
-  .dup-group { margin-bottom: 1.25rem; }
-  .dup-group .crit { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem; }
-  .dup-group .crit .valeur { font-family: monospace; }
-  .dup-group .crit .grp-sel { margin-left: auto; font-size: .8em; white-space: nowrap; }
-  .dup-orig { font-size: .75em; opacity: .8; }
+  /* ---- Barre de filtres ------------------------------------------------ */
+  .dup-toolbar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin: 1rem 0 .25rem; }
+  .dup-chip {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: 6px 13px; border-radius: 999px; cursor: pointer;
+    font-size: 12.5px; font-weight: 600; line-height: 1;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .dup-chip:hover { background: var(--surface-2); }
+  .dup-chip.active { background: var(--primary); border-color: transparent; color: #fff; }
+  .dup-chip .n {
+    font-size: 11px; font-weight: 800; padding: 1px 7px; border-radius: 999px;
+    background: color-mix(in srgb, currentColor 16%, transparent);
+  }
+  .dup-toolbar .sep { flex: 1 1 auto; }
+  .dup-toolbar .toggle { display: inline-flex; align-items: center; gap: .4rem; font-size: 12.5px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+
+  /* ---- Barre d'action collante ---------------------------------------- */
   .dup-actionbar {
     position: sticky; top: 0; z-index: 5;
     display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-    padding: .6rem .8rem; margin: 1rem 0;
+    padding: .65rem .85rem; margin: .75rem 0 1.25rem;
     background: var(--card, #fff); border: 1px solid var(--border, #e5e7eb);
-    border-radius: 10px;
+    border-radius: 12px; box-shadow: var(--shadow-md);
   }
-  .dup-actionbar .count { font-size: .85em; opacity: .8; }
-  .dup-cb { transform: scale(1.15); cursor: pointer; }
+  .dup-actionbar label { display: inline-flex; align-items: center; gap: .45rem; font-weight: 600; font-size: 13px; cursor: pointer; }
+  .dup-count {
+    font-size: 12px; font-weight: 700; padding: 3px 11px; border-radius: 999px;
+    background: var(--primary-soft); color: var(--primary);
+  }
+  .dup-count.zero { background: var(--surface-2); color: var(--muted); }
+
+  /* ---- Carte de groupe ------------------------------------------------- */
+  .dup-group { margin-bottom: 1.1rem; padding: 0; overflow: hidden; }
+  .dup-group.is-resolved { opacity: .62; }
+  .dup-ghead {
+    display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+    padding: .7rem .9rem; border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .dup-crit { display: inline-flex; align-items: center; gap: .45rem; font-weight: 700; font-size: 13px; color: var(--heading); }
+  .dup-crit .ic { font-size: 15px; }
+  .dup-val {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+    padding: 3px 9px; border-radius: 7px; background: var(--primary-soft); color: var(--primary);
+    max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .dup-gcount { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+  .dup-gsel { margin-left: auto; font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; cursor: pointer; }
+  .dup-gdone { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--success); display: inline-flex; align-items: center; gap: .35rem; }
+
+  .dup-table-wrap { overflow-x: auto; }
+  .dup-group .table { border-radius: 0; }
+  .dup-group .table th, .dup-group .table td { padding: 10px 14px; }
+
+  /* Ligne de l'original : accent + fond doux. */
+  tr.is-original td { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+  tr.is-original td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
+  tr.is-marked td { opacity: .72; }
+  tr.is-marked .cand-name { text-decoration: line-through; text-decoration-color: var(--muted); }
+
+  /* Champ qui a déclenché le rapprochement : mis en avant. */
+  .match { background: #fff6d6; color: #7a5a00; padding: 1px 6px; border-radius: 6px; font-weight: 600; }
+  :root[data-theme="dark"] .match { background: #3a3210; color: #f0d88a; }
+
+  .dup-tag { font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
+  .dup-tag.orig { color: var(--primary); }
+  .dup-tag.done { color: var(--success); }
+  .dup-tag.todo { color: var(--muted); }
+  .dup-cb { transform: scale(1.2); cursor: pointer; accent-color: var(--primary); }
+  .dup-empty { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
+  .dup-empty .big { font-size: 2.4rem; display: block; margin-bottom: .4rem; }
 </style>
 
 <div class="page-head">
@@ -34,6 +93,10 @@
     <span class="kpi-ic">👥</span>
     <div><div class="kpi-num">{{ nb_concernes }}</div><div class="kpi-lbl">Candidats concernés</div></div>
   </div>
+  <div class="kpi-card kpi-amber">
+    <span class="kpi-ic">📥</span>
+    <div><div class="kpi-num">{{ nb_a_ranger }}</div><div class="kpi-lbl">À ranger</div></div>
+  </div>
   <div class="kpi-card kpi-mint">
     <span class="kpi-ic">🏷️</span>
     <div><div class="kpi-num">{{ nb_marques }}</div><div class="kpi-lbl">Déjà marqués doublon</div></div>
@@ -42,40 +105,63 @@
 
 <p class="small muted">
   Regroupement des candidats potentiellement en double par email, téléphone ou nom.
-  Le plus ancien candidat de chaque groupe (plus petit ID) est considéré comme l'original.
-  Cochez les candidats à ranger comme doublons, puis validez en une seule fois.
+  Le plus ancien candidat de chaque groupe (plus petit ID, marqué <span class="dup-tag orig">⭐ Original</span>)
+  est considéré comme la fiche à garder. Cochez les doublons à ranger, puis validez en une seule fois.
 </p>
 
 {% if nb_groupes == 0 %}
-  <p class="muted" style="margin-top:1rem">Aucun doublon potentiel détecté. 🎉</p>
+  <div class="card dup-empty">
+    <span class="big">🎉</span>
+    <div>Aucun doublon potentiel détecté.</div>
+  </div>
 {% else %}
 
-<form method="post" action="/doublons/mark-bulk" id="dup-form"
-      onsubmit="return confirm('Marquer les candidats sélectionnés comme doublons de leur original ?');">
+<div class="dup-toolbar" id="dup-filters">
+  <button type="button" class="dup-chip active" data-filter="all">
+    Tous <span class="n">{{ nb_groupes }}</span>
+  </button>
+  {% for f in filtres %}{% if f.nb %}
+  <button type="button" class="dup-chip" data-filter="{{ f.cle }}">
+    <span>{{ f.icone }}</span> {{ f.libelle }} <span class="n">{{ f.nb }}</span>
+  </button>
+  {% endif %}{% endfor %}
+  <span class="sep"></span>
+  <label class="toggle"><input type="checkbox" id="dup-hide-done"> Masquer les groupes déjà traités</label>
+</div>
+
+<form method="post" action="/doublons/mark-bulk" id="dup-form">
+  <input type="hidden" name="pairs" id="dup-pairs-blob">
 
   <div class="dup-actionbar">
-    <label><input type="checkbox" id="dup-all"> <strong>Tout sélectionner</strong></label>
-    <span class="count" id="dup-count">0 sélectionné(s)</span>
+    <label><input type="checkbox" id="dup-all"> Tout sélectionner</label>
+    <span class="dup-count zero" id="dup-count">0 sélectionné</span>
     <button type="submit" class="btn primary" id="dup-submit" style="margin-left:auto" disabled>
       🏷️ Marquer la sélection comme doublons
     </button>
   </div>
 
   {% for g in groupes %}
-  <div class="card dup-group">
-    <div class="crit">
-      <span class="badge">{{ g.critere }}</span>
-      <span class="valeur muted small">{{ g.valeur }}</span>
-      <label class="grp-sel muted">
-        <input type="checkbox" class="dup-group-all"> Sélectionner le groupe
-      </label>
+  <div class="card dup-group{% if g.nb_markables == 0 %} is-resolved{% endif %}"
+       data-crit="{{ g.cle }}" data-done="{{ 1 if g.nb_markables == 0 else 0 }}">
+    <div class="dup-ghead">
+      <span class="dup-crit"><span class="ic">{{ {'email':'✉️','telephone':'📞','nom':'🪪'}[g.cle] }}</span>{{ g.critere }}</span>
+      <span class="dup-val" title="{{ g.valeur }}">{{ g.valeur }}</span>
+      <span class="dup-gcount">{{ g.nb_membres }} fiches</span>
+      {% if g.nb_markables == 0 %}
+        <span class="dup-gdone">✅ Traité</span>
+      {% else %}
+        <label class="dup-gsel">
+          <input type="checkbox" class="dup-group-all"> Sélectionner le groupe
+        </label>
+      {% endif %}
     </div>
 
+    <div class="dup-table-wrap">
     <table class="table">
       <thead>
         <tr>
-          <th style="width:2rem"></th>
-          <th>ID</th>
+          <th style="width:2.2rem"></th>
+          <th style="width:4rem">ID</th>
           <th>Candidat</th>
           <th>Téléphone</th>
           <th>Poste</th>
@@ -85,36 +171,46 @@
       </thead>
       <tbody>
       {% for c in g.membres %}
-        <tr>
+        {% set is_orig = c.id == g.original_id %}
+        <tr class="{% if is_orig %}is-original{% elif c.duplicate_of %}is-marked{% endif %}">
           <td>
-            {% if c.id != g.original_id and not c.duplicate_of %}
-              <input type="checkbox" class="dup-cb" name="pairs"
+            {% if not is_orig and not c.duplicate_of %}
+              <input type="checkbox" class="dup-cb"
                      value="{{ c.id }}:{{ g.original_id }}">
             {% endif %}
           </td>
-          <td>{{ c.id }}</td>
+          <td class="small muted">#{{ c.id }}</td>
           <td>
             <a href="/candidate/{{ c.id }}" class="cand-link">
-              <strong>{{ (c.prenom or '') }} {{ (c.nom or '') }}</strong>
+              <strong class="cand-name{% if g.cle == 'nom' %} match{% endif %}">{{ (c.prenom or '') }} {{ (c.nom or '') }}</strong>
             </a><br>
-            <span class="small muted">{{ c.email or '—' }}</span>
-          </td>
-          <td class="small">{{ c.telephone or '—' }}</td>
-          <td class="small">{{ c.poste_recherche or '—' }}</td>
-          <td class="small">{{ c.statut or '—' }}</td>
-          <td>
-            {% if c.id == g.original_id %}
-              <span class="dup-orig muted">Original</span>
-            {% elif c.duplicate_of %}
-              <span class="dup-orig muted">Marqué doublon de #{{ c.duplicate_of }}</span>
+            {% if c.email %}
+              <span class="small {% if g.cle == 'email' %}match{% else %}muted{% endif %}">{{ c.email }}</span>
             {% else %}
-              <span class="dup-orig muted">→ doublon de #{{ g.original_id }}</span>
+              <span class="small muted">—</span>
+            {% endif %}
+          </td>
+          <td class="small">
+            {% if c.telephone %}
+              <span class="{% if g.cle == 'telephone' %}match{% endif %}">{{ c.telephone }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="small">{{ c.poste_recherche or '—' }}</td>
+          <td><span class="badge status-{{ (c.statut or 'Nouveau')|replace(' ', '_') }}">{{ c.statut or '—' }}</span></td>
+          <td>
+            {% if is_orig %}
+              <span class="dup-tag orig">⭐ Original</span>
+            {% elif c.duplicate_of %}
+              <span class="dup-tag done">✅ Doublon de #{{ c.duplicate_of }}</span>
+            {% else %}
+              <span class="dup-tag todo">→ doublon de #{{ g.original_id }}</span>
             {% endif %}
           </td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
   {% endfor %}
 </form>
@@ -130,11 +226,11 @@
 
   function refresh() {
     var n = boxes.filter(function (b) { return b.checked; }).length;
-    count.textContent = n + ' sélectionné(s)';
+    count.textContent = n + ' sélectionné' + (n > 1 ? 's' : '');
+    count.classList.toggle('zero', n === 0);
     submit.disabled = n === 0;
     master.checked = n > 0 && n === boxes.length;
     master.indeterminate = n > 0 && n < boxes.length;
-    // Synchronise chaque case « groupe » avec l'état de ses membres.
     form.querySelectorAll('.dup-group').forEach(function (grp) {
       var gb = Array.prototype.slice.call(grp.querySelectorAll('.dup-cb'));
       var ga = grp.querySelector('.dup-group-all');
@@ -146,7 +242,11 @@
   }
 
   master.addEventListener('change', function () {
-    boxes.forEach(function (b) { b.checked = master.checked; });
+    // « Tout sélectionner » n'agit que sur les groupes visibles.
+    boxes.forEach(function (b) {
+      var grp = b.closest('.dup-group');
+      if (grp && grp.style.display !== 'none') b.checked = master.checked;
+    });
     refresh();
   });
 
@@ -159,6 +259,44 @@
   });
 
   boxes.forEach(function (b) { b.addEventListener('change', refresh); });
+
+  // À l'envoi : on regroupe toutes les cases cochées dans un champ unique
+  // (« cid:orig » séparés par des virgules) pour ne poster qu'un seul champ,
+  // ce qui évite la limite Starlette de 1000 champs quand on sélectionne tout.
+  var blob = document.getElementById('dup-pairs-blob');
+  form.addEventListener('submit', function (e) {
+    var sel = boxes.filter(function (b) { return b.checked; })
+                   .map(function (b) { return b.value; });
+    if (!sel.length) { e.preventDefault(); return; }
+    if (!confirm('Marquer les candidats sélectionnés comme doublons de leur original ?')) {
+      e.preventDefault(); return;
+    }
+    blob.value = sel.join(',');
+  });
+
+  // Filtres par critère + masquage des groupes traités.
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.dup-chip'));
+  var hideDone = document.getElementById('dup-hide-done');
+  var current = 'all';
+
+  function applyFilter() {
+    form.querySelectorAll('.dup-group').forEach(function (grp) {
+      var okCrit = current === 'all' || grp.getAttribute('data-crit') === current;
+      var okDone = !(hideDone.checked && grp.getAttribute('data-done') === '1');
+      grp.style.display = (okCrit && okDone) ? '' : 'none';
+    });
+  }
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      chips.forEach(function (c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+      current = chip.getAttribute('data-filter');
+      applyFilter();
+    });
+  });
+  hideDone.addEventListener('change', applyFilter);
+
   refresh();
 })();
 </script>

@@ -65,28 +65,52 @@ def doublons(request: Request, msg: str = ""):
             # Le plus ancien (plus petit id) est considéré comme l'original.
             membres = sorted(membres, key=lambda c: c["id"])
             original = membres[0]
+            # Candidats encore « à ranger » : ni l'original, ni déjà marqués.
+            nb_markables = sum(
+                1 for c in membres
+                if c["id"] != original["id"] and not c["duplicate_of"]
+            )
             groupes.append({
+                "cle": cle,
                 "critere": libelle,
                 "valeur": valeur,
                 "original_id": original["id"],
                 "membres": membres,
+                "nb_membres": len(membres),
+                "nb_markables": nb_markables,
             })
 
     # Affichage stable : par critère puis par id de l'original.
     ordre = {cle: i for i, (cle, _, _) in enumerate(CRITERES)}
-    libelle_vers_cle = {lib: cle for cle, lib, _ in CRITERES}
-    groupes.sort(key=lambda g: (ordre[libelle_vers_cle[g["critere"]]], g["original_id"]))
+    groupes.sort(key=lambda g: (ordre[g["cle"]], g["original_id"]))
 
     # Candidats concernés (uniques, un même candidat pouvant apparaître dans
     # plusieurs groupes) et candidats déjà marqués comme doublon.
     concernes = {c["id"] for g in groupes for c in g["membres"]}
     nb_marques = sum(1 for c in rows if c["duplicate_of"])
 
+    # Nombre de candidats encore « à ranger » sur toute la page (pour l'entête).
+    nb_a_ranger = sum(g["nb_markables"] for g in groupes)
+
+    # Onglets de filtre par critère (clé, libellé, emoji, nb de groupes).
+    icone = {"email": "✉️", "telephone": "📞", "nom": "🪪"}
+    filtres = [
+        {
+            "cle": cle,
+            "libelle": libelle,
+            "icone": icone.get(cle, "🔎"),
+            "nb": sum(1 for g in groupes if g["cle"] == cle),
+        }
+        for cle, libelle, _ in CRITERES
+    ]
+
     return render(request, "duplicates.html", {
         "groupes": groupes,
         "nb_groupes": len(groupes),
         "nb_concernes": len(concernes),
         "nb_marques": nb_marques,
+        "nb_a_ranger": nb_a_ranger,
+        "filtres": filtres,
         "msg": msg,
     })
 
@@ -123,11 +147,13 @@ def marquer_doublon(cid: int, request: Request, original_id: int = Form(...)):
 
 
 @router.post("/doublons/mark-bulk")
-def marquer_doublons_bulk(request: Request, pairs: list[str] = Form(default=[])):
+def marquer_doublons_bulk(request: Request, pairs: str = Form(default="")):
     """Marque en lot plusieurs candidats comme doublons.
 
-    Chaque valeur cochée est un couple « cid:original_id » (le candidat `cid`
-    devient doublon de `original_id`). On ignore silencieusement les couples
+    `pairs` est une liste de couples « cid:original_id » séparés par des virgules
+    (ou espaces) — le candidat `cid` devient doublon de `original_id`. On envoie
+    un champ unique (et non un champ par case) pour éviter la limite Starlette de
+    1000 champs quand on sélectionne tout. On ignore silencieusement les couples
     invalides, auto-référents ou pointant vers un candidat inexistant, puis on
     applique tous les marquages valides en une seule transaction.
     """
@@ -138,9 +164,11 @@ def marquer_doublons_bulk(request: Request, pairs: list[str] = Form(default=[]))
     # Parse + validation des couples (dédup sur le candidat marqué : un cid ne peut
     # être marqué qu'une fois, même s'il apparaît dans plusieurs groupes cochés).
     a_marquer: dict[int, int] = {}
-    for pair in pairs:
+    for pair in re.split(r"[,\s]+", pairs.strip()):
+        if not pair:
+            continue
         try:
-            cid_s, orig_s = (pair or "").split(":", 1)
+            cid_s, orig_s = pair.split(":", 1)
             cid, original_id = int(cid_s), int(orig_s)
         except (ValueError, AttributeError):
             continue
