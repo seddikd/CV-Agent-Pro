@@ -90,7 +90,15 @@ def doublons(request: Request, msg: str = ""):
     nb_marques = sum(1 for c in rows if c["duplicate_of"])
 
     # Nombre de candidats encore « à ranger » sur toute la page (pour l'entête).
-    nb_a_ranger = sum(g["nb_markables"] for g in groupes)
+    # On compte les candidats DISTINCTS : un même candidat peut être « à ranger »
+    # dans plusieurs groupes (même email ET même téléphone) — le sommer par groupe
+    # le compterait deux fois (et le marquage en lot, lui, dédoublonne par cid).
+    nb_a_ranger = len({
+        c["id"]
+        for g in groupes
+        for c in g["membres"]
+        if c["id"] != g["original_id"] and not c["duplicate_of"]
+    })
 
     # Onglets de filtre par critère (clé, libellé, emoji, nb de groupes).
     icone = {"email": "✉️", "telephone": "📞", "nom": "🪪"}

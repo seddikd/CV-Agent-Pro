@@ -131,6 +131,9 @@
 
 <form method="post" action="/doublons/mark-bulk" id="dup-form">
   <input type="hidden" name="pairs" id="dup-pairs-blob">
+  <noscript>
+    <div class="alert error">Le marquage en lot des doublons nécessite JavaScript activé.</div>
+  </noscript>
 
   <div class="dup-actionbar">
     <label><input type="checkbox" id="dup-all"> Tout sélectionner</label>
@@ -144,7 +147,7 @@
   <div class="card dup-group{% if g.nb_markables == 0 %} is-resolved{% endif %}"
        data-crit="{{ g.cle }}" data-done="{{ 1 if g.nb_markables == 0 else 0 }}">
     <div class="dup-ghead">
-      <span class="dup-crit"><span class="ic">{{ {'email':'✉️','telephone':'📞','nom':'🪪'}[g.cle] }}</span>{{ g.critere }}</span>
+      <span class="dup-crit"><span class="ic">{{ {'email':'✉️','telephone':'📞','nom':'🪪'}.get(g.cle, '🔎') }}</span>{{ g.critere }}</span>
       <span class="dup-val" title="{{ g.valeur }}">{{ g.valeur }}</span>
       <span class="dup-gcount">{{ g.nb_membres }} fiches</span>
       {% if g.nb_markables == 0 %}
@@ -224,13 +227,21 @@
   var count = document.getElementById('dup-count');
   var submit = document.getElementById('dup-submit');
 
+  // Une case ne « compte » que si son groupe est visible (non masqué par un filtre) :
+  // décompte, « Tout sélectionner » et envoi restent cohérents avec ce que l'on voit.
+  function isVisible(b) {
+    var grp = b.closest('.dup-group');
+    return !grp || grp.style.display !== 'none';
+  }
+
   function refresh() {
-    var n = boxes.filter(function (b) { return b.checked; }).length;
+    var visBoxes = boxes.filter(isVisible);
+    var n = visBoxes.filter(function (b) { return b.checked; }).length;
     count.textContent = n + ' sélectionné' + (n > 1 ? 's' : '');
     count.classList.toggle('zero', n === 0);
     submit.disabled = n === 0;
-    master.checked = n > 0 && n === boxes.length;
-    master.indeterminate = n > 0 && n < boxes.length;
+    master.checked = n > 0 && n === visBoxes.length;
+    master.indeterminate = n > 0 && n < visBoxes.length;
     form.querySelectorAll('.dup-group').forEach(function (grp) {
       var gb = Array.prototype.slice.call(grp.querySelectorAll('.dup-cb'));
       var ga = grp.querySelector('.dup-group-all');
@@ -260,12 +271,13 @@
 
   boxes.forEach(function (b) { b.addEventListener('change', refresh); });
 
-  // À l'envoi : on regroupe toutes les cases cochées dans un champ unique
+  // À l'envoi : on regroupe les cases cochées *visibles* dans un champ unique
   // (« cid:orig » séparés par des virgules) pour ne poster qu'un seul champ,
   // ce qui évite la limite Starlette de 1000 champs quand on sélectionne tout.
+  // On exclut les cases masquées par un filtre : on ne marque que ce que l'on voit.
   var blob = document.getElementById('dup-pairs-blob');
   form.addEventListener('submit', function (e) {
-    var sel = boxes.filter(function (b) { return b.checked; })
+    var sel = boxes.filter(function (b) { return b.checked && isVisible(b); })
                    .map(function (b) { return b.value; });
     if (!sel.length) { e.preventDefault(); return; }
     if (!confirm('Marquer les candidats sélectionnés comme doublons de leur original ?')) {
@@ -285,6 +297,7 @@
       var okDone = !(hideDone.checked && grp.getAttribute('data-done') === '1');
       grp.style.display = (okCrit && okDone) ? '' : 'none';
     });
+    refresh();  // recalcule le décompte + « Tout sélectionner » pour la vue visible
   }
 
   chips.forEach(function (chip) {
