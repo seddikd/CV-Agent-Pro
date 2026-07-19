@@ -36,6 +36,11 @@
   <dl class="info">
     <dt>Département</dt><dd>{{ offre.departement or '—' }}</dd>
     <dt>Lieu</dt><dd>{{ offre.lieu or '—' }}</dd>
+    <dt>Wilaya</dt><dd>{{ offre.wilaya or '—' }}</dd>
+    <dt>Commune</dt><dd>{{ offre.commune or '—' }}</dd>
+    <dt>Type de contrat</dt><dd>{{ offre.type_contrat or '—' }}</dd>
+    <dt>Nombre de postes</dt>
+    <dd>{{ offre.nombre_postes if offre.nombre_postes is not none else '—' }}</dd>
     <dt>Expérience minimale</dt>
     <dd>{{ offre.experience_min if offre.experience_min is not none else '—' }}{% if offre.experience_min is not none %} an(s){% endif %}</dd>
     <dt>Niveau d'étude</dt><dd>{{ offre.niveau_etude or '—' }}</dd>

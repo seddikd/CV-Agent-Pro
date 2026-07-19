@@ -30,8 +30,35 @@
       </label>
       <label>Lieu
         <input type="text" name="lieu"
-               placeholder="ex. Casablanca / Télétravail"
+               placeholder="ex. Siège / Télétravail"
                value="{{ offre.lieu if offre else '' }}">
+      </label>
+      <label>Wilaya
+        <select name="wilaya" id="offre-wilaya">
+          <option value="">—</option>
+          {% for w in wilayas %}
+          <option value="{{ w }}" {% if offre and offre.wilaya == w %}selected{% endif %}>{{ w }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Commune
+        <select name="commune" id="offre-commune">
+          <option value="">—</option>
+          {# Peuplé côté client selon la wilaya (voir script en bas). #}
+        </select>
+      </label>
+      <label>Type de contrat
+        <select name="type_contrat">
+          <option value="">—</option>
+          {% for t in types_contrat %}
+          <option value="{{ t }}" {% if offre and offre.type_contrat == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Nombre de postes
+        <input type="number" name="nombre_postes" min="1" step="1"
+               placeholder="1"
+               value="{{ offre.nombre_postes if offre and offre.nombre_postes is not none else '' }}">
       </label>
     </div>
   </div>
@@ -84,5 +111,37 @@
     <button type="submit" class="btn primary">💾 Enregistrer</button>
   </div>
 </form>
+
+<script id="communes-data" type="application/json">{{ communes_by_wilaya | tojson }}</script>
+<script>
+  // Menu « Commune » dépendant du menu « Wilaya » (référentiel Algérie).
+  (function () {
+    var communesParWilaya = JSON.parse(
+      document.getElementById("communes-data").textContent
+    );
+    var selWilaya = document.getElementById("offre-wilaya");
+    var selCommune = document.getElementById("offre-commune");
+    var communeChoisie = {{ (offre.commune if offre else '') | tojson }};
+
+    function remplirCommunes(garderSelection) {
+      var communes = communesParWilaya[selWilaya.value] || [];
+      selCommune.innerHTML = '<option value="">—</option>';
+      communes.forEach(function (c) {
+        var opt = document.createElement("option");
+        opt.value = c;
+        opt.textContent = c;
+        if (garderSelection && c === communeChoisie) opt.selected = true;
+        selCommune.appendChild(opt);
+      });
+      selCommune.disabled = communes.length === 0;
+    }
+
+    remplirCommunes(true);
+    selWilaya.addEventListener("change", function () {
+      communeChoisie = "";
+      remplirCommunes(false);
+    });
+  })();
+</script>
 
 {% endblock %}

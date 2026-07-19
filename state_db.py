@@ -85,6 +85,10 @@ CREATE TABLE IF NOT EXISTS jobs (
     titre TEXT NOT NULL,
     departement TEXT,
     lieu TEXT,
+    wilaya TEXT,
+    commune TEXT,
+    type_contrat TEXT,
+    nombre_postes INTEGER,
     description TEXT,
     competences_requises TEXT,
     experience_min INTEGER,
@@ -197,6 +201,11 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("candidates", "stage", "TEXT"),
     # Rappel email envoyé pour un entretien (module « Entretiens ») — idempotence.
     ("entretiens", "reminder_sent", "INTEGER DEFAULT 0"),
+    # Localisation (référentiel Algérie) + type de contrat + nb de postes (module « Offres »).
+    ("jobs", "wilaya", "TEXT"),
+    ("jobs", "commune", "TEXT"),
+    ("jobs", "type_contrat", "TEXT"),
+    ("jobs", "nombre_postes", "INTEGER"),
 ]
 
 

@@ -5,12 +5,31 @@ from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
 
 from web_core import require_user, render, connect
+from algeria_geo import WILAYAS, COMMUNES_BY_WILAYA
 import db
 
 router = APIRouter()
 
 # Statuts autorisés pour une offre (voir schéma `jobs`).
 STATUTS = ["Brouillon", "Publiée", "Archivée"]
+
+# Types de contrat proposés (liste déroulante ; vide = non précisé).
+TYPES_CONTRAT = ["CDI", "CDD"]
+
+
+def _clean_localisation(wilaya: str, commune: str) -> tuple[str, str]:
+    """Valide wilaya/commune contre le référentiel Algérie.
+
+    La wilaya n'est retenue que si elle existe ; la commune que si elle
+    appartient bien à la wilaya choisie (sinon vidée).
+    """
+    wilaya = wilaya.strip()
+    commune = commune.strip()
+    if wilaya not in WILAYAS:
+        return "", ""
+    if commune and commune not in COMMUNES_BY_WILAYA.get(wilaya, []):
+        commune = ""
+    return wilaya, commune
 
 
 def _now() -> str:
@@ -69,7 +88,11 @@ def formulaire_nouvelle_offre(request: Request):
     return render(
         request,
         "job_form.html",
-        {"offre": None, "statuts": STATUTS},
+        {
+            "offre": None, "statuts": STATUTS,
+            "types_contrat": TYPES_CONTRAT,
+            "wilayas": WILAYAS, "communes_by_wilaya": COMMUNES_BY_WILAYA,
+        },
     )
 
 
@@ -79,6 +102,10 @@ def creer_offre(
     titre: str = Form(...),
     departement: str = Form(""),
     lieu: str = Form(""),
+    wilaya: str = Form(""),
+    commune: str = Form(""),
+    type_contrat: str = Form(""),
+    nombre_postes: str = Form(""),
     description: str = Form(""),
     competences_requises: str = Form(""),
     experience_min: str = Form(""),
@@ -93,19 +120,27 @@ def creer_offre(
     if not titre:
         raise HTTPException(status_code=400, detail="Le titre est obligatoire")
     exp = int(experience_min) if experience_min.strip().isdigit() else None
+    wilaya, commune = _clean_localisation(wilaya, commune)
+    contrat = type_contrat.strip() if type_contrat.strip() in TYPES_CONTRAT else ""
+    postes = int(nombre_postes) if nombre_postes.strip().isdigit() else None
     now = _now()
     with connect() as conn:
         new_id = db.insert_returning_id(
             conn,
             "INSERT INTO jobs "
-            "(titre, departement, lieu, description, competences_requises, "
+            "(titre, departement, lieu, wilaya, commune, type_contrat, "
+            " nombre_postes, description, competences_requises, "
             " experience_min, niveau_etude, statut, created_by, created_at, "
             " updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 titre,
                 departement.strip(),
                 lieu.strip(),
+                wilaya,
+                commune,
+                contrat,
+                postes,
                 description.strip(),
                 competences_requises.strip(),
                 exp,
@@ -145,7 +180,11 @@ def formulaire_modifier_offre(request: Request, job_id: int):
     return render(
         request,
         "job_form.html",
-        {"offre": offre, "statuts": STATUTS},
+        {
+            "offre": offre, "statuts": STATUTS,
+            "types_contrat": TYPES_CONTRAT,
+            "wilayas": WILAYAS, "communes_by_wilaya": COMMUNES_BY_WILAYA,
+        },
     )
 
 
@@ -156,6 +195,10 @@ def mettre_a_jour_offre(
     titre: str = Form(...),
     departement: str = Form(""),
     lieu: str = Form(""),
+    wilaya: str = Form(""),
+    commune: str = Form(""),
+    type_contrat: str = Form(""),
+    nombre_postes: str = Form(""),
     description: str = Form(""),
     competences_requises: str = Form(""),
     experience_min: str = Form(""),
@@ -170,17 +213,25 @@ def mettre_a_jour_offre(
     if not titre:
         raise HTTPException(status_code=400, detail="Le titre est obligatoire")
     exp = int(experience_min) if experience_min.strip().isdigit() else None
+    wilaya, commune = _clean_localisation(wilaya, commune)
+    contrat = type_contrat.strip() if type_contrat.strip() in TYPES_CONTRAT else ""
+    postes = int(nombre_postes) if nombre_postes.strip().isdigit() else None
     with connect() as conn:
         if _get_job(conn, job_id) is None:
             raise HTTPException(status_code=404, detail="Offre introuvable")
         conn.execute(
             "UPDATE jobs SET titre = ?, departement = ?, lieu = ?, "
+            "wilaya = ?, commune = ?, type_contrat = ?, nombre_postes = ?, "
             "description = ?, competences_requises = ?, experience_min = ?, "
             "niveau_etude = ?, statut = ?, updated_at = ? WHERE id = ?",
             (
                 titre,
                 departement.strip(),
                 lieu.strip(),
+                wilaya,
+                commune,
+                contrat,
+                postes,
                 description.strip(),
                 competences_requises.strip(),
                 exp,

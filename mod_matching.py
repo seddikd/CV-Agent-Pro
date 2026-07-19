@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse
 
 from web_core import require_user, render, connect
-from matching_core import score_candidat  # logique de scoring partagée (réutilisée par les alertes)
+from matching_core import score_candidat, titre_pertinent  # logique partagée (réutilisée par les alertes)
 
 router = APIRouter()
 
@@ -43,12 +43,21 @@ def _compute_and_cache(conn, job: dict) -> None:
     pas de doublon même si appelé deux fois).
     """
     conn.execute("DELETE FROM matches WHERE job_id = ?", (job["id"],))
+    # Les candidats marqués comme doublons (duplicate_of non NULL) sont exclus du
+    # matching : ils feraient double emploi avec leur candidat « original ».
     cands = [
         dict(r)
-        for r in conn.execute("SELECT * FROM candidates").fetchall()
+        for r in conn.execute(
+            "SELECT * FROM candidates WHERE duplicate_of IS NULL"
+        ).fetchall()
     ]
     now = _now()
     for cand in cands:
+        # Pertinence : on n'inclut que les candidats réellement liés à l'offre —
+        # le titre de l'offre doit se retrouver dans leur diplôme, leur expérience
+        # ou leur résumé (voir titre_pertinent). Écarte les profils hors sujet.
+        if not titre_pertinent(job, cand):
+            continue
         res = score_candidat(job, cand)
         details = json.dumps(
             {
@@ -75,7 +84,7 @@ def _lire_classement(conn, job_id: int) -> list:
         "c.poste_recherche AS poste_recherche "
         "FROM matches m "
         "JOIN candidates c ON c.id = m.candidate_id "
-        "WHERE m.job_id = ? "
+        "WHERE m.job_id = ? AND c.duplicate_of IS NULL "
         "ORDER BY m.score DESC, c.nom ASC",
         (job_id,),
     ).fetchall()
@@ -102,8 +111,9 @@ def liste_matching(request: Request):
             "SELECT id, titre, statut FROM jobs ORDER BY updated_at DESC"
         ).fetchall()
         offres = [dict(r) for r in rows]
+        # Cohérent avec le matching : on ne compte pas les doublons.
         total_cands = conn.execute(
-            "SELECT COUNT(*) AS n FROM candidates"
+            "SELECT COUNT(*) AS n FROM candidates WHERE duplicate_of IS NULL"
         ).fetchone()["n"]
     n_publiees = sum(1 for o in offres if o["statut"] == "Publiée")
     return render(request, "matching_list.html", {

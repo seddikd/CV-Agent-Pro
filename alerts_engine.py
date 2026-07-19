@@ -10,7 +10,7 @@ from datetime import datetime
 
 import db
 from state_db import connect
-from matching_core import score_candidat
+from matching_core import score_candidat, titre_pertinent
 import notifier
 
 
@@ -51,6 +51,10 @@ def _generer_pour_candidat(conn, cand: dict, offres: list[dict]) -> list[dict]:
     """
     nouvelles = []
     for job in offres:
+        # Même filtre de pertinence que le matching : pas d'alerte pour un
+        # candidat sans rapport avec le titre de l'offre.
+        if not titre_pertinent(job, cand):
+            continue
         res = score_candidat(job, cand)
         if res["score"] >= SEUIL_ALERTE:
             if _inserer_alerte(conn, cand["id"], job["id"], res["score"]):
@@ -112,8 +116,10 @@ def recalculer_toutes_alertes() -> int:
         offres = _offres_publiees(conn)
         if not offres:
             return 0
+        # Exclut les doublons : ils ne doivent pas générer d'alertes (cohérent
+        # avec le matching, qui les écarte également).
         cands = [dict(r) for r in conn.execute(
-            "SELECT * FROM candidates ORDER BY id"
+            "SELECT * FROM candidates WHERE duplicate_of IS NULL ORDER BY id"
         ).fetchall()]
         for cand in cands:
             total += len(_generer_pour_candidat(conn, cand, offres))
