@@ -40,8 +40,9 @@ Output/
 *.manifest
 build_exe.log
 
-# Support d'installation : on versionne les scripts + guide, PAS les binaires ni
-# les copies de manuels (déjà versionnés à la racine ; recopiés dans iso/ au packaging).
+# Support d'installation : on versionne les scripts + guide (Installer.ps1,
+# GUIDE_INSTALLATION.md, LISEZ-MOI.txt, Prerequis/), PAS les binaires ni les
+# copies de manuels (recopiés dans iso/Application et iso/Manuels au packaging).
 iso/Application/
 iso/Manuels/
 iso/**/postgres-superuser-password.txt
