@@ -28,9 +28,14 @@ def _now() -> str:
 
 
 def _liste_candidats(conn) -> list[dict]:
-    """Candidats pour le menu déroulant (id + nom lisible), triés par nom."""
+    """Candidats pour le menu déroulant (id + nom lisible), triés par nom.
+
+    Exclut les candidats marqués comme doublons (duplicate_of) : on ne planifie
+    pas d'entretien avec un profil en double, on garde son « original ».
+    """
     rows = conn.execute(
         "SELECT id, nom, prenom, poste_recherche FROM candidates "
+        "WHERE duplicate_of IS NULL "
         "ORDER BY nom ASC, prenom ASC"
     ).fetchall()
     return [dict(r) for r in rows]
