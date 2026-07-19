@@ -601,8 +601,6 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .hero-cta .btn { background: #2b2140; color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(43, 33, 64, .28); }
 .hero-cta .btn:hover { filter: brightness(1.12); }
 .hero-cta .btn.ghost { background: rgba(255, 255, 255, .55); color: #3a2c05; }
-.hero-emoji { font-size: 74px; line-height: 1; flex-shrink: 0; }
-@media (max-width: 720px) { .hero-emoji { display: none; } }
 
 .kpi-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 22px; }
 .kpi-card {
