@@ -8,14 +8,19 @@
   .match-rang { font-weight: 700; }
   .tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
   .tag-list .badge { font-size: .8em; }
+  .cmp-col { width: 34px; text-align: center; }
+  .cmp-hint { color: var(--muted); font-size: 13px; margin: -4px 0 12px; }
 </style>
 
 <div class="page-head">
   <h1>Matching — {{ offre.titre }}</h1>
   <div class="actions">
     <a href="/matching" class="btn ghost">← Toutes les offres</a>
+    <button type="submit" form="cmp-form" class="btn primary" id="cmp-btn" disabled>
+      ⚖️ Comparer la sélection (<span id="cmp-count">0</span>)
+    </button>
     <form method="post" action="/matching/{{ offre.id }}/recompute" style="display:inline">
-      <button type="submit" class="btn primary">↻ Recalculer</button>
+      <button type="submit" class="btn">↻ Recalculer</button>
     </form>
   </div>
 </div>
@@ -26,9 +31,13 @@
   {% if offre.niveau_etude %} · Niveau {{ offre.niveau_etude }}{% endif %}
 </p>
 
+<p class="cmp-hint">Cochez 2 à 5 candidats puis cliquez « Comparer la sélection ».</p>
+
+<form id="cmp-form" method="get" action="/comparer">
 <table class="table">
   <thead>
     <tr>
+      <th class="cmp-col" title="Sélectionner pour comparer">⚖️</th>
       <th>#</th>
       <th>Candidat</th>
       <th>Score</th>
@@ -41,6 +50,10 @@
   <tbody>
   {% for c in classement %}
     <tr>
+      <td class="cmp-col">
+        <input type="checkbox" name="ids" value="{{ c.candidate_id }}"
+               aria-label="Comparer {{ c.prenom }} {{ c.nom }}">
+      </td>
       <td class="match-rang">{{ c.rang }}</td>
       <td>
         <a href="/candidate/{{ c.candidate_id }}" class="cand-link">
@@ -70,9 +83,37 @@
       <td><a href="/candidate/{{ c.candidate_id }}" class="btn small">Voir</a></td>
     </tr>
   {% else %}
-    <tr><td colspan="7" class="empty">Aucun candidat à comparer.</td></tr>
+    <tr><td colspan="8" class="empty">Aucun candidat à comparer.</td></tr>
   {% endfor %}
   </tbody>
 </table>
+</form>
+
+<script>
+  // Sélection de 2 à 5 candidats du matching -> comparaison directe (/comparer?ids=…).
+  (function () {
+    var form = document.getElementById("cmp-form");
+    var btn = document.getElementById("cmp-btn");
+    var count = document.getElementById("cmp-count");
+    if (!form || !btn) return;
+    var MIN = 2, MAX = 5;
+
+    function cases() {
+      return Array.prototype.slice.call(form.querySelectorAll('input[name="ids"]'));
+    }
+    function maj() {
+      var coches = cases().filter(function (b) { return b.checked; });
+      count.textContent = coches.length;
+      // Au-delà du max, on désactive les cases non cochées.
+      var plein = coches.length >= MAX;
+      cases().forEach(function (b) { b.disabled = plein && !b.checked; });
+      btn.disabled = coches.length < MIN || coches.length > MAX;
+    }
+    form.addEventListener("change", function (e) {
+      if (e.target && e.target.name === "ids") maj();
+    });
+    maj();
+  })();
+</script>
 
 {% endblock %}

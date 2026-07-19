@@ -147,8 +147,10 @@ def comparer(request: Request):
             })
 
         # Pas assez de candidats valides → formulaire de sélection.
+        # Exclut les doublons (duplicate_of) : on compare les profils « originaux ».
         rows = conn.execute(
             "SELECT id, nom, prenom, poste_recherche FROM candidates "
+            "WHERE duplicate_of IS NULL "
             "ORDER BY LOWER(nom), LOWER(prenom)"
         ).fetchall()
         tous = [dict(row) for row in rows]
