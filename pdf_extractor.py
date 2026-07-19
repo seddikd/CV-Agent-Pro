@@ -36,10 +36,48 @@ def _extract_pdf(path: Path) -> str:
         return ""
 
 
+def _table_texts(table) -> list[str]:
+    """Texte de toutes les cellules d'un tableau (tableaux imbriqués compris)."""
+    out: list[str] = []
+    for row in table.rows:
+        for cell in row.cells:
+            for para in cell.paragraphs:
+                if para.text.strip():
+                    out.append(para.text)
+            for nested in cell.tables:  # tableaux imbriqués (mise en page fréquente)
+                out.extend(_table_texts(nested))
+    return out
+
+
 def _extract_docx(path: Path) -> str:
+    """Texte d'un .docx : paragraphes + TABLEAUX + en-têtes/pieds de page.
+
+    Beaucoup de CV Word sont mis en page dans des tableaux (ou placent le
+    nom/contact dans l'en-tête). Ne lire que `doc.paragraphs` — comme avant —
+    perdait tout ce contenu et faisait passer le CV pour un non-CV.
+    """
     try:
         doc = Document(str(path))
-        return "\n".join(p.text for p in doc.paragraphs)
     except Exception as e:
         log.warning("DOCX extract failed for %s: %s", path.name, e)
         return ""
+
+    parts: list[str] = [p.text for p in doc.paragraphs]
+    for table in doc.tables:
+        parts.extend(_table_texts(table))
+    # En-têtes / pieds de page (nom, coordonnées y sont souvent placés).
+    for section in doc.sections:
+        for zone in (section.header, section.footer):
+            if zone is not None:
+                parts.extend(p.text for p in zone.paragraphs)
+
+    # Déduplication en préservant l'ordre : les cellules fusionnées font répéter
+    # le même objet cellule d'une ligne à l'autre (python-docx), d'où des doublons.
+    vues: set[str] = set()
+    lignes: list[str] = []
+    for t in parts:
+        t = t.strip()
+        if t and t not in vues:
+            vues.add(t)
+            lignes.append(t)
+    return "\n".join(lignes)
