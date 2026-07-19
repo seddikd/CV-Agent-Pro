@@ -1,0 +1,20 @@
+# Surcharge locale, fusionnée automatiquement par `docker compose`.
+#
+# Publie PostgreSQL sur la loopback de l'hôte pour que l'application puisse tourner
+# NATIVEMENT sous Windows tout en gardant la base dans Docker (source de vérité
+# unique). C'est nécessaire au rangement des mails traités (« Ranger les traités »,
+# onglet Import Outlook) : cette fonction pilote Outlook via COM/win32com, ce que le
+# conteneur applicatif — Linux — ne peut pas faire. Voir run_web_natif.ps1.
+#
+# Liaison à 127.0.0.1 volontaire : la base reste inaccessible depuis le réseau, comme
+# avec le compose de base (qui ne publie aucun port). Ne pas remplacer par "5433:5432",
+# qui l'exposerait à tout le LAN.
+#
+# Port hôte 5433 et non 5432 : un PostgreSQL natif écoute déjà sur 5432 sur ce poste.
+# Sans accès à l'hôte, rien ne change pour le conteneur `app`, qui joint la base par le
+# réseau interne compose (db:5432).
+
+services:
+  db:
+    ports:
+      - "127.0.0.1:5433:5432"
