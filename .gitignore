@@ -50,6 +50,9 @@ iso/**/*.pdf
 # Manuels PDF régénérés par build_pdf.py (les .md sources, eux, sont versionnés).
 MANUEL_*.pdf
 
+# Supports de présentation (assets lourds : .pptx, .msi, .pdf, captures) — non versionnés.
+Presentation/
+
 # ─── IDE / OS ────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
