@@ -142,12 +142,13 @@
           </button>
         </form>
         <form method="post" action="/admin/import/move" style="display:inline"
-              onsubmit="var d=prompt('Déplacer les mails porteurs de CV vers quel dossier ?','Traités'); if(!d){return false;} this.target_folder.value=d; return confirm('Déplacer les mails porteurs de CV de {{ f.name }} vers « '+d+' » ?');">
+              data-nom="{{ f.name }}" onsubmit="return rangerTraites(this);">
           <input type="hidden" name="filename" value="{{ f.name }}">
           <input type="hidden" name="target_folder" value="Traités">
+          <input type="hidden" name="non_cv_folder" value="">
           <button type="submit" class="btn"
                   {% if running or not can_move %}disabled{% endif %}
-                  title="{% if not can_move %}Nécessite Outlook installé (win32com) ; pypff est en lecture seule.{% elif f.name.lower().endswith('.ost') %}OST : opère sur la boîte réelle du compte (synchronisé vers le serveur){% else %}Range les mails porteurs d'un CV dans un dossier du PST{% endif %}">
+                  title="{% if not can_move %}Indisponible : ce serveur n'est pas un poste Windows avec Outlook (cas d'un déploiement Docker/Linux). Peu importe qu'Outlook soit installé sur VOTRE machine : le déplacement est piloté depuis le serveur. Lancez l'application sur un poste Windows pourvu d'Outlook.{% elif f.name.lower().endswith('.ost') %}OST : opère sur la boîte réelle du compte (synchronisé vers le serveur){% else %}Range les mails porteurs d'un CV dans un dossier du PST{% endif %}">
             📁 Ranger les traités
           </button>
         </form>
@@ -174,5 +175,31 @@
     volumineux déposé via un partage réseau ou un volume Docker monté).
   </div>
 </form>
+
+<script>
+// Demande les deux dossiers cibles avant de ranger. Seuls les mails DÉJÀ analysés par
+// la solution sont déplacés (rapprochement par Message-ID) : rien de nouveau n'est
+// touché. Les deux dossiers sont créés à la racine du compte s'ils n'existent pas.
+//
+// Le nom du fichier arrive par `data-nom` plutôt qu'en argument littéral : dans un
+// attribut, le filtre `tojson` émettrait des guillemets doubles bruts qui fermeraient
+// l'attribut. En data-*, l'autoescape de Jinja s'en charge correctement.
+function rangerTraites(form) {
+  var nomFichier = form.dataset.nom || "";
+  var d = prompt("Ranger les mails traités.\n\nDossier des CV (mails ayant produit un candidat) :", "Traités");
+  if (!d) { return false; }
+  var n = prompt("Dossier des mails analysés mais écartés (pas une candidature).\n\nLaisser vide pour les laisser en place :", "Non-CV");
+  if (n === null) { return false; }   // Annuler => on n'envoie rien
+  form.target_folder.value = d;
+  form.non_cv_folder.value = n;
+  return confirm(
+    "Ranger les mails traités de « " + nomFichier + " » ?\n\n" +
+    "CV → « " + d + " »\n" +
+    "Non-CV → " + (n ? "« " + n + " »" : "(laissés en place)") + "\n\n" +
+    "Seuls les mails déjà analysés sont déplacés. L'opération peut durer plusieurs " +
+    "minutes sans affichage de progression : ne fermez pas la page."
+  );
+}
+</script>
 
 {% endblock %}

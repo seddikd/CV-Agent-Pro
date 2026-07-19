@@ -602,8 +602,12 @@ def admin_import_run(request: Request, filename: str = Form(""), server_path: st
 
 @app.post("/admin/import/move")
 def admin_import_move(request: Request, filename: str = Form(""),
-                      server_path: str = Form(""), target_folder: str = Form("Traités")):
-    """Range les mails porteurs d'un CV dans un dossier du PST (win32com/Outlook).
+                      server_path: str = Form(""), target_folder: str = Form("Traités"),
+                      non_cv_folder: str = Form("")):
+    """Range les mails TRAITÉS dans Outlook : CV et non-CV dans deux dossiers distincts.
+
+    Le rapprochement se fait par Message-ID sur `processed_emails` : seuls les mails
+    réellement analysés bougent (voir `outlook_fetcher.move_cv_messages`).
 
     Opération synchrone (comme « Tester ») : nécessite Outlook installé. On refuse
     si un traitement tourne déjà pour éviter de monter deux fois le même store.
@@ -620,7 +624,7 @@ def admin_import_move(request: Request, filename: str = Form(""),
         return RedirectResponse("/admin/import?msg=Fichier+introuvable", status_code=303)
     try:
         _moved, message = outlook_fetcher.move_cv_messages(
-            str(target), target_folder=target_folder
+            str(target), target_folder=target_folder, non_cv_folder=non_cv_folder
         )
     except Exception as e:
         message = f"Déplacement échoué : {e}"

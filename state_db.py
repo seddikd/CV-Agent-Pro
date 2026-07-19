@@ -201,6 +201,13 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("candidates", "stage", "TEXT"),
     # Rappel email envoyé pour un entretien (module « Entretiens ») — idempotence.
     ("entretiens", "reminder_sent", "INTEGER DEFAULT 0"),
+    # Message-ID RFC 5322 du mail d'origine. `uid` n'identifie un mail que DANS le
+    # contexte qui l'a lu (UID IMAP, identifiant de nœud pypff, EntryID MAPI) : deux
+    # backends ne se reconnaissent pas l'un l'autre, et un identifiant pypff ne vaut
+    # que pour LE fichier lu. Le Message-ID, lui, voyage avec le mail — il permet de
+    # retrouver dans la boîte Outlook vivante un mail traité depuis une copie OST
+    # (« Ranger les traités »). Peut être vide : rien ne garantit sa présence.
+    ("processed_emails", "message_id", "TEXT"),
     # Localisation (référentiel Algérie) + type de contrat + nb de postes (module « Offres »).
     ("jobs", "wilaya", "TEXT"),
     ("jobs", "commune", "TEXT"),
@@ -245,21 +252,50 @@ def mark_processed(
     is_cv: bool,
     candidate_id: int | None = None,
     notes: str | None = None,
+    message_id: str | None = None,
 ) -> None:
     with connect() as conn:
         conn.execute(
             """
             INSERT INTO processed_emails
-            (uid, folder, processed_at, is_cv, candidate_id, notes)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (uid, folder, processed_at, is_cv, candidate_id, notes, message_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(uid, folder) DO UPDATE SET
                 processed_at = excluded.processed_at,
                 is_cv = excluded.is_cv,
                 candidate_id = excluded.candidate_id,
-                notes = excluded.notes
+                notes = excluded.notes,
+                message_id = COALESCE(excluded.message_id, processed_emails.message_id)
             """,
-            (uid, folder, processed_at, int(is_cv), candidate_id, notes),
+            (uid, folder, processed_at, int(is_cv), candidate_id, notes,
+             (message_id or None)),
         )
+
+
+def processed_message_ids(folder: str) -> dict[str, int]:
+    """Message-ID des mails traités de `folder` -> is_cv (1 = CV, 0 = analysé, pas un CV).
+
+    Sert au rangement des mails traités : on ne déplace que ce que la solution a
+    réellement analysé, et on sépare les CV du reste. Les lignes sans Message-ID
+    (traitées avant l'ajout de la colonne, ou mail sans en-tête) sont ignorées :
+    faute de clé portable, on ne sait pas les retrouver dans la boîte, et deviner
+    reviendrait à déplacer un mail au hasard.
+
+    Un même Message-ID peut porter plusieurs lignes (le mail existe dans deux dossiers
+    du fichier, d'où deux `uid`). `MAX(is_cv)` tranche explicitement : si UNE analyse a
+    reconnu un CV, on le range comme CV. Sans ce regroupement, deux lignes en désaccord
+    — la classification LLM n'étant pas déterministe d'un import à l'autre — feraient
+    dépendre la destination de l'ordre de lecture, et un vrai CV pourrait finir dans le
+    dossier des non-CV.
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT message_id, MAX(is_cv) AS is_cv FROM processed_emails "
+            "WHERE folder = ? AND message_id IS NOT NULL AND message_id <> '' "
+            "GROUP BY message_id",
+            (folder,),
+        ).fetchall()
+    return {r["message_id"]: int(r["is_cv"]) for r in rows}
 
 
 def next_candidate_id() -> int:

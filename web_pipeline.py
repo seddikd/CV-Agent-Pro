@@ -60,10 +60,14 @@ def _process_email(email, cfg: dict, folder: str | None = None) -> bool:
     uid = email.uid
     folder = folder or cfg["imap"]["folder"]
     now_iso = datetime.now().isoformat(timespec="seconds")
+    # Conservé sur CHAQUE marquage, CV ou non : c'est la seule clé qui permettra de
+    # retrouver ce mail dans la boîte Outlook vivante (« Ranger les traités »).
+    msgid = getattr(email, "message_id", "") or None
 
     if not email.attachments:
         log.info("[%s] pas de pièce jointe exploitable", uid)
-        state_db.mark_processed(uid, folder, now_iso, is_cv=False, notes="no_attachment")
+        state_db.mark_processed(uid, folder, now_iso, is_cv=False, notes="no_attachment",
+                                message_id=msgid)
         return None
 
     primary_att = email.attachments[0]
@@ -77,7 +81,7 @@ def _process_email(email, cfg: dict, folder: str | None = None) -> bool:
             log.warning("[%s] aucun texte extractible", uid)
             state_db.mark_processed(
                 uid, folder, now_iso, is_cv=False,
-                notes="no_text_in_attachment",
+                notes="no_text_in_attachment", message_id=msgid,
             )
             return None
 
@@ -97,7 +101,7 @@ def _process_email(email, cfg: dict, folder: str | None = None) -> bool:
         if not classification.is_cv or classification.confidence < threshold:
             state_db.mark_processed(
                 uid, folder, now_iso, is_cv=False,
-                notes=f"non_cv: {classification.reason[:100]}",
+                notes=f"non_cv: {classification.reason[:100]}", message_id=msgid,
             )
             return None
 
@@ -134,7 +138,7 @@ def _process_email(email, cfg: dict, folder: str | None = None) -> bool:
         )
         state_db.mark_processed(
             uid, folder, now_iso, is_cv=True,
-            candidate_id=candidate_id, notes="ok",
+            candidate_id=candidate_id, notes="ok", message_id=msgid,
         )
         log.info("[%s] TERMINÉ candidate_id=%d", uid, candidate_id)
         return {
@@ -223,6 +227,7 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
                         email.uid, cfg["imap"]["folder"],
                         datetime.now().isoformat(timespec="seconds"),
                         is_cv=False, notes=f"erreur: {str(e)[:150]}",
+                        message_id=getattr(email, "message_id", "") or None,
                     )
                 except Exception as e2:
                     log.warning("[%s] marquage 'traité' impossible : %s", email.uid, e2)
@@ -335,6 +340,7 @@ def _run_outlook_import_locked(path: str, backend: str | None, triggered_by: str
                         email.uid, label,
                         datetime.now().isoformat(timespec="seconds"),
                         is_cv=False, notes=f"erreur: {str(e)[:150]}",
+                        message_id=getattr(email, "message_id", "") or None,
                     )
                 except Exception as e2:
                     log.warning("[%s] marquage 'traité' impossible : %s", email.uid, e2)
