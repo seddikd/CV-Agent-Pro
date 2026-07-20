@@ -5,6 +5,7 @@ par candidat, une ligne par critère). Sans sélection valide, affiche un
 formulaire de choix des candidats (soumis en GET vers `/comparer`).
 """
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
 from web_core import require_user, render, connect
 
@@ -146,19 +147,50 @@ def comparer(request: Request):
                 "max_candidats": MAX_CANDIDATS,
             })
 
-        # Pas assez de candidats valides → formulaire de sélection.
-        # Exclut les doublons (duplicate_of) : on compare les profils « originaux ».
-        rows = conn.execute(
-            "SELECT id, nom, prenom, poste_recherche FROM candidates "
-            "WHERE duplicate_of IS NULL "
-            "ORDER BY LOWER(nom), LOWER(prenom)"
-        ).fetchall()
-        tous = [dict(row) for row in rows]
+        # Pas assez de candidats valides → écran de sélection par recherche.
+        # On ne charge PAS toute la base : seuls les candidats déjà sélectionnés
+        # (ids en query, ex. « Modifier la sélection ») sont pré-affichés en puces.
+        preselection: list[dict] = []
+        if ids:
+            placeholders = ", ".join("?" for _ in ids)
+            rows = conn.execute(
+                f"SELECT id, nom, prenom, poste_recherche FROM candidates "
+                f"WHERE id IN ({placeholders}) AND duplicate_of IS NULL",
+                ids,
+            ).fetchall()
+            par_id = {row["id"]: dict(row) for row in rows}
+            for cid in ids:
+                if cid in par_id:
+                    preselection.append(par_id[cid])
 
     return render(request, "compare.html", {
         "candidats": None,
-        "tous": tous,
-        "selection": ids,
+        "preselection": preselection,
         "min_candidats": MIN_CANDIDATS,
         "max_candidats": MAX_CANDIDATS,
     })
+
+
+@router.get("/comparer/search")
+def rechercher(request: Request, q: str = ""):
+    """Recherche de candidats pour l'écran de sélection (JSON).
+
+    Par nom, prénom ou poste. Exclut les doublons (duplicate_of) : on ne compare
+    que les profils « originaux ».
+    """
+    user = require_user(request)
+    q = (q or "").strip()
+    if len(q) < 2:
+        return JSONResponse([])
+    motif = f"%{q.lower()}%"
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, nom, prenom, poste_recherche FROM candidates "
+            "WHERE duplicate_of IS NULL AND ("
+            "LOWER(COALESCE(nom, '')) LIKE ? "
+            "OR LOWER(COALESCE(prenom, '')) LIKE ? "
+            "OR LOWER(COALESCE(poste_recherche, '')) LIKE ?) "
+            "ORDER BY LOWER(nom), LOWER(prenom) LIMIT 20",
+            (motif, motif, motif),
+        ).fetchall()
+    return JSONResponse([dict(r) for r in rows])
