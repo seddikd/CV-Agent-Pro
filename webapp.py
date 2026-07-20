@@ -13,6 +13,7 @@ from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile, status
 from fastapi.responses import (
     FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse,
@@ -50,6 +51,15 @@ import mod_stats
 import mod_alerts
 import mod_api
 import mod_entretiens
+import mod_emails
+import mod_timeline
+import mod_rgpd
+import mod_reporting
+# Helpers des modules v2.0 (seed des modèles d'email, jobs planifiés, journal d'activité).
+import email_service
+import rgpd
+import reporting_email
+import activity
 import entretien_reminders
 
 # render() vit dans web_core (socle partagé des routeurs mod_*) : on le réutilise
@@ -146,11 +156,41 @@ def reschedule_from_settings() -> None:
         )
         log.info("Rappels d'entretien armés (toutes les 15 min)")
 
+    # Purge RGPD quotidienne (3h00). Le job s'auto-inhibe si la purge auto est
+    # désactivée ou la rétention nulle ; on ne l'arme donc que si activée.
+    if scheduler.get_job("rgpd_purge"):
+        scheduler.remove_job("rgpd_purge")
+    if settings.get("rgpd.purge_auto_active", "false").lower() == "true":
+        scheduler.add_job(
+            rgpd.job_purge_rgpd,
+            trigger=CronTrigger(hour=3, minute=0),
+            id="rgpd_purge",
+            max_instances=1,
+            coalesce=True,
+        )
+        log.info("Purge RGPD automatique armée (quotidien 03h00)")
+
+    # Rapport hebdomadaire par email (jour paramétrable, 8h00).
+    if scheduler.get_job("rapport_hebdo"):
+        scheduler.remove_job("rapport_hebdo")
+    if settings.get("reporting.hebdo_active", "false").lower() == "true":
+        jour = reporting_email.jour_to_cron(settings.get("reporting.hebdo_jour", "lundi"))
+        scheduler.add_job(
+            reporting_email.job_rapport_hebdo,
+            trigger=CronTrigger(day_of_week=jour, hour=8, minute=0),
+            id="rapport_hebdo",
+            max_instances=1,
+            coalesce=True,
+        )
+        log.info("Rapport hebdo armé (%s 08h00)", jour)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     state_db.init()
     web_db.seed_default_settings()
+    # Modèles d'emails par défaut (accusé, relance, convocation, refus) — idempotent.
+    email_service.seed_default_templates()
     setup_logging()
 
     # Chiffre au repos les secrets encore en clair (bases antérieures au chiffrement).
@@ -218,7 +258,8 @@ app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 for _mod in (mod_dashboard, mod_search, mod_jobs, mod_compare,
              mod_notes, mod_duplicates, mod_summary, mod_documents,
              mod_matching, mod_search_ia, mod_pipeline, mod_stats,
-             mod_alerts, mod_api, mod_entretiens):
+             mod_alerts, mod_api, mod_entretiens,
+             mod_emails, mod_timeline, mod_rgpd, mod_reporting):
     app.include_router(_mod.router)
 
 
@@ -412,6 +453,9 @@ def candidate_update(
     web_db.update_candidate_status(
         cid, statut=statut, commentaires=commentaires
     )
+    # Journal d'activité (timeline) — hors transaction, ne casse jamais la MAJ.
+    if statut is not None:
+        activity.log_now(cid, activity.STATUT, f"Statut → {statut}")
     if request.headers.get("HX-Request"):
         c = web_db.get_candidate(cid)
         return render(request, "_status_cell.html",
@@ -776,6 +820,10 @@ MAIL_FIELDS = [
     ("smtp.from", "Expéditeur (adresse From)", "text"),
     ("outlook.import_dir", "Import Outlook : dossier serveur (relatif aux données)", "text"),
     ("outlook.backend", "Import Outlook : lecteur (auto / pypff / win32com)", "text"),
+    ("rgpd.retention_mois", "RGPD : rétention avant purge (mois, 0 = désactivé)", "number"),
+    ("rgpd.purge_auto_active", "RGPD : purge automatique quotidienne (true/false)", "text"),
+    ("reporting.hebdo_active", "Rapport hebdo par email (true/false)", "text"),
+    ("reporting.hebdo_jour", "Rapport hebdo : jour d'envoi (lundi…dimanche)", "text"),
 ]
 
 # --- Onglet « Paramètres LLM » : moteur, modèles, extraction

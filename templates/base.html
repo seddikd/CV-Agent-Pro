@@ -53,18 +53,21 @@
       {{ navlink('/doublons', '🧬', 'Doublons') }}
       {{ navlink('/alertes', '🔔', 'Alertes') }}
       {{ navlink('/statistiques', '📈', 'Statistiques') }}
+      {{ navlink('/reporting', '📑', 'Reporting') }}
 
       <div class="side-group">Administration</div>
       {{ navlink('/admin/runs', '🔄', 'Cycles') }}
       {{ navlink('/admin/import', '📥', 'Import Outlook') }}
       {% if user.role == 'admin' %}
       {{ navlink('/admin/users', '👥', 'Utilisateurs') }}
+      {{ navlink('/admin/emails-modeles', '✉️', 'Modèles d\'email') }}
+      {{ navlink('/admin/rgpd', '🛡️', 'RGPD') }}
       {{ navlink('/admin/settings/mail', '✉️', 'Param. Mail') }}
       {{ navlink('/admin/settings/llm', '⚙️', 'Param. LLM') }}
       {% endif %}
     </nav>
 
-    <div class="side-foot">Version 1.0</div>
+    <div class="side-foot">Version 2.0</div>
   </aside>
 
   <div class="app-main">

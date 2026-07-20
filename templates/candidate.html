@@ -87,6 +87,25 @@
     <!-- Module Gestion documentaire : pièces jointes (chargées à la demande). -->
     <section id="documents" hx-get="/candidate/{{ c.id }}/documents"
              hx-trigger="load" hx-swap="innerHTML"></section>
+
+    <!-- Module Emails candidats : envoi depuis modèles (chargé à la demande). -->
+    <section id="emails-candidat" hx-get="/candidate/{{ c.id }}/emails"
+             hx-trigger="load" hx-swap="innerHTML"></section>
+
+    <!-- Module Timeline : historique d'activité du candidat (chargé à la demande). -->
+    <section id="activite" hx-get="/candidate/{{ c.id }}/activite"
+             hx-trigger="load" hx-swap="innerHTML"></section>
+
+    <!-- Module RGPD : export des données (portabilité) et suppression définitive. -->
+    <div class="rgpd-actions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <a href="/candidate/{{ c.id }}/rgpd/export" class="btn small">⬇️ Exporter (RGPD)</a>
+      {% if user.role == 'admin' %}
+      <form method="post" action="/candidate/{{ c.id }}/rgpd/supprimer"
+            onsubmit="return confirm('Supprimer DÉFINITIVEMENT ce candidat et TOUTES ses données (notes, documents, entretiens, fichiers) ? Cette action est irréversible.');">
+        <button type="submit" class="btn small danger">🗑️ Supprimer (RGPD)</button>
+      </form>
+      {% endif %}
+    </div>
   </div>
 
   <div class="pdf-pane">

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request, Form
 
 from web_core import require_user, render, connect
 import db
+import activity
 
 router = APIRouter()
 
@@ -54,5 +55,6 @@ def add_note(request: Request, cid: int, body: str = Form("")):
                     datetime.now().isoformat(timespec="seconds"),
                 ),
             )
+            activity.log(conn, cid, activity.NOTE, "Note interne ajoutée", texte[:140])
     notes = _list_notes(cid)
     return render(request, "_notes.html", {"cid": cid, "notes": notes})

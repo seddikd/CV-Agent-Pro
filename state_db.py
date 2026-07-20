@@ -163,6 +163,39 @@ CREATE TABLE IF NOT EXISTS entretiens (
 );
 CREATE INDEX IF NOT EXISTS idx_entretiens_candidate ON entretiens(candidate_id);
 CREATE INDEX IF NOT EXISTS idx_entretiens_date ON entretiens(date_heure);
+
+-- Journal d'activité chronologique par candidat (module « Timeline »).
+CREATE TABLE IF NOT EXISTS candidate_events (
+    id {PK},
+    candidate_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    titre TEXT NOT NULL,
+    detail TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_events_candidate ON candidate_events(candidate_id, created_at);
+
+-- Modèles d'emails candidats paramétrables (module « Emails candidats »).
+CREATE TABLE IF NOT EXISTS email_templates (
+    id {PK},
+    cle TEXT UNIQUE NOT NULL,
+    libelle TEXT,
+    sujet TEXT,
+    corps TEXT,
+    updated_at TEXT
+);
+
+-- Journal des emails envoyés aux candidats (module « Emails candidats »).
+CREATE TABLE IF NOT EXISTS email_log (
+    id {PK},
+    candidate_id INTEGER,
+    template_cle TEXT,
+    destinataire TEXT,
+    sujet TEXT,
+    sent_at TEXT,
+    statut TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_email_log_candidate ON email_log(candidate_id);
 """
 
 

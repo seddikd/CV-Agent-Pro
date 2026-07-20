@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}RGPD — Purge & conformité{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>🛡️ RGPD — Conservation & purge</h1>
+</div>
+
+{% if msg %}
+<div class="card" style="border-left:4px solid #8b5cf6">{{ msg }}</div>
+{% endif %}
+
+<div class="kpi-cards">
+  <div class="kpi-card kpi-lavender">
+    <span class="kpi-ic">🗓️</span>
+    <div>
+      <div class="kpi-num">{% if retention_mois > 0 %}{{ retention_mois }}{% else %}—{% endif %}</div>
+      <div class="kpi-lbl">Rétention (mois)</div>
+    </div>
+  </div>
+  <div class="kpi-card kpi-mint">
+    <span class="kpi-ic">⚙️</span>
+    <div>
+      <div class="kpi-num">{% if purge_auto_active %}Oui{% else %}Non{% endif %}</div>
+      <div class="kpi-lbl">Purge automatique</div>
+    </div>
+  </div>
+  <div class="kpi-card kpi-amber">
+    <span class="kpi-ic">🧹</span>
+    <div>
+      <div class="kpi-num">{{ eligibles }}</div>
+      <div class="kpi-lbl">Candidats éligibles à la purge</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Durée de conservation</h2>
+  <p class="muted">
+    Les données des candidats sont conservées pendant la durée de rétention configurée.
+    Au-delà, un candidat peut être supprimé (manuellement ci-dessous, ou automatiquement
+    chaque jour si la purge automatique est activée).
+  </p>
+  <dl class="info">
+    <dt>Rétention</dt>
+    <dd>
+      {% if retention_mois > 0 %}{{ retention_mois }} mois{% else %}
+      <strong>Désactivée</strong> (0 mois){% endif %}
+    </dd>
+    <dt>Purge automatique quotidienne</dt>
+    <dd>{% if purge_auto_active %}Activée{% else %}Désactivée{% endif %}</dd>
+  </dl>
+  <p class="muted small">
+    Ces réglages (<code>rgpd.retention_mois</code>, <code>rgpd.purge_auto_active</code>)
+    se modifient dans <a href="/admin/settings/mail">Param. Mail</a>.
+  </p>
+</div>
+
+<div class="card">
+  <h2>Purge manuelle</h2>
+  {% if retention_mois > 0 %}
+  <p class="muted">
+    Supprime immédiatement et <strong>définitivement</strong> tous les candidats
+    reçus il y a plus de {{ retention_mois }} mois, ainsi que leurs notes, documents,
+    entretiens et fichiers associés. Actuellement <strong>{{ eligibles }}</strong>
+    candidat(s) concerné(s).
+  </p>
+  <form method="post" action="/admin/rgpd/purge"
+        onsubmit="return confirm('Supprimer définitivement {{ eligibles }} candidat(s) dépassant {{ retention_mois }} mois de rétention ? Cette action est irréversible.');">
+    <button type="submit" class="btn danger" {% if eligibles == 0 %}disabled{% endif %}>
+      🧹 Purger les candidats éligibles
+    </button>
+  </form>
+  {% else %}
+  <p class="muted">
+    La rétention est désactivée (0 mois) : aucune purge possible. Définissez une durée
+    de rétention dans <a href="/admin/settings/mail">Param. Mail</a> pour activer la purge.
+  </p>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -14,6 +14,7 @@ from web_core import require_user, render, connect
 import db
 import web_db
 import entretien_reminders
+import activity
 
 router = APIRouter()
 
@@ -156,6 +157,8 @@ def creer_entretien(
                 statut, notes.strip(), user["id"], now, now,
             ),
         )
+        activity.log(conn, candidate_id, activity.ENTRETIEN, "Entretien planifié",
+                     f"{type.strip()} le {date_heure} — {lieu.strip()}".strip(" —"))
     return RedirectResponse("/entretiens", status_code=303)
 
 
@@ -219,12 +222,14 @@ def changer_statut_entretien(request: Request, eid: int, statut: str = Form(...)
     if statut not in STATUTS:
         raise HTTPException(status_code=400, detail="Statut invalide")
     with connect() as conn:
-        if _get_entretien(conn, eid) is None:
+        ent = _get_entretien(conn, eid)
+        if ent is None:
             raise HTTPException(status_code=404, detail="Entretien introuvable")
         conn.execute(
             "UPDATE entretiens SET statut = ?, updated_at = ? WHERE id = ?",
             (statut, _now(), eid),
         )
+        activity.log(conn, ent["candidate_id"], activity.ENTRETIEN, f"Entretien {statut}")
     return RedirectResponse("/entretiens", status_code=303)
 
 

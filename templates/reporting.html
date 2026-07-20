@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Reporting{% endblock %}
+{% block content %}
+
+<style>
+  /* Barres CSS pures — aucune librairie externe. */
+  .charts-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.2rem;
+  }
+  .charts-grid .card h3 { margin: 0 0 .4rem; font-size: 1rem; }
+  .charts-grid .card.wide { grid-column: 1 / -1; }
+  .card .sous { margin: 0 0 1rem; }
+
+  /* --- Funnel de conversion : une ligne par étape, effectif + taux --- */
+  .funnel { display: flex; flex-direction: column; gap: .7rem; }
+  .funnel-row { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: .7rem; }
+  .funnel-lbl { font-size: .85rem; font-weight: 600; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .funnel-bar-wrap { display: flex; align-items: center; gap: .6rem; }
+  .funnel-track { flex: 1; background: var(--track, #eef0f4); border-radius: 8px;
+    height: 26px; overflow: hidden; }
+  .funnel-fill {
+    height: 100%; border-radius: 8px; min-width: 3px;
+    display: flex; align-items: center; padding-left: .6rem;
+    color: #fff; font-size: .8rem; font-weight: 700;
+    background: linear-gradient(90deg, var(--accent, #2563eb), var(--accent2, #60a5fa));
+  }
+  .funnel-taux { font-size: .8rem; font-weight: 600; min-width: 62px; text-align: right;
+    color: var(--muted, #64748b); }
+  .funnel-taux .up { color: #16a34a; }
+
+  .bars { display: flex; flex-direction: column; gap: .5rem; }
+  .bar-row { display: grid; grid-template-columns: 150px 1fr 4.5rem; align-items: center; gap: .5rem; }
+  .bar-row .bar-lbl { font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { background: var(--track, #eef0f4); border-radius: 6px; height: 16px; overflow: hidden; }
+  .bar-fill {
+    height: 100%; border-radius: 6px; min-width: 2px;
+    background: linear-gradient(90deg, #7c3aed, #a78bfa);
+  }
+  .bar-row .bar-num { font-size: .82rem; font-weight: 600; text-align: right; }
+  .chart-empty { font-size: .85rem; opacity: .6; padding: .5rem 0; }
+  .info-note {
+    font-size: .85rem; padding: .8rem 1rem; border-radius: 10px;
+    background: rgba(59, 130, 246, .08);
+    border: 1px solid rgba(59, 130, 246, .22);
+  }
+
+  html[data-theme="dark"] .bar-track,
+  html[data-theme="dark"] .funnel-track { background: var(--track, #2a3040); }
+</style>
+
+<div class="page-head">
+  <h1>Reporting</h1>
+  <div class="actions">
+    <a href="/statistiques" class="btn ghost">Statistiques</a>
+    <a href="/pipeline" class="btn ghost">Pipeline</a>
+  </div>
+</div>
+
+<div class="kpi-cards">
+  <div class="kpi-card kpi-mint">
+    <span class="kpi-ic">📥</span>
+    <div><div class="kpi-num">{{ kpis.total }}</div><div class="kpi-lbl">Candidats au total</div></div>
+  </div>
+  <div class="kpi-card kpi-amber">
+    <span class="kpi-ic">🎉</span>
+    <div><div class="kpi-num">{{ kpis.embauches }}</div><div class="kpi-lbl">Embauchés</div></div>
+  </div>
+  <div class="kpi-card kpi-pink">
+    <span class="kpi-ic">📈</span>
+    <div><div class="kpi-num">{{ kpis.taux_embauche }}<span class="kpi-unit">%</span></div><div class="kpi-lbl">Taux d'embauche</div></div>
+  </div>
+  <div class="kpi-card kpi-lavender">
+    <span class="kpi-ic">⏱️</span>
+    <div><div class="kpi-num">{{ kpis.time_to_hire_txt }}{% if kpis.time_to_hire_txt != 'N/A' %}<span class="kpi-unit">j</span>{% endif %}</div><div class="kpi-lbl">Time-to-hire moyen</div></div>
+  </div>
+</div>
+
+<div class="charts-grid">
+  <!-- Funnel de conversion -->
+  <div class="card wide">
+    <h3>Funnel de conversion</h3>
+    <p class="sous small muted">Effectif par étape du pipeline et taux de conversion d'une étape à la suivante.</p>
+    {% if funnel.total %}
+    {% set couleurs = {
+      'Présélection': ('#8b5cf6', '#c4b5fd'),
+      'Entretien RH': ('#3b82f6', '#93c5fd'),
+      'Entretien Technique': ('#06b6d4', '#67e8f9'),
+      'Embauché': ('#22c55e', '#86efac'),
+      'Refusé': ('#ef4444', '#fca5a5')
+    } %}
+    <div class="funnel">
+      {% for s in funnel.steps %}
+      {% set col = couleurs.get(s.etape, ('#94a3b8', '#cbd5e1')) %}
+      <div class="funnel-row">
+        <span class="funnel-lbl" title="{{ s.etape }}">{{ s.etape }}</span>
+        <div class="funnel-bar-wrap">
+          <span class="funnel-track">
+            <span class="funnel-fill" style="width: {{ s.pct }}%; --accent: {{ col[0] }}; --accent2: {{ col[1] }}">{{ s.count }}</span>
+          </span>
+          <span class="funnel-taux">
+            {% if s.taux is not none %}<span class="up">{{ s.taux }} %</span>{% else %}—{% endif %}
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="chart-empty">Aucun candidat dans le pipeline pour l'instant. Le funnel se remplira dès qu'un profil sera engagé (onglet Pipeline).</p>
+    {% endif %}
+  </div>
+
+  <!-- Temps moyen par étape -->
+  <div class="card wide">
+    <h3>Temps moyen passé par étape</h3>
+    {% if temps.disponible %}
+    <div class="bars">
+      {% for l in temps.lignes %}
+      <div class="bar-row">
+        <span class="bar-lbl" title="{{ l.etape }}">{{ l.etape }}</span>
+        <span class="bar-track"><span class="bar-fill" style="width: {{ l.pct }}%"></span></span>
+        <span class="bar-num">{{ l.duree_txt }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="info-note">{{ temps.message }}</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

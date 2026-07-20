@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import Response, JSONResponse
 
 from web_core import require_user, render, connect
+import activity
 
 router = APIRouter()
 
@@ -102,6 +103,9 @@ def changer_etape(request: Request, cid: int, stage: str = Form(...)):
             "UPDATE candidates SET stage = ?, updated_at = ? WHERE id = ?",
             (stage, _now(), cid),
         )
+        # Journal d'activité (timeline) + base du « temps par étape » du reporting :
+        # le nom brut de l'étape est stocké dans `detail`.
+        activity.log(conn, cid, activity.ETAPE, f"Étape → {stage}", stage)
     # Réponse légère : le JS n'a besoin que du succès HTTP.
     return Response(status_code=204)
 

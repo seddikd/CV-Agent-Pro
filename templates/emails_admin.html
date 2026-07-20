@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Modèles d'email{% endblock %}
+{% block content %}
+
+<style scoped>
+  .em-vars { font-size:.85rem; }
+  .em-vars code { background: rgba(128,128,128,.15); padding:.1rem .35rem;
+                  border-radius:4px; margin-right:.3rem; }
+  .em-tpl { margin-bottom:1rem; }
+  .em-tpl form label { display:block; margin-bottom:.5rem; }
+  .em-tpl input[type=text], .em-tpl textarea {
+      width:100%; box-sizing:border-box; }
+  .em-tpl textarea { resize:vertical; min-height:8rem; font-family:inherit; }
+  .em-tpl .em-actions { display:flex; gap:.5rem; align-items:center; }
+  .em-key { font-family:monospace; color:#6b7280; }
+  .em-new { border:1px dashed rgba(128,128,128,.4); }
+</style>
+
+<div class="page-head">
+  <h1>Modèles d'email</h1>
+  <p class="subtitle">Paramétrez les modèles envoyés aux candidats depuis leur fiche.
+    Variables disponibles :
+    <span class="em-vars">{% for v in variables %}<code>{{ v }}</code>{% endfor %}</span>
+  </p>
+</div>
+
+{% if msg %}<div class="alert info">{{ msg }}</div>{% endif %}
+
+{% for m in modeles %}
+<div class="card em-tpl">
+  <form method="post" action="/admin/emails-modeles">
+    <input type="hidden" name="cle" value="{{ m.cle }}">
+    <h3>{{ m.libelle or m.cle }} <span class="em-key">({{ m.cle }})</span></h3>
+    <label>Libellé
+      <input type="text" name="libelle" value="{{ m.libelle or '' }}"
+             placeholder="Nom lisible du modèle">
+    </label>
+    <label>Sujet
+      <input type="text" name="sujet" value="{{ m.sujet or '' }}"
+             placeholder="Sujet de l'email">
+    </label>
+    <label>Corps
+      <textarea name="corps" rows="8" placeholder="Corps du message…">{{ m.corps or '' }}</textarea>
+    </label>
+    <div class="em-actions">
+      <button type="submit" name="action" value="enregistrer" class="btn primary">💾 Enregistrer</button>
+      <button type="submit" name="action" value="supprimer" class="btn danger"
+              onclick="return confirm('Supprimer le modèle « {{ m.libelle or m.cle }} » ?');">🗑️ Supprimer</button>
+      {% if m.updated_at %}<span class="muted small">Modifié le {{ m.updated_at[:16]|replace('T', ' ') }}</span>{% endif %}
+    </div>
+  </form>
+</div>
+{% endfor %}
+
+<div class="card em-tpl em-new">
+  <form method="post" action="/admin/emails-modeles">
+    <h3>➕ Nouveau modèle</h3>
+    <label>Clé (identifiant unique, sans espace)
+      <input type="text" name="cle" required placeholder="ex. remerciement">
+    </label>
+    <label>Libellé
+      <input type="text" name="libelle" placeholder="Nom lisible du modèle">
+    </label>
+    <label>Sujet
+      <input type="text" name="sujet" placeholder="Sujet de l'email">
+    </label>
+    <label>Corps
+      <textarea name="corps" rows="8" placeholder="Bonjour {prenom} {nom}, …"></textarea>
+    </label>
+    <div class="em-actions">
+      <button type="submit" name="action" value="enregistrer" class="btn primary">Créer le modèle</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

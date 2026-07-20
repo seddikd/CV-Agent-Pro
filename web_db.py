@@ -62,6 +62,12 @@ DEFAULT_SETTINGS = {
     # auto | pypff (libpff, multiplateforme) | win32com (Outlook, Windows).
     "outlook.import_dir": "import",
     "outlook.backend": "auto",
+    # RGPD : rétention (mois, 0 = désactivé) + purge automatique quotidienne.
+    "rgpd.retention_mois": "0",
+    "rgpd.purge_auto_active": "false",
+    # Reporting : rapport hebdomadaire par email (jour paramétrable).
+    "reporting.hebdo_active": "false",
+    "reporting.hebdo_jour": "lundi",
 }
 
 
