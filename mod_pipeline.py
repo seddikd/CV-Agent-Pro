@@ -2,27 +2,26 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Form, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 
 from web_core import require_user, render, connect
 
 router = APIRouter()
 
 # Étapes du pipeline, dans l'ordre d'avancement (une colonne kanban chacune).
+# « CV reçu » n'est plus une colonne : les candidats non encore engagés dans le
+# pipeline (stage NULL, « CV reçu » ou inconnu) constituent le vivier accessible
+# via la barre de recherche, et entrent dans le tableau à l'étape « Présélection ».
 ETAPES = [
-    "CV reçu",
-    "Analyse",
     "Présélection",
     "Entretien RH",
     "Entretien Technique",
-    "Test",
-    "Offre",
     "Embauché",
     "Refusé",
 ]
 
-# Étape par défaut quand `candidates.stage` est NULL / vide.
-ETAPE_DEFAUT = "CV reçu"
+# Étape d'entrée dans le pipeline (premier clic depuis la recherche).
+ETAPE_ENTREE = "Présélection"
 
 
 def _now() -> str:
@@ -41,20 +40,55 @@ def tableau_pipeline(request: Request):
         ).fetchall()
 
     # Regroupement en Python : une liste de candidats par étape.
+    # Les candidats hors pipeline (stage NULL / « CV reçu » / inconnu) ne sont
+    # PAS affichés — ils restent dans le vivier interrogeable par la recherche.
     colonnes = {etape: [] for etape in ETAPES}
     for row in rows:
         cand = dict(row)
-        stage = cand.get("stage") or ETAPE_DEFAUT
-        # Une étape inconnue (donnée héritée) retombe sur l'étape par défaut.
-        if stage not in colonnes:
-            stage = ETAPE_DEFAUT
-        colonnes[stage].append(cand)
+        stage = cand.get("stage")
+        if stage in colonnes:
+            colonnes[stage].append(cand)
 
     return render(
         request,
         "pipeline.html",
         {"etapes": ETAPES, "colonnes": colonnes},
     )
+
+
+@router.get("/pipeline/search")
+def rechercher_vivier(request: Request, q: str = ""):
+    """Recherche dans le vivier hors pipeline par nom, prénom, diplôme ou spécialité.
+
+    Retourne du JSON pour la barre de recherche du kanban. On exclut les
+    candidats déjà placés dans une colonne (stage ∈ ETAPES) afin de ne pas créer
+    de doublon de carte lors de l'ajout en « Analyse ».
+    """
+    user = require_user(request)
+    q = (q or "").strip()
+    if len(q) < 2:
+        return JSONResponse([])
+
+    motif = f"%{q.lower()}%"
+    # Un placeholder par étape pour la clause d'exclusion NOT IN (...).
+    marques = ",".join(["?"] * len(ETAPES))
+    sql = (
+        "SELECT id, nom, prenom, poste_recherche, diplome_plus_eleve, specialite "
+        "FROM candidates "
+        # Exclut les candidats marqués comme doublons (duplicate_of) : on ne
+        # propose que les profils originaux dans le vivier.
+        "WHERE duplicate_of IS NULL "
+        f"AND (stage IS NULL OR stage NOT IN ({marques})) "
+        "AND (LOWER(COALESCE(nom, '')) LIKE ? "
+        "OR LOWER(COALESCE(prenom, '')) LIKE ? "
+        "OR LOWER(COALESCE(diplome_plus_eleve, '')) LIKE ? "
+        "OR LOWER(COALESCE(specialite, '')) LIKE ?) "
+        "ORDER BY updated_at DESC LIMIT 20"
+    )
+    params = list(ETAPES) + [motif, motif, motif, motif]
+    with connect() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return JSONResponse([dict(r) for r in rows])
 
 
 @router.post("/pipeline/{cid}/stage")
@@ -69,4 +103,20 @@ def changer_etape(request: Request, cid: int, stage: str = Form(...)):
             (stage, _now(), cid),
         )
     # Réponse légère : le JS n'a besoin que du succès HTTP.
+    return Response(status_code=204)
+
+
+@router.post("/pipeline/{cid}/retirer")
+def retirer_du_pipeline(request: Request, cid: int):
+    """Retire un candidat du pipeline : `stage` repasse à NULL.
+
+    Le candidat n'est pas supprimé — il quitte simplement le tableau et
+    redevient disponible dans le vivier (barre de recherche).
+    """
+    user = require_user(request)
+    with connect() as conn:
+        conn.execute(
+            "UPDATE candidates SET stage = NULL, updated_at = ? WHERE id = ?",
+            (_now(), cid),
+        )
     return Response(status_code=204)

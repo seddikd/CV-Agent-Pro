@@ -6,37 +6,58 @@
   /* Styles scopés au tableau kanban du pipeline. */
   .kanban {
     display: flex;
-    gap: 12px;
+    gap: 14px;
     overflow-x: auto;
-    padding-bottom: 12px;
+    padding-bottom: 14px;
     align-items: flex-start;
   }
   .kanban-col {
-    flex: 0 0 220px;
-    min-width: 220px;
+    flex: 0 0 240px;
+    min-width: 240px;
     background: var(--panel, rgba(127, 127, 127, 0.06));
-    border: 1px solid var(--border, rgba(127, 127, 127, 0.25));
-    border-radius: 10px;
-    padding: 8px;
+    border: 1px solid var(--border, rgba(127, 127, 127, 0.22));
+    /* Filet coloré en tête de colonne (couleur passée via --accent). */
+    border-top: 3px solid var(--accent, #94a3b8);
+    border-radius: 12px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
   }
   .kanban-col-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 6px;
-    padding: 2px 4px;
+    padding: 2px 2px 8px;
+    border-bottom: 1px solid var(--border, rgba(127, 127, 127, 0.15));
+  }
+  .kanban-col-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
     font-weight: 600;
     font-size: 0.9rem;
+  }
+  /* Pastille de couleur reprenant l'accent de la colonne. */
+  .kanban-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--accent, #94a3b8);
+    flex: 0 0 auto;
+  }
+  .kanban-col-head .badge {
+    background: var(--accent, #94a3b8);
+    color: #fff;
+    min-width: 22px;
+    text-align: center;
   }
   /* Zone de dépôt : hauteur minimale pour rester ciblable même vide. */
   .kanban-dropzone {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    min-height: 60px;
+    gap: 10px;
+    min-height: 70px;
     border-radius: 8px;
     transition: background 0.12s ease, outline 0.12s ease;
   }
@@ -47,15 +68,93 @@
     outline-offset: -2px;
   }
   .kanban-card {
+    position: relative;
     cursor: grab;
-    padding: 8px 10px;
+    padding: 10px 12px;
+    padding-right: 30px;   /* place pour le bouton ✕ */
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.12s ease, transform 0.12s ease;
   }
+  .kanban-card:hover { box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12); }
   .kanban-card:active { cursor: grabbing; }
   .kanban-card.dragging { opacity: 0.5; }
   .kanban-card .cand-nom { font-weight: 600; }
   .kanban-card .cand-poste { margin-top: 2px; }
-  .kanban-card .cand-link { margin-top: 6px; display: inline-block; }
-  .kanban-empty { padding: 8px 4px; font-style: italic; }
+  .kanban-card .cand-link { margin-top: 8px; display: inline-block; }
+  /* Bouton de retrait du pipeline (coin haut-droit de la carte). */
+  .kanban-remove {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted, #94a3b8);
+    font-size: 15px; line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+  }
+  .kanban-card:hover .kanban-remove,
+  .kanban-remove:focus-visible { opacity: 1; }
+  .kanban-remove:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+  }
+  .kanban-empty {
+    padding: 14px 8px;
+    font-style: italic;
+    text-align: center;
+    color: var(--muted, #94a3b8);
+    font-size: 0.85rem;
+  }
+
+  /* --- Barre de recherche du vivier (au-dessus des colonnes) --- */
+  .pipeline-search { position: relative; max-width: 520px; margin-bottom: 18px; }
+  .pipeline-search input {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border, rgba(127, 127, 127, 0.3));
+    background: var(--panel, rgba(127, 127, 127, 0.04));
+    font-size: 0.95rem;
+  }
+  .pipeline-search input:focus {
+    outline: none;
+    border-color: rgba(80, 140, 255, 0.7);
+    box-shadow: 0 0 0 3px rgba(80, 140, 255, 0.15);
+  }
+  .search-hint { margin-top: 5px; }
+  /* Liste déroulante des résultats, superposée sous le champ. */
+  .search-results {
+    position: absolute;
+    left: 0; right: 0;
+    top: calc(100% + 4px);
+    z-index: 20;
+    background: var(--bg, #fff);
+    border: 1px solid var(--border, rgba(127, 127, 127, 0.3));
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    max-height: 340px;
+    overflow-y: auto;
+    display: none;
+  }
+  .search-results.open { display: block; }
+  .search-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border, rgba(127, 127, 127, 0.15));
+  }
+  .search-item:last-child { border-bottom: none; }
+  .search-item:hover, .search-item.active {
+    background: rgba(80, 140, 255, 0.12);
+  }
+  .search-item .si-nom { font-weight: 600; }
+  .search-item .si-meta { margin-top: 2px; }
+  .search-empty { padding: 10px 12px; font-style: italic; }
 </style>
 
 <div class="page-head">
@@ -72,8 +171,8 @@
     <div><div class="kpi-num">{{ colonnes['Entretien RH']|length + colonnes['Entretien Technique']|length }}</div><div class="kpi-lbl">En entretien</div></div>
   </div>
   <div class="kpi-card kpi-lavender">
-    <span class="kpi-ic">📨</span>
-    <div><div class="kpi-num">{{ colonnes['Offre']|length }}</div><div class="kpi-lbl">Offres envoyées</div></div>
+    <span class="kpi-ic">✅</span>
+    <div><div class="kpi-num">{{ colonnes['Présélection']|length }}</div><div class="kpi-lbl">En présélection</div></div>
   </div>
   <div class="kpi-card kpi-amber">
     <span class="kpi-ic">🎉</span>
@@ -81,22 +180,47 @@
   </div>
 </div>
 
+<!-- Barre de recherche du vivier : trouver un candidat hors pipeline puis
+     l'engager en « Présélection » d'un clic. -->
+<div class="pipeline-search" id="pipeline-search">
+  <input type="text" id="vivier-q" autocomplete="off"
+         placeholder="Rechercher un candidat (nom, diplôme, spécialité)…"
+         aria-label="Rechercher un candidat dans le vivier">
+  <div class="small muted search-hint">
+    Cliquez sur un résultat pour l'ajouter en « Présélection », puis glissez-déposez entre les colonnes.
+  </div>
+  <div class="search-results" id="vivier-results" role="listbox"></div>
+</div>
+
+{# Couleur d'accent par étape (filet de tête, pastille, badge). #}
+{% set couleurs = {
+  'Présélection': '#8b5cf6',
+  'Entretien RH': '#3b82f6',
+  'Entretien Technique': '#06b6d4',
+  'Embauché': '#22c55e',
+  'Refusé': '#ef4444'
+} %}
 <div class="kanban" id="kanban">
   {% for etape in etapes %}
-  <div class="kanban-col">
+  <div class="kanban-col" style="--accent: {{ couleurs.get(etape, '#94a3b8') }}">
     <div class="kanban-col-head">
-      <span>{{ etape }}</span>
+      <span class="kanban-col-title"><span class="kanban-dot"></span>{{ etape }}</span>
       <span class="badge" data-count>{{ colonnes[etape]|length }}</span>
     </div>
     <!-- data-stage porte l'étape cible utilisée lors du dépôt. -->
     <div class="kanban-dropzone" data-stage="{{ etape }}">
       {% for c in colonnes[etape] %}
       <div class="card kanban-card" draggable="true" data-cid="{{ c.id }}">
+        <button type="button" class="kanban-remove" title="Retirer du pipeline"
+                aria-label="Retirer du pipeline">✕</button>
         <div class="cand-nom">{{ c.prenom or '' }} {{ c.nom or '' }}</div>
         <div class="cand-poste small muted">{{ c.poste_recherche or '—' }}</div>
         <a href="/candidate/{{ c.id }}" class="btn small cand-link">Voir la fiche</a>
       </div>
       {% endfor %}
+      <div class="kanban-empty" data-empty {% if colonnes[etape]|length %}hidden{% endif %}>
+        Aucun candidat
+      </div>
     </div>
   </div>
   {% endfor %}
@@ -114,19 +238,23 @@
 
     var carteEnCours = null; // carte actuellement glissée
 
-    // Recalcule les compteurs affichés en tête de chaque colonne.
+    // Recalcule les compteurs de tête et affiche/masque le placeholder « vide ».
     function majCompteurs() {
       kanban.querySelectorAll('.kanban-col').forEach(function (col) {
         var zone = col.querySelector('.kanban-dropzone');
         var badge = col.querySelector('[data-count]');
-        if (zone && badge) {
-          badge.textContent = zone.querySelectorAll('.kanban-card').length;
-        }
+        if (!zone) return;
+        var n = zone.querySelectorAll('.kanban-card').length;
+        if (badge) badge.textContent = n;
+        var vide = zone.querySelector('[data-empty]');
+        if (vide) vide.hidden = n > 0;
       });
     }
 
     // --- Événements sur les cartes (délégation depuis le conteneur) ---
     kanban.addEventListener('dragstart', function (e) {
+      // Un cliquer-glisser initié sur le bouton ✕ ne doit pas déplacer la carte.
+      if (e.target.closest('.kanban-remove')) { e.preventDefault(); return; }
       var carte = e.target.closest('.kanban-card');
       if (!carte) return;
       carteEnCours = carte;
@@ -191,6 +319,190 @@
         });
       });
     });
+
+    // --- Retrait d'un candidat du pipeline (bouton ✕, délégation) ---
+    kanban.addEventListener('click', function (e) {
+      var btn = e.target.closest('.kanban-remove');
+      if (!btn) return;
+      var carte = btn.closest('.kanban-card');
+      if (!carte) return;
+      var cid = carte.dataset.cid;
+      var nom = (carte.querySelector('.cand-nom') || {}).textContent || 'ce candidat';
+      if (!confirm('Retirer ' + nom.trim() + ' du pipeline ? Il redeviendra disponible dans la recherche.')) return;
+
+      var origine = carte.parentNode;
+      // Retrait optimiste, puis persistance.
+      carte.remove();
+      majCompteurs();
+      fetch('/pipeline/' + cid + '/retirer', { method: 'POST' })
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+        }).catch(function () {
+          // Échec : on réinsère la carte et on avertit.
+          origine.appendChild(carte);
+          majCompteurs();
+          alert('Échec du retrait du candidat. Veuillez réessayer.');
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // Barre de recherche du vivier : trouver un candidat hors pipeline et
+    // l'engager en « Présélection » (premier clic). Ensuite, glisser-déposer.
+    // -------------------------------------------------------------------------
+    var ETAPE_ENTREE = 'Présélection';
+    var champ = document.getElementById('vivier-q');
+    var boite = document.getElementById('vivier-results');
+    var conteneurRecherche = document.getElementById('pipeline-search');
+
+    if (champ && boite) {
+      var minuteur = null;   // debounce
+      var derniers = [];     // résultats courants
+      var actif = -1;        // index surligné (navigation clavier)
+
+      // Crée une carte kanban identique au rendu serveur (textContent = anti-XSS).
+      function creerCarte(c) {
+        var carte = document.createElement('div');
+        carte.className = 'card kanban-card';
+        carte.setAttribute('draggable', 'true');
+        carte.dataset.cid = c.id;
+
+        var retirer = document.createElement('button');
+        retirer.type = 'button';
+        retirer.className = 'kanban-remove';
+        retirer.title = 'Retirer du pipeline';
+        retirer.setAttribute('aria-label', 'Retirer du pipeline');
+        retirer.textContent = '✕';
+        carte.appendChild(retirer);
+
+        var nom = document.createElement('div');
+        nom.className = 'cand-nom';
+        nom.textContent = ((c.prenom || '') + ' ' + (c.nom || '')).trim() || '—';
+
+        var poste = document.createElement('div');
+        poste.className = 'cand-poste small muted';
+        poste.textContent = c.poste_recherche || '—';
+
+        var lien = document.createElement('a');
+        lien.href = '/candidate/' + c.id;
+        lien.className = 'btn small cand-link';
+        lien.textContent = 'Voir la fiche';
+
+        carte.appendChild(nom);
+        carte.appendChild(poste);
+        carte.appendChild(lien);
+        return carte;
+      }
+
+      function fermer() {
+        boite.classList.remove('open');
+        boite.innerHTML = '';
+        derniers = [];
+        actif = -1;
+      }
+
+      function surligner(i) {
+        var items = boite.querySelectorAll('.search-item');
+        items.forEach(function (el, idx) {
+          el.classList.toggle('active', idx === i);
+        });
+        actif = i;
+      }
+
+      // Engage un candidat en « Présélection » : POST puis carte dans la colonne.
+      function engager(c) {
+        var zone = kanban.querySelector('.kanban-dropzone[data-stage="' + ETAPE_ENTREE + '"]');
+        if (!zone) return;
+        fetch('/pipeline/' + c.id + '/stage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ stage: ETAPE_ENTREE })
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          zone.appendChild(creerCarte(c));
+          majCompteurs();
+          champ.value = '';
+          fermer();
+          champ.focus();
+        }).catch(function () {
+          alert('Échec de l\'ajout du candidat. Veuillez réessayer.');
+        });
+      }
+
+      function rendre(liste) {
+        boite.innerHTML = '';
+        derniers = liste;
+        actif = -1;
+        if (!liste.length) {
+          var vide = document.createElement('div');
+          vide.className = 'search-empty muted';
+          vide.textContent = 'Aucun candidat trouvé dans le vivier.';
+          boite.appendChild(vide);
+          boite.classList.add('open');
+          return;
+        }
+        liste.forEach(function (c, idx) {
+          var item = document.createElement('div');
+          item.className = 'search-item';
+          item.setAttribute('role', 'option');
+
+          var nom = document.createElement('div');
+          nom.className = 'si-nom';
+          nom.textContent = ((c.prenom || '') + ' ' + (c.nom || '')).trim() || '—';
+
+          // Sous-ligne : diplôme • spécialité • poste (ce qui est renseigné).
+          var bouts = [c.diplome_plus_eleve, c.specialite, c.poste_recherche]
+            .filter(function (x) { return x; });
+          var meta = document.createElement('div');
+          meta.className = 'si-meta small muted';
+          meta.textContent = bouts.length ? bouts.join(' • ') : '—';
+
+          item.appendChild(nom);
+          item.appendChild(meta);
+          item.addEventListener('mouseenter', function () { surligner(idx); });
+          item.addEventListener('mousedown', function (e) {
+            e.preventDefault();  // garde le focus, évite le blur avant le clic
+            engager(c);
+          });
+          boite.appendChild(item);
+        });
+        boite.classList.add('open');
+      }
+
+      function chercher() {
+        var q = champ.value.trim();
+        if (q.length < 2) { fermer(); return; }
+        fetch('/pipeline/search?q=' + encodeURIComponent(q))
+          .then(function (r) { return r.ok ? r.json() : []; })
+          .then(rendre)
+          .catch(function () { fermer(); });
+      }
+
+      champ.addEventListener('input', function () {
+        clearTimeout(minuteur);
+        minuteur = setTimeout(chercher, 200);
+      });
+
+      champ.addEventListener('keydown', function (e) {
+        if (!boite.classList.contains('open')) return;
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          surligner(Math.min(actif + 1, derniers.length - 1));
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          surligner(Math.max(actif - 1, 0));
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (actif >= 0 && derniers[actif]) engager(derniers[actif]);
+        } else if (e.key === 'Escape') {
+          fermer();
+        }
+      });
+
+      // Fermeture au clic en dehors de la zone de recherche.
+      document.addEventListener('click', function (e) {
+        if (conteneurRecherche && !conteneurRecherche.contains(e.target)) fermer();
+      });
+    }
   })();
 </script>
 
