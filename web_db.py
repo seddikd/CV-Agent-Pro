@@ -458,8 +458,13 @@ DEFAULT_PER_PAGE = 50
 def _candidates_filter(
     search: str, statut: str, poste: str
 ) -> tuple[str, list[Any]]:
-    """Construit la clause WHERE paramétrée commune à la liste et au comptage."""
-    clause = " WHERE 1=1"
+    """Construit la clause WHERE paramétrée commune à la liste et au comptage.
+
+    Les candidats marqués comme doublons (duplicate_of) sont exclus : une fois
+    fusionné dans l'onglet Doublons, un profil ne réapparaît ni dans la liste ni
+    dans la recherche (il reste géré depuis l'onglet Doublons).
+    """
+    clause = " WHERE duplicate_of IS NULL"
     params: list[Any] = []
     if search:
         clause += " AND (nom LIKE ? OR prenom LIKE ? OR email LIKE ? OR competences LIKE ?)"
@@ -532,10 +537,14 @@ def update_candidate_status(
 
 
 def candidate_stats() -> dict:
+    # Cohérent avec la liste : les doublons (duplicate_of) ne sont pas comptés.
     with connect() as conn:
-        total = conn.execute("SELECT COUNT(*) AS c FROM candidates").fetchone()["c"]
+        total = conn.execute(
+            "SELECT COUNT(*) AS c FROM candidates WHERE duplicate_of IS NULL"
+        ).fetchone()["c"]
         by_statut = conn.execute(
-            "SELECT statut, COUNT(*) AS c FROM candidates GROUP BY statut"
+            "SELECT statut, COUNT(*) AS c FROM candidates "
+            "WHERE duplicate_of IS NULL GROUP BY statut"
         ).fetchall()
         return {
             "total": int(total),
