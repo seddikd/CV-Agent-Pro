@@ -16,21 +16,33 @@ param(
     [string]$PasswordFile = "$env:USERPROFILE\cvagent-postgres.txt"
 )
 $ErrorActionPreference = "Stop"
+$Here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 function New-Password([int]$len = 24) {
     -join ((48..57) + (65..90) + (97..122) | Get-Random -Count $len | ForEach-Object {[char]$_})
 }
 
-if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-    throw "winget introuvable. Installez « App Installer » depuis le Microsoft Store."
+# Installeur hors ligne fourni à côté de ce script (sinon repli winget).
+$pgLocalExe = Get-ChildItem $Here -Filter "postgresql-*-windows-x64.exe" -ErrorAction SilentlyContinue |
+              Sort-Object Name -Descending | Select-Object -First 1
+if (-not $pgLocalExe -and -not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    throw "winget introuvable et aucun installeur postgresql-*-windows-x64.exe à côté de ce script. Installez « App Installer » depuis le Microsoft Store."
 }
 
 $pgBin = "C:\Program Files\PostgreSQL\17\bin"
 if (-not (Test-Path "$pgBin\psql.exe")) {
     $superPw = New-Password 24
-    Write-Host "[i] Installation de PostgreSQL 17…" -ForegroundColor Cyan
-    winget install -e --id PostgreSQL.PostgreSQL.17 --accept-source-agreements --accept-package-agreements `
-        --override "--mode unattended --unattendedmodeui minimal --superpassword `"$superPw`" --serverport 5432 --enable-components server,commandlinetools" | Out-Null
+    if ($pgLocalExe) {
+        Write-Host "[i] Installation de PostgreSQL depuis le support ($($pgLocalExe.Name), hors ligne)…" -ForegroundColor Cyan
+        Start-Process -FilePath $pgLocalExe.FullName -Wait -ArgumentList @(
+            "--mode", "unattended", "--unattendedmodeui", "minimal",
+            "--superpassword", $superPw, "--serverport", "5432",
+            "--enable-components", "server,commandlinetools")
+    } else {
+        Write-Host "[i] Installation de PostgreSQL 17 via winget…" -ForegroundColor Cyan
+        winget install -e --id PostgreSQL.PostgreSQL.17 --accept-source-agreements --accept-package-agreements `
+            --override "--mode unattended --unattendedmodeui minimal --superpassword `"$superPw`" --serverport 5432 --enable-components server,commandlinetools" | Out-Null
+    }
     "superutilisateur postgres : $superPw" | Set-Content -Encoding UTF8 $PasswordFile
     Write-Host "[OK] PostgreSQL installé. Mot de passe superutilisateur -> $PasswordFile" -ForegroundColor Green
 } else {

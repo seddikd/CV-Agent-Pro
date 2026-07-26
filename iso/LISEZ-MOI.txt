@@ -5,9 +5,12 @@
 CONTENU DU SUPPORT
 ------------------
   Installer.ps1 .................. Installateur automatique (TOUT-EN-UN)
-  GUIDE_INSTALLATION.md .......... Guide détaillé + dépannage
-  Application\ ................... L'application (exécutable)
-  Prerequis\ ..................... Script d'installation PostgreSQL (secours)
+  GUIDE_INSTALLATION.md / .pdf ... Guide détaillé (toutes les étapes) + dépannage
+  Application\
+     CV-Agent\ ................... L'application (exécutable + dépendances)
+     CV-Agent-Setup.exe .......... Installateur graphique (application seule)
+  Prerequis\ ..................... Installeurs HORS LIGNE : PostgreSQL 17,
+                                   Ollama (optionnel) + script de secours
   Config\ ....................... (réservé)
   Manuels\
      Manuel_Utilisateur\ ......... Manuel pour l'équipe RH (PDF + Markdown)
@@ -43,8 +46,9 @@ PRÉREQUIS DE LA MACHINE
 -----------------------
   - Windows 10 ou 11 (64 bits)
   - Droits administrateur
-  - Connexion Internet pendant l'installation (téléchargement de PostgreSQL)
-  - « App Installer » (winget) — présent par défaut sur Windows 10/11 à jour
+  - AUCUNE connexion Internet nécessaire : les installeurs (PostgreSQL,
+    Ollama) sont fournis dans le dossier Prerequis\ de ce support
+  - « App Installer » (winget) — utile seulement en repli si Prerequis\ est vide
 
   Aucune boîte Gmail obligatoire : TOUT serveur IMAP est accepté
   (Gmail, Outlook / Office 365, OVH, Zoho, serveur interne…).

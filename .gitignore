@@ -47,6 +47,8 @@ iso/Application/
 iso/Manuels/
 iso/**/postgres-superuser-password.txt
 iso/**/*.pdf
+# Installeurs des prérequis téléchargés dans le support (PostgreSQL, Ollama).
+iso/Prerequis/*.exe
 # Manuels PDF régénérés par build_pdf.py (les .md sources, eux, sont versionnés).
 MANUEL_*.pdf
 

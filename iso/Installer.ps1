@@ -43,8 +43,13 @@ Write-Host @"
 "@ -ForegroundColor Cyan
 
 # ─── 0. Prérequis de base ────────────────────────────────────────────────────
-if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-    throw "winget est introuvable. Installez « App Installer » depuis le Microsoft Store, puis relancez."
+# Installeurs hors ligne fournis sur le support (dossier Prerequis\). S'ils sont
+# présents, AUCUNE connexion Internet n'est nécessaire ; sinon repli sur winget.
+$pgLocalExe     = Get-ChildItem (Join-Path $Here "Prerequis") -Filter "postgresql-*-windows-x64.exe" -ErrorAction SilentlyContinue |
+                  Sort-Object Name -Descending | Select-Object -First 1
+$ollamaLocalExe = Join-Path $Here "Prerequis\OllamaSetup.exe"
+if (-not $pgLocalExe -and -not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    throw "winget est introuvable et aucun installeur PostgreSQL n'est présent dans Prerequis\. Installez « App Installer » depuis le Microsoft Store, puis relancez."
 }
 
 # ─── 1. PostgreSQL 17 ────────────────────────────────────────────────────────
@@ -59,9 +64,17 @@ if (Test-Path "$pgBin\psql.exe") {
         [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
 } else {
     $pgSuperPw = New-Password 24
-    Info "Installation silencieuse de PostgreSQL 17 (peut prendre quelques minutes)…"
-    winget install -e --id PostgreSQL.PostgreSQL.17 --accept-source-agreements --accept-package-agreements `
-        --override "--mode unattended --unattendedmodeui minimal --superpassword `"$pgSuperPw`" --serverport 5432 --enable-components server,commandlinetools" | Out-Null
+    if ($pgLocalExe) {
+        Info "Installation silencieuse de PostgreSQL depuis le support ($($pgLocalExe.Name), hors ligne)…"
+        Start-Process -FilePath $pgLocalExe.FullName -Wait -ArgumentList @(
+            "--mode", "unattended", "--unattendedmodeui", "minimal",
+            "--superpassword", $pgSuperPw, "--serverport", "5432",
+            "--enable-components", "server,commandlinetools")
+    } else {
+        Info "Installation silencieuse de PostgreSQL 17 via winget (téléchargement, peut prendre quelques minutes)…"
+        winget install -e --id PostgreSQL.PostgreSQL.17 --accept-source-agreements --accept-package-agreements `
+            --override "--mode unattended --unattendedmodeui minimal --superpassword `"$pgSuperPw`" --serverport 5432 --enable-components server,commandlinetools" | Out-Null
+    }
     if (-not (Test-Path "$pgBin\psql.exe")) {
         throw "PostgreSQL ne s'est pas installé au chemin attendu ($pgBin). Installez-le manuellement puis relancez."
     }
@@ -75,8 +88,13 @@ if (Test-Path "$pgBin\psql.exe") {
 # ─── 2. Ollama (optionnel) ───────────────────────────────────────────────────
 Step "2/6  LLM local (Ollama)"
 if ($InstallOllama) {
-    Info "Installation d'Ollama…"
-    winget install -e --id Ollama.Ollama --accept-source-agreements --accept-package-agreements | Out-Null
+    if (Test-Path $ollamaLocalExe) {
+        Info "Installation d'Ollama depuis le support (hors ligne)…"
+        Start-Process -FilePath $ollamaLocalExe -Wait -ArgumentList "/VERYSILENT", "/NORESTART"
+    } else {
+        Info "Installation d'Ollama via winget…"
+        winget install -e --id Ollama.Ollama --accept-source-agreements --accept-package-agreements | Out-Null
+    }
     Ok "Ollama installé. Pensez à télécharger un modèle : ollama pull qwen2.5:14b"
 } else {
     Info "Ollama non installé (option -InstallOllama absente). Vous pourrez utiliser le cloud OpenRouter."
