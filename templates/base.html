@@ -18,83 +18,22 @@
 <script src="/static/htmx.min.js" defer></script>
 </head>
 <body>
-{# Le contenu de la page est capturé une seule fois puis inséré dans l'une ou
-   l'autre coquille (avec ou sans barre latérale selon l'authentification). #}
+{# Le contenu de la page est capturé une seule fois puis inséré dans l'une des
+   coquilles — c'est ce qui permet d'offrir deux interfaces sans dupliquer une
+   seule des 33 autres pages, qui ne connaissent que leur bloc de contenu.
+
+   `vue` est injecté par web_core.render d'après le cookie « cvagent-vue » :
+     - « onglets » (défaut v2.0) : bandeau + barre d'onglets horizontale ;
+     - « lateral »              : barre latérale groupée (vue historique v1).
+   Les deux coquilles partagent le même static/style.css et le même JS ci-dessous. #}
 {% set content_body %}{% block content %}{% endblock %}{% endset %}
 {% if user %}
 {% set path = request.url.path %}
-{% macro navlink(href, icon, label) %}
-  {% set active = (path == href) or (href != '/' and path.startswith(href ~ '/')) %}
-  <a href="{{ href }}" class="side-link{% if active %} active{% endif %}">
-    <span class="ic">{{ icon }}</span><span class="lbl">{{ label }}</span>
-  </a>
-{% endmacro %}
-
-<div class="app-shell">
-  <aside class="sidebar">
-    <a href="/dashboard" class="brand">
-      <span class="brand-logo">📨</span>
-      <span class="brand-name">CV&nbsp;Agent</span>
-    </a>
-
-    <nav class="side-nav">
-      <div class="side-group">Principal</div>
-      {{ navlink('/dashboard', '📊', 'Tableau de bord') }}
-      {{ navlink('/', '👤', 'Candidats') }}
-      {{ navlink('/recherche', '🔎', 'Recherche') }}
-      {{ navlink('/recherche-ia', '🤖', 'Recherche IA') }}
-
-      <div class="side-group">Recrutement</div>
-      {{ navlink('/offres', '💼', 'Offres') }}
-      {{ navlink('/entretiens', '📅', 'Entretiens') }}
-      {{ navlink('/pipeline', '📋', 'Pipeline') }}
-      {{ navlink('/matching', '🎯', 'Matching') }}
-      {{ navlink('/comparer', '⚖️', 'Comparer') }}
-      {{ navlink('/doublons', '🧬', 'Doublons') }}
-      {{ navlink('/alertes', '🔔', 'Alertes') }}
-      {{ navlink('/statistiques', '📈', 'Statistiques') }}
-      {{ navlink('/reporting', '📑', 'Reporting') }}
-
-      <div class="side-group">Administration</div>
-      {{ navlink('/admin/runs', '🔄', 'Cycles') }}
-      {{ navlink('/admin/import', '📥', 'Import Outlook') }}
-      {% if user.role == 'admin' %}
-      {{ navlink('/admin/users', '👥', 'Utilisateurs') }}
-      {{ navlink('/admin/emails-modeles', '✉️', 'Modèles d\'email') }}
-      {{ navlink('/admin/rgpd', '🛡️', 'RGPD') }}
-      {{ navlink('/admin/settings/mail', '✉️', 'Param. Mail') }}
-      {{ navlink('/admin/settings/llm', '⚙️', 'Param. LLM') }}
-      {% endif %}
-    </nav>
-
-    <div class="side-foot">Version 2.0</div>
-  </aside>
-
-  <div class="app-main">
-    <header class="app-topbar">
-      <form method="get" action="/" class="top-search" role="search">
-        <input type="search" name="search" placeholder="Rechercher un candidat…"
-               aria-label="Rechercher un candidat">
-      </form>
-      <span class="spacer"></span>
-      <a href="/alertes" class="top-icon" title="Alertes" aria-label="Alertes">🔔</a>
-      <button type="button" class="theme-toggle" id="theme-toggle"
-              title="Thème clair / sombre" aria-label="Basculer le thème clair ou sombre">🌗</button>
-      <div class="top-user">
-        <span class="tu-avatar">{{ (user.name or '?')[0]|upper }}</span>
-        <span class="tu-meta">
-          <span class="tu-name">{{ user.name }}</span>
-          <span class="role role-{{ user.role }}">{{ user.role }}</span>
-        </span>
-        <a href="/logout" class="tu-logout" title="Se déconnecter" aria-label="Se déconnecter">⏻</a>
-      </div>
-    </header>
-
-    <main class="content">
-    {{ content_body }}
-    </main>
-  </div>
-</div>
+{% if vue == 'lateral' %}
+  {% include "_coquille_laterale.html" %}
+{% else %}
+  {% include "_coquille_onglets.html" %}
+{% endif %}
 {% else %}
 <main class="container">
 {{ content_body }}
@@ -102,14 +41,24 @@
 {% endif %}
 
 <script>
+  // Bascule clair/sombre. Le même bouton #theme-toggle existe dans les deux
+  // coquilles, sous deux formes : entrée de menu (icône + libellé séparés) côté
+  // « onglets », bouton compact dont l'emoji EST le contenu côté « lateral ».
   (function () {
     var btn = document.getElementById('theme-toggle');
     if (!btn) return;
+    var ic = document.getElementById('theme-ic');
+    var lbl = document.getElementById('theme-label');
     function currentTheme() {
       return document.documentElement.getAttribute('data-theme')
         || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     }
-    function updateIcon() { btn.textContent = currentTheme() === 'dark' ? '☀️' : '🌙'; }
+    function updateIcon() {
+      var dark = currentTheme() === 'dark';
+      var emoji = dark ? '☀️' : '🌙';
+      if (ic) { ic.textContent = emoji; } else { btn.textContent = emoji; }
+      if (lbl) lbl.textContent = dark ? 'Passer en clair' : 'Passer en sombre';
+    }
     updateIcon();
     btn.addEventListener('click', function () {
       var next = currentTheme() === 'dark' ? 'light' : 'dark';
@@ -117,6 +66,84 @@
       try { localStorage.setItem('cvagent-theme', next); } catch (e) {}
       updateIcon();
     });
+  })();
+
+  // Menus déroulants (menu utilisateur) : ouverture au clic, fermeture au clic
+  // extérieur ou touche Échap. Absents de la coquille « lateral » : le garde-fou
+  // ci-dessous sort alors immédiatement.
+  (function () {
+    var dropdowns = Array.prototype.slice.call(document.querySelectorAll('.dropdown'));
+    if (!dropdowns.length) return;
+    function closeAll(except) {
+      dropdowns.forEach(function (d) {
+        if (d === except) return;
+        d.classList.remove('open');
+        var t = d.querySelector('.dropdown-toggle');
+        if (t) t.setAttribute('aria-expanded', 'false');
+      });
+    }
+    document.addEventListener('click', function (e) {
+      var toggle = e.target.closest ? e.target.closest('.dropdown-toggle') : null;
+      if (toggle) {
+        e.preventDefault();
+        var dd = toggle.closest('.dropdown');
+        var willOpen = !dd.classList.contains('open');
+        closeAll(dd);
+        dd.classList.toggle('open', willOpen);
+        toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        return;
+      }
+      // Un clic hors d'un menu ferme tout (les liens du menu naviguent normalement).
+      if (!(e.target.closest && e.target.closest('.dropdown-menu'))) closeAll(null);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' || e.key === 'Esc') closeAll(null);
+    });
+  })();
+
+  // Barre d'onglets : flèches de défilement, affichées seulement si les onglets
+  // débordent et seulement du côté où il reste quelque chose à atteindre.
+  // Propre à la coquille « onglets » (garde-fou sur .tabbar-wrap).
+  (function () {
+    var wrap = document.querySelector('.tabbar-wrap');
+    if (!wrap) return;
+    var bar = wrap.querySelector('.tabbar');
+    var prev = wrap.querySelector('.tabscroll-prev');
+    var next = wrap.querySelector('.tabscroll-next');
+    if (!bar || !prev || !next) return;
+
+    function majFleches() {
+      // Marge de 1 px : les navigateurs renvoient des largeurs fractionnaires,
+      // sans quoi la flèche de fin resterait visible en butée.
+      var max = bar.scrollWidth - bar.clientWidth;
+      var debord = max > 1;
+      prev.hidden = !debord || bar.scrollLeft <= 1;
+      next.hidden = !debord || bar.scrollLeft >= max - 1;
+    }
+    function glisser(sens) {
+      bar.scrollBy({ left: sens * Math.round(bar.clientWidth * 0.6), behavior: 'smooth' });
+    }
+    prev.addEventListener('click', function () { glisser(-1); });
+    next.addEventListener('click', function () { glisser(1); });
+    bar.addEventListener('scroll', majFleches);
+    window.addEventListener('resize', majFleches);
+
+    // Onglet actif hors champ au chargement : on le ramène dans la vue. On
+    // calcule le décalage à la main (scrollIntoView ferait aussi défiler la
+    // page verticalement) et sans « behavior: smooth » : pas d'animation
+    // parasite à l'ouverture.
+    var actif = bar.querySelector('.tab.active');
+    if (actif) {
+      var marge = 52;   // ~ largeur d'une flèche, pour ne pas finir dessous
+      var rb = bar.getBoundingClientRect();
+      var ra = actif.getBoundingClientRect();
+      if (ra.right > rb.right - marge) {
+        bar.scrollLeft += (ra.right - rb.right) + marge;
+      } else if (ra.left < rb.left + marge) {
+        bar.scrollLeft -= (rb.left - ra.left) + marge;
+      }
+    }
+    majFleches();
   })();
 </script>
 </body>

@@ -41,13 +41,37 @@ except OSError:
 templates.env.globals["asset_v"] = str(_css_mtime)
 
 
+# ─── Vue (coquille) de l'interface ────────────────────────────────────────────
+# Deux interfaces cohabitent, choisies par utilisateur (en fait par navigateur)
+# via le cookie `cvagent-vue` que pose /preferences/vue :
+#   « onglets » → templates/_coquille_onglets.html  (bandeau + onglets, v2.0)
+#   « lateral » → templates/_coquille_laterale.html (barre latérale, v1)
+# Toutes les autres pages sont communes aux deux vues.
+#
+# VUE_DEFAUT s'applique au premier passage, avant tout choix explicite. C'est le
+# SEUL réglage qui distingue les deux déploiements : ICI (prod) on reste sur
+# « lateral », l'apparence historique, et les onglets sont la vue secondaire ;
+# l'instance de développement fait l'inverse. Volontairement une constante et non
+# un réglage en base : évite une lecture de `settings` à chaque rendu de page.
+VUES = ("onglets", "lateral")
+VUE_DEFAUT = "lateral"
+COOKIE_VUE = "cvagent-vue"
+
+
+def vue_courante(request: Request) -> str:
+    """Vue demandée par le cookie, en refusant toute valeur inconnue."""
+    vue = request.cookies.get(COOKIE_VUE)
+    return vue if vue in VUES else VUE_DEFAUT
+
+
 def render(request: Request, template: str, ctx: dict | None = None) -> HTMLResponse:
-    """Rend un template en injectant `user` + drapeaux de permission (comme webapp.render)."""
+    """Rend un template en injectant `user` + drapeaux de permission + la vue."""
     user = web_auth.current_user(request)
     base = {
         "user": user,
         "can_write": web_auth.can_write(user),
         "can_run_cycle": web_auth.can_run_cycle(user),
+        "vue": vue_courante(request),
     }
     if ctx:
         base.update(ctx)

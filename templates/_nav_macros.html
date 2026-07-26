@@ -1,0 +1,27 @@
+{# Macros de navigation partagées par les deux coquilles (_coquille_onglets.html
+   et _coquille_laterale.html). À importer avec « with context » : elles lisent
+   la variable `path` posée par base.html, sans qu'on ait à la passer en argument.
+
+   Le calcul d'`active` est volontairement identique aux trois : `path == href`,
+   ou `path` sous l'arborescence de `href`. Le test `href != '/'` évite que
+   l'onglet « Candidats » (/) reste actif sur toutes les pages. #}
+
+{# Onglet horizontal (coquille « onglets »). #}
+{% macro onglet(href, label) %}
+  {% set active = (path == href) or (href != '/' and path.startswith(href ~ '/')) %}
+  <a href="{{ href }}" class="tab{% if active %} active{% endif %}">{{ label }}</a>
+{% endmacro %}
+
+{# Entrée d'un menu déroulant (menu utilisateur / administration). #}
+{% macro entree_menu(href, icon, label) %}
+  {% set active = (path == href) or (href != '/' and path.startswith(href ~ '/')) %}
+  <a href="{{ href }}" class="menu-item{% if active %} active{% endif %}"><span class="ic">{{ icon }}</span>{{ label }}</a>
+{% endmacro %}
+
+{# Lien de la barre latérale (coquille « lateral »). #}
+{% macro lien_lateral(href, icon, label) %}
+  {% set active = (path == href) or (href != '/' and path.startswith(href ~ '/')) %}
+  <a href="{{ href }}" class="side-link{% if active %} active{% endif %}">
+    <span class="ic">{{ icon }}</span><span class="lbl">{{ label }}</span>
+  </a>
+{% endmacro %}

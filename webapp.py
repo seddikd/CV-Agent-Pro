@@ -65,6 +65,7 @@ import entretien_reminders
 # render() vit dans web_core (socle partagé des routeurs mod_*) : on le réutilise
 # ici plutôt que d'en maintenir une copie identique (contexte de base commun).
 from web_core import render
+import web_core          # VUES / VUE_DEFAUT / COOKIE_VUE pour /preferences/vue
 
 
 app_runtime.force_utf8_streams()
@@ -376,6 +377,30 @@ def login_submit(request: Request, email: str = Form(...), password: str = Form(
 def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
+
+
+@app.get("/preferences/vue")
+def choisir_vue(request: Request, v: str = "", suite: str = "/"):
+    """Bascule entre les deux interfaces (voir web_core.VUES) et revient sur place.
+
+    Le choix vit dans un cookie et non en base : il est propre à chaque
+    utilisateur, survit aux redémarrages et n'ajoute aucune requête SQL au rendu.
+    """
+    web_auth.require_user(request)
+    vue = v if v in web_core.VUES else web_core.VUE_DEFAUT
+    # `suite` vient de l'URL : on n'accepte qu'un chemin interne. Un « // » ou un
+    # schéma explicite permettrait une redirection ouverte vers un site tiers.
+    if not suite.startswith("/") or suite.startswith("//"):
+        suite = "/"
+    reponse = RedirectResponse(suite, status_code=303)
+    reponse.set_cookie(
+        web_core.COOKIE_VUE, vue,
+        max_age=365 * 24 * 3600,   # le choix doit survivre largement à la session
+        httponly=True,             # lu côté serveur uniquement
+        samesite="lax",
+        path="/",
+    )
+    return reponse
 
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────

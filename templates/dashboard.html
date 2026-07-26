@@ -46,29 +46,46 @@
   {% endif %}
 </div>
 
-<form method="get" action="/" class="filters">
-  <input type="search" name="search" value="{{ search }}" placeholder="🔍 Nom, email, compétence...">
-  <select name="statut">
-    <option value="">Tous statuts</option>
-    {% for s in statuts %}
-    <option value="{{ s }}" {% if statut == s %}selected{% endif %}>{{ s }}</option>
-    {% endfor %}
-  </select>
-  <input type="text" name="poste" value="{{ poste }}" placeholder="Poste...">
-  <select name="sort" title="Trier les candidats" onchange="this.form.submit()">
-    <option value="recu_desc" {% if sort == 'recu_desc' %}selected{% endif %}>Reçu (récent → ancien)</option>
-    <option value="recu_asc" {% if sort == 'recu_asc' %}selected{% endif %}>Reçu (ancien → récent)</option>
-    <option value="id_desc" {% if sort == 'id_desc' %}selected{% endif %}>ID (décroissant)</option>
-    <option value="id_asc" {% if sort == 'id_asc' %}selected{% endif %}>ID (croissant)</option>
-  </select>
-  <select name="per_page" title="Candidats par page" onchange="this.form.submit()">
-    {% for n in per_page_options %}
-    <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }} / page</option>
-    {% endfor %}
-  </select>
-  <button type="submit" class="btn">Filtrer</button>
-  <a href="/" class="btn ghost">Réinitialiser</a>
-</form>
+<div class="people-layout">
+  <aside class="filter-rail">
+    <form method="get" action="/" class="rail-form">
+      <div class="rail-title">Filtres</div>
+      <label>Recherche
+        <input type="search" name="search" value="{{ search }}" placeholder="Nom, email, compétence…">
+      </label>
+      <label>Statut
+        <select name="statut">
+          <option value="">Tous statuts</option>
+          {% for s in statuts %}
+          <option value="{{ s }}" {% if statut == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Poste
+        <input type="text" name="poste" value="{{ poste }}" placeholder="Intitulé de poste…">
+      </label>
+      <label>Trier
+        <select name="sort">
+          <option value="recu_desc" {% if sort == 'recu_desc' %}selected{% endif %}>Reçu (récent → ancien)</option>
+          <option value="recu_asc" {% if sort == 'recu_asc' %}selected{% endif %}>Reçu (ancien → récent)</option>
+          <option value="id_desc" {% if sort == 'id_desc' %}selected{% endif %}>ID (décroissant)</option>
+          <option value="id_asc" {% if sort == 'id_asc' %}selected{% endif %}>ID (croissant)</option>
+        </select>
+      </label>
+      <label>Par page
+        <select name="per_page">
+          {% for n in per_page_options %}
+          <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }} / page</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="rail-actions">
+        <button type="submit" class="btn primary">Filtrer</button>
+        <a href="/" class="btn ghost">Réinitialiser</a>
+      </div>
+    </form>
+  </aside>
+  <div class="people-main">
 
 <style>
   .th-sort { color: inherit; white-space: nowrap; }
@@ -82,48 +99,39 @@
    changer le tri ramène à la page 1 en omettant le paramètre page). #}
 {% set base_qs = 'search=' ~ (search | urlencode) ~ '&statut=' ~ (statut | urlencode) ~ '&poste=' ~ (poste | urlencode) ~ '&per_page=' ~ per_page %}
 
-<table class="table">
+<table class="table people">
   <thead>
     <tr>
-      <th>
-        <a class="th-sort {% if sort in ('id_asc', 'id_desc') %}active{% endif %}"
-           href="/?{{ base_qs }}&sort={{ 'id_asc' if sort == 'id_desc' else 'id_desc' }}">
-          ID<span class="arw">{% if sort == 'id_asc' %}▲{% elif sort == 'id_desc' %}▼{% else %}⇅{% endif %}</span>
-        </a>
-      </th>
-      <th>
-        <a class="th-sort {% if sort in ('recu_asc', 'recu_desc') %}active{% endif %}"
-           href="/?{{ base_qs }}&sort={{ 'recu_asc' if sort == 'recu_desc' else 'recu_desc' }}">
-          Reçu<span class="arw">{% if sort == 'recu_asc' %}▲{% elif sort == 'recu_desc' %}▼{% else %}⇅{% endif %}</span>
-        </a>
-      </th>
       <th>Candidat</th>
       <th>Poste</th>
-      <th>Exp.</th>
       <th>Compétences</th>
       <th>Statut</th>
+      <th>Reçu</th>
       <th></th>
     </tr>
   </thead>
   <tbody>
   {% for c in rows %}
+    {% set full = ((c.prenom or '') ~ ' ' ~ (c.nom or '')) | trim %}
+    {% set inits = ((c.prenom or ' ')[0] ~ (c.nom or ' ')[0]) | upper | trim %}
     <tr>
-      <td>{{ c.id }}</td>
-      <td class="small">{{ c.received_at[:10] }}<br><span class="muted">{{ c.received_at[11:16] }}</span></td>
       <td>
-        <a href="/candidate/{{ c.id }}" class="cand-link">
-          <strong>{{ (c.prenom or '') }} {{ (c.nom or '') }}</strong>
-        </a><br>
-        <span class="small muted">{{ c.email or '' }}</span>
+        <div class="person">
+          <span class="avatar" style="background:hsl({{ (c.id * 47) % 360 }} 52% 52%)">{{ inits or '?' }}</span>
+          <div class="person-meta">
+            <a href="/candidate/{{ c.id }}" class="p-name">{{ full or 'Sans nom' }}</a>
+            <span class="p-sub">{{ c.email or '—' }}</span>
+          </div>
+        </div>
       </td>
-      <td class="small">{{ c.poste_recherche or '—' }}</td>
-      <td>{{ c.annees_experience if c.annees_experience is not none else '—' }}</td>
-      <td class="small">{{ (c.competences or '')[:80] }}{% if c.competences and c.competences|length > 80 %}…{% endif %}</td>
+      <td>{% if c.poste_recherche %}<span class="poste-pill">{{ c.poste_recherche }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td class="small muted">{{ (c.competences or '')[:70] }}{% if c.competences and c.competences|length > 70 %}…{% endif %}</td>
       <td>{% include "_status_cell.html" %}</td>
-      <td><a href="/candidate/{{ c.id }}" class="btn small">Voir</a></td>
+      <td class="small muted">{{ c.received_at[:10] }}</td>
+      <td class="ta-right"><a href="/candidate/{{ c.id }}" class="details-link">Voir détails ›</a></td>
     </tr>
   {% else %}
-    <tr><td colspan="8" class="empty">Aucun candidat pour ces filtres.</td></tr>
+    <tr><td colspan="6" class="empty">Aucun candidat pour ces filtres.</td></tr>
   {% endfor %}
   </tbody>
 </table>
@@ -186,4 +194,6 @@
   .pg-ell { color: var(--muted); padding: 0 2px; }
 </style>
 
+  </div>{# .people-main #}
+</div>{# .people-layout #}
 {% endblock %}

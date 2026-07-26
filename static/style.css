@@ -4,21 +4,21 @@
    ============================================================ */
 
 :root {
-  --primary: #2563eb;
-  --primary-strong: #1d4ed8;
-  --primary-soft: #eff4ff;
-  --accent: #1e40af;
+  --primary: #f26a21;
+  --primary-strong: #dd590f;
+  --primary-soft: #fff2e8;
+  --accent: #c94e0a;
 
-  --bg: #f5f7fb;
-  --bg-grad-1: #eef2fb;
+  --bg: #f6f7f9;
+  --bg-grad-1: #fdf1e8;
   --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --border: #e6e9f0;
-  --border-strong: #d4d9e3;
+  --surface-2: #f6f7f9;
+  --border: #ecedf1;
+  --border-strong: #dde0e6;
 
-  --text: #0f172a;
-  --muted: #64748b;
-  --heading: #111a2e;
+  --text: #1b1f27;
+  --muted: #7a828f;
+  --heading: #12151b;
 
   --success: #12813f;
   --success-bg: #e7f7ec;
@@ -31,20 +31,20 @@
 
   --radius: 12px;
   --radius-sm: 8px;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .06), 0 1px 3px rgba(15, 23, 42, .04);
-  --shadow-md: 0 4px 14px rgba(15, 23, 42, .08);
-  --shadow-lg: 0 12px 34px rgba(15, 23, 42, .12);
-  --ring: 0 0 0 3px rgba(37, 99, 235, .18);
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, .05), 0 1px 3px rgba(17, 24, 39, .04);
+  --shadow-md: 0 4px 14px rgba(17, 24, 39, .07);
+  --shadow-lg: 0 12px 34px rgba(17, 24, 39, .10);
+  --ring: 0 0 0 3px rgba(242, 106, 33, .18);
 }
 
 /* Palette sombre — réutilisée par la préférence OS (sauf si l'utilisateur a
    forcé "light") ET par le bouton de bascule (data-theme="dark"). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --primary: #6b93ff;
-    --primary-strong: #7ea2ff;
-    --primary-soft: #16203a;
-    --accent: #9bb6ff;
+    --primary: #ff9152;
+    --primary-strong: #ffa871;
+    --primary-soft: #34210f;
+    --accent: #ffb787;
     --bg: #0b1020;
     --bg-grad-1: #0e1530;
     --surface: #141b30;
@@ -61,14 +61,14 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
     --shadow-md: 0 6px 18px rgba(0, 0, 0, .45);
     --shadow-lg: 0 16px 40px rgba(0, 0, 0, .55);
-    --ring: 0 0 0 3px rgba(107, 147, 255, .28);
+    --ring: 0 0 0 3px rgba(255, 145, 82, .28);
   }
 }
 :root[data-theme="dark"] {
-  --primary: #6b93ff;
-  --primary-strong: #7ea2ff;
-  --primary-soft: #16203a;
-  --accent: #9bb6ff;
+  --primary: #ff9152;
+  --primary-strong: #ffa871;
+  --primary-soft: #34210f;
+  --accent: #ffb787;
   --bg: #0b1020;
   --bg-grad-1: #0e1530;
   --surface: #141b30;
@@ -85,7 +85,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
   --shadow-md: 0 6px 18px rgba(0, 0, 0, .45);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, .55);
-  --ring: 0 0 0 3px rgba(107, 147, 255, .28);
+  --ring: 0 0 0 3px rgba(255, 145, 82, .28);
 }
 
 * { box-sizing: border-box; }
@@ -110,36 +110,59 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
    Coquille applicative : barre latérale sombre + zone principale
    (inspirée de la maquette UI.jpg). Compatible thème clair/sombre.
    ============================================================ */
-:root { --side-w: 244px; --side-bg: #1c2340; --side-bg-2: #232c50; --side-text: #b7c0dc; --side-active: #eef2ff; }
+/* Barre latérale claire par défaut (façon Talentfly) — variantes sombres
+   définies plus bas pour le thème sombre. */
+:root {
+  --side-w: 244px;
+  --side-bg: #ffffff; --side-bg-2: #f4f5f7;
+  --side-text: #5c6673; --side-heading: var(--heading);
+  --side-active-bg: var(--primary-soft); --side-active-tx: var(--primary);
+  --side-border: #ecedf1; --side-group: #9aa2af;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --side-bg: #141b30; --side-bg-2: #1f2740;
+    --side-text: #aab4cf; --side-heading: #f2f5fc;
+    --side-active-bg: #3a2412; --side-active-tx: #ff9152;
+    --side-border: #232c48; --side-group: rgba(170,180,207,.55);
+  }
+}
+:root[data-theme="dark"] {
+  --side-bg: #141b30; --side-bg-2: #1f2740;
+  --side-text: #aab4cf; --side-heading: #f2f5fc;
+  --side-active-bg: #3a2412; --side-active-tx: #ff9152;
+  --side-border: #232c48; --side-group: rgba(170,180,207,.55);
+}
 
 .app-shell { display: flex; min-height: 100vh; align-items: stretch; }
 
-/* ---- Barre latérale (toujours sombre) --------------------------------- */
+/* ---- Barre latérale --------------------------------------------------- */
 .sidebar {
   width: var(--side-w); flex-shrink: 0;
   background: var(--side-bg);
+  border-right: 1px solid var(--side-border);
   display: flex; flex-direction: column;
   position: sticky; top: 0; height: 100vh;
   padding: 18px 14px; gap: 6px;
 }
 .sidebar .brand {
   display: flex; align-items: center; gap: 11px;
-  padding: 6px 8px 14px; color: #fff; font-weight: 800; font-size: 17px; letter-spacing: -.2px;
+  padding: 6px 8px 14px; color: var(--side-heading); font-weight: 800; font-size: 17px; letter-spacing: -.2px;
 }
 .sidebar .brand-logo {
   width: 38px; height: 38px; flex-shrink: 0; border-radius: 11px;
   display: inline-flex; align-items: center; justify-content: center; font-size: 19px;
-  background: linear-gradient(180deg, #f6c445, #f0a92e);
-  box-shadow: 0 4px 12px rgba(240, 169, 46, .35);
+  background: linear-gradient(180deg, #ff8a3c, #f26a21);
+  box-shadow: 0 4px 12px rgba(242, 106, 33, .32);
 }
-.sidebar .brand-name { color: #fff; }
+.sidebar .brand-name { color: var(--side-heading); }
 
 .side-nav { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; flex: 1; }
 .side-nav::-webkit-scrollbar { width: 6px; }
-.side-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 6px; }
+.side-nav::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
 .side-group {
   font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
-  color: rgba(183, 192, 220, .55); padding: 14px 12px 5px;
+  color: var(--side-group); padding: 14px 12px 5px;
 }
 .side-link {
   display: flex; align-items: center; gap: 11px;
@@ -149,12 +172,11 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 }
 .side-link .ic { width: 20px; text-align: center; font-size: 15px; flex-shrink: 0; }
 .side-link .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.side-link:hover { background: var(--side-bg-2); color: #fff; }
+.side-link:hover { background: var(--side-bg-2); color: var(--side-heading); }
 .side-link.active {
-  background: var(--side-active); color: #1c2340; font-weight: 700;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, .18);
+  background: var(--side-active-bg); color: var(--side-active-tx); font-weight: 700;
 }
-.side-foot { padding: 12px 12px 4px; font-size: 11px; color: rgba(183, 192, 220, .5); }
+.side-foot { padding: 12px 12px 4px; font-size: 11px; color: var(--side-group); }
 
 /* ---- Zone principale --------------------------------------------------- */
 .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -199,20 +221,9 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .role-manager { background: #e2ecff; color: #1e5fbf; }
 .role-rh { background: var(--primary-soft); color: var(--primary); }
 :root[data-theme="dark"] .role-admin { background: #3a2c0e; color: #f0b34e; }
-.tu-logout {
-  margin-left: 4px; width: 34px; height: 34px; border-radius: 9px;
-  display: inline-flex; align-items: center; justify-content: center;
-  color: var(--muted); font-size: 16px; border: 1px solid var(--border);
-}
-.tu-logout:hover { color: var(--danger); background: var(--danger-bg); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
-
-.theme-toggle {
-  background: var(--surface-2); border: 1px solid var(--border); cursor: pointer;
-  font-size: 15px; line-height: 1; width: 38px; height: 38px; border-radius: 10px;
-  transition: background .12s, border-color .12s;
-}
-.theme-toggle:hover { background: var(--surface); border-color: var(--border-strong); }
-.theme-toggle:focus-visible { outline: none; box-shadow: var(--ring); }
+/* .tu-logout et .theme-toggle (bouton autonome du bandeau v1) ont été retirés
+   le jour où les deux coquilles ont adopté le même menu utilisateur :
+   déconnexion et bascule de thème y sont des .menu-item. */
 
 /* ---- Zone de contenu (remplace l'ancien .container) ------------------- */
 .content { max-width: 1440px; width: 100%; margin: 0 auto; padding: 26px 26px 60px; }
@@ -234,6 +245,117 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   .side-link { padding: 9px 11px; }
   .app-topbar { padding: 10px 16px; }
   .content { padding: 18px 16px 48px; }
+}
+
+/* ============================================================
+   Navigation supérieure par onglets (façon maquette Talentfly) :
+   bandeau logo + actions, puis barre d'onglets horizontale.
+   ============================================================ */
+.topnav-shell { display: flex; flex-direction: column; min-height: 100vh; }
+
+.topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 24px; height: 62px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 60;
+}
+.topbar .brand { display: flex; align-items: center; gap: 11px; font-weight: 800; font-size: 17px; color: var(--heading); letter-spacing: -.2px; }
+.topbar .brand-logo {
+  width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 18px;
+  background: linear-gradient(180deg, #ff8a3c, #f26a21);
+  box-shadow: 0 4px 12px rgba(242, 106, 33, .32);
+}
+.topbar .spacer { flex: 1; }
+.topbar .top-search { flex: 0 1 300px; }
+.topbar-cta { white-space: nowrap; }
+
+/* Le conteneur porte le fond, la bordure et le sticky ; c'est aussi le bloc de
+   référence des flèches (position: absolute). La .tabbar interne ne fait que
+   défiler : ses flèches ne peuvent donc pas être découpées par son overflow. */
+.tabbar-wrap {
+  position: sticky; top: 62px; z-index: 55;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.tabbar {
+  display: flex; align-items: stretch; gap: 2px;
+  padding: 0 16px; min-height: 46px;
+  overflow-x: auto;
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* anciens Edge/IE */
+}
+.tabbar::-webkit-scrollbar { height: 0; }
+
+/* Flèches de défilement : masquées par défaut (attribut hidden), révélées en JS
+   uniquement quand les onglets débordent, et seulement du côté où il reste à
+   défiler. Le dégradé fait fondre les onglets sous la flèche. */
+.tabscroll {
+  position: absolute; top: 0; bottom: 0; width: 46px; z-index: 2;
+  display: inline-flex; align-items: center;
+  border: 0; padding: 0; cursor: pointer;
+  font-size: 20px; line-height: 1; color: var(--muted);
+  transition: color .12s;
+}
+.tabscroll[hidden] { display: none; }   /* sinon display:inline-flex l'emporte */
+.tabscroll:hover { color: var(--heading); }
+.tabscroll:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 8px; }
+.tabscroll-prev {
+  left: 0; justify-content: flex-start; padding-left: 6px;
+  background: linear-gradient(90deg, var(--surface) 62%, transparent);
+}
+.tabscroll-next {
+  right: 0; justify-content: flex-end; padding-right: 6px;
+  background: linear-gradient(270deg, var(--surface) 62%, transparent);
+}
+.tabbar .tab {
+  display: inline-flex; align-items: center; padding: 0 14px;
+  font-size: 13.5px; font-weight: 600; color: var(--muted);
+  border-bottom: 2px solid transparent; white-space: nowrap;
+  transition: color .12s, border-color .12s;
+}
+.tabbar .tab:hover { color: var(--heading); }
+.tabbar .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+
+/* Menus déroulants (menu utilisateur) — pilotés en JS */
+.dropdown { position: relative; display: inline-flex; align-items: stretch; }
+.dropdown-toggle { border: 0; background: transparent; cursor: pointer; font: inherit; color: inherit; }
+.dropdown-toggle:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 8px; }
+
+.dropdown-menu {
+  display: none;
+  position: absolute; top: calc(100% + 6px); right: 0; min-width: 224px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--shadow-lg); padding: 6px; z-index: 90;
+}
+.dropdown.open .dropdown-menu { display: block; }
+.nav-menu .menu-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
+  font-size: 13.5px; font-weight: 600; color: var(--text);
+}
+.nav-menu button.menu-item { border: 0; background: transparent; width: 100%; text-align: left; font: inherit; cursor: pointer; }
+.nav-menu .menu-item .ic { width: 18px; text-align: center; flex-shrink: 0; }
+.nav-menu .menu-item:hover { background: var(--surface-2); }
+.nav-menu button.menu-item:focus-visible { outline: none; box-shadow: var(--ring); }
+.nav-menu .menu-item.active { color: var(--primary); background: var(--primary-soft); }
+.nav-menu .menu-sep { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); padding: 10px 10px 4px; }
+
+/* Bouton du menu utilisateur (dans la barre supérieure) */
+.user-menu .dropdown-toggle.top-user {
+  padding: 3px 6px 3px 3px; border-radius: 999px;
+  transition: background .12s;
+}
+.user-menu .dropdown-toggle.top-user:hover { background: var(--surface-2); }
+.user-menu .tu-caret { color: var(--muted); font-size: 11px; margin-left: 2px; }
+.user-menu .um-panel { min-width: 232px; }
+
+.topnav-shell .content { max-width: 1440px; width: 100%; margin: 0 auto; padding: 24px 24px 60px; }
+
+@media (max-width: 720px) {
+  .topbar { padding: 10px 14px; gap: 8px; }
+  .topbar .top-search { display: none; }
+  .topbar .brand-name { display: none; }
+  .topbar-cta { display: none; }
+  .topnav-shell .content { padding: 18px 14px 48px; }
 }
 
 .page-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -490,13 +612,11 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .users-toolbar .tb-filter:hover { background: var(--surface-2); }
 .users-toolbar .grow { flex: 1; }
 
-/* ---- Table utilisateurs (en-tête foncé, façon maquette) --------------- */
+/* ---- Table utilisateurs (en-tête clair, façon maquette Talentfly) ----- */
 .table.users thead th {
-  background: #1f2a44; color: #e9edf6; text-transform: none;
-  font-size: 12.5px; letter-spacing: .2px; border-bottom: 0;
+  background: var(--surface-2); color: var(--muted); text-transform: none;
+  font-size: 12.5px; letter-spacing: .2px; border-bottom: 1px solid var(--border);
 }
-:root[data-theme="dark"] .table.users thead th,
-.table.users thead th { background: #1f2a44; color: #e9edf6; }
 .table.users thead th:first-child { border-top-left-radius: var(--radius); }
 .table.users thead th:last-child { border-top-right-radius: var(--radius); }
 .table.users tbody tr:hover td { background: var(--primary-soft); }
@@ -591,16 +711,27 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
    ============================================================ */
 .hero {
   display: flex; align-items: center; gap: 20px; justify-content: space-between;
-  background: linear-gradient(120deg, #f6c445, #f0a92e);
+  background: linear-gradient(120deg, #fff4ea, #ffe6d2);
+  border: 1px solid #ffdcbf;
   border-radius: 18px; padding: 26px 30px; margin-bottom: 20px;
-  color: #3a2c05; box-shadow: 0 10px 26px rgba(240, 169, 46, .28);
+  color: #5b3a17; box-shadow: 0 10px 26px rgba(242, 106, 33, .12);
 }
-.hero-text h1 { margin: 0 0 6px; font-size: 25px; font-weight: 800; letter-spacing: -.4px; color: #3a2c05; }
-.hero-text p { margin: 0 0 16px; font-size: 14px; max-width: 560px; color: #5b4718; }
+.hero-text h1 { margin: 0 0 6px; font-size: 25px; font-weight: 800; letter-spacing: -.4px; color: #3a2408; }
+.hero-text p { margin: 0 0 16px; font-size: 14px; max-width: 560px; color: #6b4a24; }
 .hero-cta { display: flex; gap: 10px; flex-wrap: wrap; }
-.hero-cta .btn { background: #2b2140; color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(43, 33, 64, .28); }
-.hero-cta .btn:hover { filter: brightness(1.12); }
-.hero-cta .btn.ghost { background: rgba(255, 255, 255, .55); color: #3a2c05; }
+.hero-cta .btn {
+  background: linear-gradient(180deg, #ff8a3c, #f26a21); color: #fff; border-color: transparent;
+  box-shadow: 0 4px 12px rgba(242, 106, 33, .28);
+}
+.hero-cta .btn:hover { filter: brightness(1.06); }
+.hero-cta .btn.ghost { background: rgba(255, 255, 255, .7); color: #7a4a1c; box-shadow: none; }
+:root[data-theme="dark"] .hero {
+  background: linear-gradient(120deg, #2c1d10, #3a2513); border-color: #4a3016;
+  color: #f2ddc6; box-shadow: 0 10px 26px rgba(0, 0, 0, .4);
+}
+:root[data-theme="dark"] .hero-text h1 { color: #ffd9b8; }
+:root[data-theme="dark"] .hero-text p { color: #d9bea0; }
+:root[data-theme="dark"] .hero-cta .btn.ghost { background: rgba(255, 255, 255, .08); color: #f2ddc6; }
 
 .kpi-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 22px; }
 .kpi-card {
@@ -668,7 +799,7 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .col-check { width: 44px; text-align: center; }
 .col-check input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary); }
 .col-check input[type="checkbox"]:disabled { cursor: not-allowed; opacity: .4; }
-.table.users thead .col-check input { accent-color: #fff; }
+.table.users thead .col-check input { accent-color: var(--primary); }
 
 .bulk-bar {
   display: flex; align-items: center; gap: 12px;
@@ -699,6 +830,53 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   transition: background .12s, border-color .12s, color .12s;
 }
 .pager button:hover:not(:disabled):not(.active) { background: var(--surface-2); border-color: var(--border-strong); }
-.pager button.active { background: #1f2a44; color: #fff; border-color: #1f2a44; cursor: default; }
+.pager button.active { background: var(--primary); color: #fff; border-color: var(--primary); cursor: default; }
 .pager button:disabled { opacity: .4; cursor: not-allowed; }
 .pager .ellipsis { padding: 0 4px; color: var(--muted); align-self: flex-end; }
+
+/* ============================================================
+   Page candidats — liste « People list » + rail de filtres
+   (façon maquette Talentfly).
+   ============================================================ */
+.people-layout { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .people-layout { grid-template-columns: 1fr; } }
+
+.filter-rail {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; box-shadow: var(--shadow-sm); position: sticky; top: 122px;
+}
+.filter-rail .rail-title { font-size: 13px; font-weight: 800; color: var(--heading); margin-bottom: 12px; }
+.rail-form { display: flex; flex-direction: column; gap: 12px; }
+.rail-form label { display: flex; flex-direction: column; gap: 5px; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.rail-form input, .rail-form select {
+  padding: 8px 11px; border: 1px solid var(--border-strong); border-radius: 9px;
+  font-size: 13px; background: var(--surface); color: var(--text); font-weight: 500;
+  transition: border-color .12s, box-shadow .12s;
+}
+.rail-form input:focus, .rail-form select:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
+.rail-actions { display: flex; gap: 8px; margin-top: 4px; }
+.rail-actions .btn { flex: 1; justify-content: center; }
+@media (max-width: 900px) { .filter-rail { position: static; } }
+
+/* Liste de candidats — lignes aérées, avatar + identité + pill de poste */
+.table.people { box-shadow: var(--shadow-sm); }
+.table.people thead th { background: var(--surface); text-transform: none; font-size: 12px; letter-spacing: .2px; color: var(--muted); padding: 13px 16px; }
+.table.people td { padding: 12px 16px; vertical-align: middle; }
+.table.people tbody tr:hover td { background: var(--surface-2); }
+
+.person { display: flex; align-items: center; gap: 12px; }
+.person .avatar { width: 38px; height: 38px; font-size: 13px; }
+.person-meta { display: flex; flex-direction: column; min-width: 0; }
+.person-meta .p-name { font-weight: 700; color: var(--heading); font-size: 13.5px; }
+.person-meta .p-name:hover { color: var(--primary); }
+.person-meta .p-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+
+.poste-pill {
+  display: inline-block; padding: 4px 11px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; color: var(--primary); background: var(--primary-soft);
+  white-space: nowrap;
+}
+
+.ta-right { text-align: right; }
+.details-link { font-size: 12.5px; font-weight: 700; color: var(--primary); white-space: nowrap; }
+.details-link:hover { color: var(--primary-strong); }

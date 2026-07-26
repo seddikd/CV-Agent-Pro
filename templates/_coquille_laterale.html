@@ -1,0 +1,91 @@
+{# Coquille « lateral » : barre latérale groupée + bandeau d'actions. C'est la
+   vue historique (v1), conservée comme vue secondaire. Incluse par base.html,
+   qui a déjà posé `content_body`, `path` et `user`.
+
+   Tous les sélecteurs employés ici (.app-shell, .sidebar, .side-nav, .side-link,
+   .side-group, .side-foot, .app-main, .app-topbar, .user-menu…) existent déjà
+   dans static/style.css : les deux coquilles partagent la même feuille.
+
+   L'administration n'est PAS dans la barre latérale : elle vit dans le menu
+   utilisateur du bandeau, à l'identique de la coquille « onglets ». Les deux vues
+   exposent ainsi exactement les mêmes 13 modules en navigation principale et la
+   même administration au même endroit. Le déroulant est piloté par le JS commun
+   de base.html (aucun script propre à cette coquille) ; il n'est pas découpé car
+   .app-topbar n'a pas d'overflow, contrairement à la .tabbar. #}
+{% import "_nav_macros.html" as nav with context %}
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <a href="/dashboard" class="brand">
+      <span class="brand-logo">📨</span>
+      <span class="brand-name">CV&nbsp;Agent</span>
+    </a>
+
+    <nav class="side-nav" aria-label="Navigation principale">
+      <div class="side-group">Principal</div>
+      {{ nav.lien_lateral('/dashboard', '📊', 'Tableau de bord') }}
+      {{ nav.lien_lateral('/', '👤', 'Candidats') }}
+      {{ nav.lien_lateral('/recherche', '🔎', 'Recherche') }}
+      {{ nav.lien_lateral('/recherche-ia', '🤖', 'Recherche IA') }}
+
+      <div class="side-group">Recrutement</div>
+      {{ nav.lien_lateral('/offres', '💼', 'Offres') }}
+      {{ nav.lien_lateral('/entretiens', '📅', 'Entretiens') }}
+      {{ nav.lien_lateral('/pipeline', '📋', 'Pipeline') }}
+      {{ nav.lien_lateral('/matching', '🎯', 'Matching') }}
+      {{ nav.lien_lateral('/comparer', '⚖️', 'Comparer') }}
+      {{ nav.lien_lateral('/doublons', '🧬', 'Doublons') }}
+      {{ nav.lien_lateral('/alertes', '🔔', 'Alertes') }}
+      {{ nav.lien_lateral('/statistiques', '📈', 'Statistiques') }}
+      {{ nav.lien_lateral('/reporting', '📑', 'Reporting') }}
+    </nav>
+
+    <div class="side-foot">Version 2.0</div>
+  </aside>
+
+  <div class="app-main">
+    <header class="app-topbar">
+      <form method="get" action="/" class="top-search" role="search">
+        <input type="search" name="search" placeholder="Rechercher un candidat…"
+               aria-label="Rechercher un candidat">
+      </form>
+      <span class="spacer"></span>
+      <a href="/alertes" class="top-icon" title="Alertes" aria-label="Alertes">🔔</a>
+      <div class="dropdown user-menu">
+        <button type="button" class="dropdown-toggle top-user" aria-haspopup="true" aria-expanded="false">
+          <span class="tu-avatar">{{ (user.name or '?')[0]|upper }}</span>
+          <span class="tu-meta">
+            <span class="tu-name">{{ user.name }}</span>
+            <span class="role role-{{ user.role }}">{{ user.role }}</span>
+          </span>
+          <span class="tu-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="dropdown-menu nav-menu um-panel">
+          <div class="menu-sep">Administration</div>
+          {{ nav.entree_menu('/admin/runs', '🔄', 'Cycles') }}
+          {{ nav.entree_menu('/admin/import', '📥', 'Import Outlook') }}
+          {% if user.role == 'admin' %}
+          {{ nav.entree_menu('/admin/users', '👥', 'Utilisateurs') }}
+          {{ nav.entree_menu('/admin/emails-modeles', '✉️', 'Modèles d\'email') }}
+          {{ nav.entree_menu('/admin/rgpd', '🛡️', 'RGPD') }}
+          {{ nav.entree_menu('/admin/settings/mail', '✉️', 'Param. Mail') }}
+          {{ nav.entree_menu('/admin/settings/llm', '⚙️', 'Param. LLM') }}
+          {% endif %}
+          <div class="menu-sep">Apparence</div>
+          <button type="button" class="menu-item" id="theme-toggle">
+            <span class="ic" id="theme-ic" aria-hidden="true">🌗</span><span id="theme-label">Thème clair / sombre</span>
+          </button>
+          <a href="/preferences/vue?v=onglets&amp;suite={{ path|urlencode }}" class="menu-item">
+            <span class="ic" aria-hidden="true">▤</span>Vue par onglets
+          </a>
+          <div class="menu-sep">Compte</div>
+          <a href="/logout" class="menu-item"><span class="ic">⏻</span>Se déconnecter</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+    {{ content_body }}
+    </main>
+  </div>
+</div>
