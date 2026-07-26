@@ -4,6 +4,7 @@ Sans argument, génère TOUS les manuels ci-dessous. Avec un argument (nom de ba
 sans extension, ex. « MANUEL_DEPLOIEMENT »), ne génère que celui-là.
 """
 
+import os
 import shutil
 import subprocess
 import sys
@@ -16,10 +17,12 @@ import markdown
 
 HERE = Path(__file__).parent
 
-# (fichier .md, titre affiché dans le PDF). Le .pdf porte le même nom de base.
+# (fichier .md, titre affiché dans le PDF). Le .pdf porte le même nom de base et
+# reste à côté de sa source — un chemin relatif (« iso/… ») est donc accepté.
 MANUELS = [
     ("MANUEL_UTILISATION.md", "Manuel utilisateur — CV Agent"),
     ("MANUEL_DEPLOIEMENT.md", "Manuel de déploiement — CV Agent"),
+    ("iso/GUIDE_INSTALLATION.md", "Guide d'installation — CV Agent Pro"),
 ]
 
 EDGE_CANDIDATES = [
@@ -155,6 +158,35 @@ def _verifier_pdf(pdf_path: Path, md_name: str) -> None:
         )
 
 
+def _profil_edge(essai: int) -> Path:
+    """Chemin d'un profil Edge jetable — volontairement PAS créé à l'avance.
+
+    Surtout ne pas utiliser `tempfile.mkdtemp()` ici : sous Windows, CPython ≥ 3.12
+    crée le dossier avec une ACL restreinte au seul propriétaire. Les processus
+    enfants isolés de Chromium ne peuvent alors pas accéder au profil, et Edge rend
+    la main avec le code 0 **sans écrire le PDF** ni afficher la moindre erreur (un
+    sous-dossier hérite du problème ; seul l'emplacement du profil est en cause, pas
+    celui du HTML ni du PDF). En laissant Edge créer lui-même le dossier, celui-ci
+    hérite des ACL normales de %TEMP% et tout fonctionne.
+    """
+    profil = Path(tempfile.gettempdir()) / f"cvagent_pdf_profil_{os.getpid()}_{essai}"
+    _supprimer_profil(profil)  # reliquat d'un run interrompu
+    return profil
+
+
+def _supprimer_profil(profil: Path) -> None:
+    """Supprime un profil jetable, en laissant à Edge le temps de lâcher ses fichiers.
+
+    Un profil pèse ~75 fichiers ; sans ces quelques essais, un Edge encore en train de
+    se fermer fait échouer la suppression et les profils s'accumulent dans %TEMP%.
+    """
+    for _ in range(3):
+        shutil.rmtree(profil, ignore_errors=True)
+        if not profil.exists():
+            return
+        time.sleep(1)
+
+
 def build_one(edge_exe: str, md_name: str, title: str) -> None:
     md_path = HERE / md_name
     pdf_path = md_path.with_suffix(".pdf")
@@ -168,13 +200,15 @@ def build_one(edge_exe: str, md_name: str, title: str) -> None:
     )
     full_html = HTML_TEMPLATE.format(css=CSS, body=html_body, title=title)
 
-    # HTML temporaire écrit DANS le dossier projet : Edge headless échoue à charger
-    # les fichiers de %TEMP% (il rend alors sa page d'erreur « File not found » en
-    # PDF). Nom unique préfixé « . », supprimé dans le finally.
-    tmp_html_path = HERE / f".__pdf_{md_path.stem}.html"
+    # HTML temporaire dans %TEMP% : le document est autonome (CSS embarqué, aucune
+    # ressource externe), son emplacement n'a donc aucune importance — l'échec qu'on
+    # attribuait autrefois à %TEMP% venait en réalité du profil Edge (voir
+    # `_profil_edge`). Supprimé dans le finally.
+    tmp_html_path = (Path(tempfile.gettempdir())
+                     / f"cvagent_pdf_{os.getpid()}_{md_path.stem}.html")
     tmp_html_path.write_text(full_html, encoding="utf-8")
 
-    print(f"Génération PDF -> {pdf_path.name}")
+    print(f"Génération PDF -> {pdf_path.relative_to(HERE)}")
     pdf_path.unlink(missing_ok=True)  # repart d'un état propre (pas de vieux PDF)
 
     try:
@@ -186,7 +220,7 @@ def build_one(edge_exe: str, md_name: str, title: str) -> None:
         result = None
         ok = False
         for essai in range(1, 4):
-            profile_dir = Path(tempfile.mkdtemp(prefix="cvagent_pdf_"))
+            profile_dir = _profil_edge(essai)
             result = subprocess.run(
                 [
                     edge_exe,
@@ -203,7 +237,7 @@ def build_one(edge_exe: str, md_name: str, title: str) -> None:
                 timeout=90,
             )
             ok = _attendre_pdf_stable(pdf_path)
-            shutil.rmtree(profile_dir, ignore_errors=True)
+            _supprimer_profil(profile_dir)
             if ok:
                 break
             pdf_path.unlink(missing_ok=True)  # purge un éventuel partiel avant retry
@@ -214,14 +248,21 @@ def build_one(edge_exe: str, md_name: str, title: str) -> None:
         tmp_html_path.unlink(missing_ok=True)
 
     if not ok:
+        # Edge sort en 0 sans rien dire quand il n'a pas pu écrire : ces trois lignes
+        # sont donc souvent vides. Les causes déjà rencontrées sont rappelées ci-dessous.
         print("returncode:", result.returncode if result else "?")
         print("STDOUT:", result.stdout if result else "")
         print("STDERR:", result.stderr if result else "")
-        sys.exit(f"Échec de la génération PDF : {md_name}")
+        sys.exit(
+            f"Échec de la génération PDF : {md_name}\n"
+            "Pistes : une instance Edge bloquée (fermez-les toutes), un antivirus qui "
+            "verrouille le fichier de sortie, ou un dossier de profil aux droits "
+            "restreints (voir _profil_edge)."
+        )
 
     _verifier_pdf(pdf_path, md_name)
     size_kb = pdf_path.stat().st_size / 1024
-    print(f"OK ({size_kb:.0f} KB) : {pdf_path.name}")
+    print(f"OK ({size_kb:.0f} KB) : {pdf_path.relative_to(HERE)}")
 
 
 def main() -> None:

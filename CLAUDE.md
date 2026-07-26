@@ -31,11 +31,11 @@ pyinstaller cv-agent.spec --noconfirm     # or: .\build_exe.ps1
 
 # Build the installer (Inno Setup, installer.iss) and regenerate the manual PDF
 .\build_installer.ps1
-python build_pdf.py           # regenerate BOTH manual PDFs after editing the .md files
-python build_pdf.py MANUEL_DEPLOIEMENT    # …or just one (base name, no extension)
+python build_pdf.py           # regenerate ALL doc PDFs after editing the .md files
+python build_pdf.py GUIDE_INSTALLATION    # …or just one (base name, no extension)
 ```
 
-`build_pdf.py` renders via headless Edge and only knows the two root manuals listed in its `MANUELS` constant — `iso\GUIDE_INSTALLATION.pdf` is **not** in that list and is regenerated separately (same CSS/template, driven from a scratch dir).
+`build_pdf.py` renders via headless Edge; its `MANUELS` constant lists the three documents (both root manuals plus `iso/GUIDE_INSTALLATION.md` — a relative path is fine, the PDF lands next to its source). **Never give Edge a `--user-data-dir` created by `tempfile.mkdtemp()`**: on Windows, CPython ≥ 3.12 gives that directory an owner-only ACL, Chromium's sandboxed children can't reach it, and Edge exits 0 without writing the PDF and without any error message. Let Edge create the profile directory itself (see `_profil_edge`).
 
 **Refreshing the `iso\` install media** after a code change: rebuild (`pyinstaller cv-agent.spec --noconfirm`), compile the installer (`.\build_installer.ps1`), then copy `dist\CV-Agent\` → `iso\Application\CV-Agent\` and `dist\CV-Agent-Setup.exe` → `iso\Application\`. The offline prerequisites (`iso\Prerequis\postgresql-*.exe`, `OllamaSetup.exe`) and the manuals only change when they themselves are updated. Everything under `iso\Application\`, `iso\Manuels\` and `iso\Prerequis\*.exe` is gitignored — regenerate, don't commit.
 
