@@ -3,14 +3,21 @@
    Les noms de classes sont inchangés : compatible avec tous les templates.
    ============================================================ */
 
+/* Palette de marque Rayanox. Les rôles sont attribués d'après le contraste WCAG
+   mesuré sur le fond clair (#FBFDFD) :
+     #233873 10,91:1 · #295894 7,05:1 · #1E8DCC 3,59:1 · #5998C6 3,06:1 · #B2C9E2 1,67:1
+   --primary sert aux liens et à du petit texte : il lui faut ≥ 4,5:1, d'où #295894
+   et non le bleu vif #1E8DCC, réservé aux accents et aux dégradés du logo.
+   --primary-soft est un fond d'état actif portant du texte --primary : #B2C9E2 n'y
+   passait qu'à 4,23:1, d'où cette teinte dérivée plus claire (6,32:1). */
 :root {
-  --primary: #f26a21;
-  --primary-strong: #dd590f;
-  --primary-soft: #fff2e8;
-  --accent: #c94e0a;
+  --primary: #295894;
+  --primary-strong: #233873;
+  --primary-soft: #eaf1f9;
+  --accent: #1e8dcc;
 
   --bg: #f6f7f9;
-  --bg-grad-1: #fdf1e8;
+  --bg-grad-1: #eef4fb;
   --surface: #ffffff;
   --surface-2: #f6f7f9;
   --border: #ecedf1;
@@ -34,17 +41,20 @@
   --shadow-sm: 0 1px 2px rgba(17, 24, 39, .05), 0 1px 3px rgba(17, 24, 39, .04);
   --shadow-md: 0 4px 14px rgba(17, 24, 39, .07);
   --shadow-lg: 0 12px 34px rgba(17, 24, 39, .10);
-  --ring: 0 0 0 3px rgba(242, 106, 33, .18);
+  --ring: 0 0 0 3px rgba(41, 88, 148, .18);
 }
 
 /* Palette sombre — réutilisée par la préférence OS (sauf si l'utilisateur a
    forcé "light") ET par le bouton de bascule (data-theme="dark"). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --primary: #ff9152;
-    --primary-strong: #ffa871;
-    --primary-soft: #34210f;
-    --accent: #ffb787;
+    /* Sur fond sombre, les bleus foncés de la marque tombent à 1,5–2,4:1 : on
+       inverse donc l'échelle et on prend les deux teintes claires (5,48:1 et
+       10,04:1 sur --surface). --primary-soft est une teinte dérivée sombre. */
+    --primary: #5998c6;
+    --primary-strong: #b2c9e2;
+    --primary-soft: #16243d;
+    --accent: #b2c9e2;
     --bg: #0b1020;
     --bg-grad-1: #0e1530;
     --surface: #141b30;
@@ -61,14 +71,15 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
     --shadow-md: 0 6px 18px rgba(0, 0, 0, .45);
     --shadow-lg: 0 16px 40px rgba(0, 0, 0, .55);
-    --ring: 0 0 0 3px rgba(255, 145, 82, .28);
+    --ring: 0 0 0 3px rgba(89, 152, 198, .28);
   }
 }
 :root[data-theme="dark"] {
-  --primary: #ff9152;
-  --primary-strong: #ffa871;
-  --primary-soft: #34210f;
-  --accent: #ffb787;
+  /* Même échelle inversée que dans la requête média ci-dessus. */
+  --primary: #5998c6;
+  --primary-strong: #b2c9e2;
+  --primary-soft: #16243d;
+  --accent: #b2c9e2;
   --bg: #0b1020;
   --bg-grad-1: #0e1530;
   --surface: #141b30;
@@ -85,7 +96,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
   --shadow-md: 0 6px 18px rgba(0, 0, 0, .45);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, .55);
-  --ring: 0 0 0 3px rgba(255, 145, 82, .28);
+  --ring: 0 0 0 3px rgba(89, 152, 198, .28);
 }
 
 * { box-sizing: border-box; }
@@ -123,14 +134,14 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   :root:not([data-theme="light"]) {
     --side-bg: #141b30; --side-bg-2: #1f2740;
     --side-text: #aab4cf; --side-heading: #f2f5fc;
-    --side-active-bg: #3a2412; --side-active-tx: #ff9152;
+    --side-active-bg: #16243d; --side-active-tx: #5998c6;   /* 4,97:1 */
     --side-border: #232c48; --side-group: rgba(170,180,207,.55);
   }
 }
 :root[data-theme="dark"] {
   --side-bg: #141b30; --side-bg-2: #1f2740;
   --side-text: #aab4cf; --side-heading: #f2f5fc;
-  --side-active-bg: #3a2412; --side-active-tx: #ff9152;
+  --side-active-bg: #16243d; --side-active-tx: #5998c6;   /* 4,97:1 */
   --side-border: #232c48; --side-group: rgba(170,180,207,.55);
 }
 
@@ -152,8 +163,9 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .sidebar .brand-logo {
   width: 38px; height: 38px; flex-shrink: 0; border-radius: 11px;
   display: inline-flex; align-items: center; justify-content: center; font-size: 19px;
-  background: linear-gradient(180deg, #ff8a3c, #f26a21);
-  box-shadow: 0 4px 12px rgba(242, 106, 33, .32);
+  /* Dégradé de la flamme du logo : bleu vif → bleu secondaire. */
+  background: linear-gradient(180deg, #1e8dcc, #295894);
+  box-shadow: 0 4px 12px rgba(41, 88, 148, .32);
 }
 .sidebar .brand-name { color: var(--side-heading); }
 
@@ -263,8 +275,9 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .topbar .brand-logo {
   width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px;
   display: inline-flex; align-items: center; justify-content: center; font-size: 18px;
-  background: linear-gradient(180deg, #ff8a3c, #f26a21);
-  box-shadow: 0 4px 12px rgba(242, 106, 33, .32);
+  /* Dégradé de la flamme du logo : bleu vif → bleu secondaire. */
+  background: linear-gradient(180deg, #1e8dcc, #295894);
+  box-shadow: 0 4px 12px rgba(41, 88, 148, .32);
 }
 .topbar .spacer { flex: 1; }
 .topbar .top-search { flex: 0 1 300px; }
@@ -709,29 +722,31 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
    Tableau de bord — bannière d'accueil + cartes statistiques pastel
    (inspiré de la maquette UI.jpg)
    ============================================================ */
+/* Bannière d'accueil : teintes dérivées de la palette Rayanox. Les textes visent
+   ≥ 4,5:1 sur le dégradé le plus clair (#233873 sur #eef5fc ≈ 10:1). */
 .hero {
   display: flex; align-items: center; gap: 20px; justify-content: space-between;
-  background: linear-gradient(120deg, #fff4ea, #ffe6d2);
-  border: 1px solid #ffdcbf;
+  background: linear-gradient(120deg, #f2f7fc, #dfeaf6);
+  border: 1px solid #cddef0;
   border-radius: 18px; padding: 26px 30px; margin-bottom: 20px;
-  color: #5b3a17; box-shadow: 0 10px 26px rgba(242, 106, 33, .12);
+  color: #295894; box-shadow: 0 10px 26px rgba(41, 88, 148, .12);
 }
-.hero-text h1 { margin: 0 0 6px; font-size: 25px; font-weight: 800; letter-spacing: -.4px; color: #3a2408; }
-.hero-text p { margin: 0 0 16px; font-size: 14px; max-width: 560px; color: #6b4a24; }
+.hero-text h1 { margin: 0 0 6px; font-size: 25px; font-weight: 800; letter-spacing: -.4px; color: #233873; }
+.hero-text p { margin: 0 0 16px; font-size: 14px; max-width: 560px; color: #295894; }
 .hero-cta { display: flex; gap: 10px; flex-wrap: wrap; }
 .hero-cta .btn {
-  background: linear-gradient(180deg, #ff8a3c, #f26a21); color: #fff; border-color: transparent;
-  box-shadow: 0 4px 12px rgba(242, 106, 33, .28);
+  background: linear-gradient(180deg, #1e8dcc, #295894); color: #fff; border-color: transparent;
+  box-shadow: 0 4px 12px rgba(41, 88, 148, .28);
 }
 .hero-cta .btn:hover { filter: brightness(1.06); }
-.hero-cta .btn.ghost { background: rgba(255, 255, 255, .7); color: #7a4a1c; box-shadow: none; }
+.hero-cta .btn.ghost { background: rgba(255, 255, 255, .7); color: #233873; box-shadow: none; }
 :root[data-theme="dark"] .hero {
-  background: linear-gradient(120deg, #2c1d10, #3a2513); border-color: #4a3016;
-  color: #f2ddc6; box-shadow: 0 10px 26px rgba(0, 0, 0, .4);
+  background: linear-gradient(120deg, #10203a, #16294a); border-color: #24395c;
+  color: #b2c9e2; box-shadow: 0 10px 26px rgba(0, 0, 0, .4);
 }
-:root[data-theme="dark"] .hero-text h1 { color: #ffd9b8; }
-:root[data-theme="dark"] .hero-text p { color: #d9bea0; }
-:root[data-theme="dark"] .hero-cta .btn.ghost { background: rgba(255, 255, 255, .08); color: #f2ddc6; }
+:root[data-theme="dark"] .hero-text h1 { color: #dbe7f4; }
+:root[data-theme="dark"] .hero-text p { color: #b2c9e2; }
+:root[data-theme="dark"] .hero-cta .btn.ghost { background: rgba(255, 255, 255, .08); color: #b2c9e2; }
 
 .kpi-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 22px; }
 .kpi-card {
