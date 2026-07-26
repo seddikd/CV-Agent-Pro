@@ -17,6 +17,8 @@ exécutable Windows (`.exe` : uvicorn sur la boucle locale + icône de la zone d
 
 ```
 [IMAP] → [PDF/DOCX → texte] → [LLM : est-ce un CV ?] → [LLM : extraction structurée] → [PostgreSQL]
+                                                                                              ↓
+                                                                   [rangement des mails traités (option)]
 ```
 
 **Modules ATS** (chacun dans son routeur `mod_*.py`) :
@@ -31,6 +33,7 @@ exécutable Windows (`.exe` : uvicorn sur la boucle locale + icône de la zone d
 - 📎 **Gestion documentaire** (pièces jointes par candidat)
 - ⚖️ **Comparaison** de 2 à 5 candidats côte à côte
 - 📥 **Export Excel** à la demande
+- 📁 **Rangement des mails traités** dans la boîte IMAP (automatique en fin de cycle ou à la demande)
 - 🌐 **API REST** (matching, stats)
 
 **Multi-utilisateur** : authentification email/mot de passe, rôles `admin` / `manager` / `rh` / `lecture`.
@@ -45,9 +48,19 @@ exécutable Windows (`.exe` : uvicorn sur la boucle locale + icône de la zone d
   via l'interface d'administration.
 - **Toute boîte IMAP** est supportée via le réglage `imap.security` (`SSL` / `STARTTLS` / `None`) —
   pas seulement Gmail.
+- **Rangement des mails traités** (optionnel, désactivé par défaut) : les mails **déjà analysés**
+  sont déplacés dans la boîte IMAP — les CV vers `imap.move_folder_cv` (défaut *Traités*), les
+  mails écartés vers `imap.move_folder_non_cv` (vide = laissés en place) ; les dossiers sont créés
+  au besoin. Deux déclencheurs : automatique en fin de cycle si `imap.move_processed` est activé,
+  ou bouton manuel (`POST /admin/settings/move-imap`). Le rapprochement se fait par **UID**, dans
+  le dossier même qui les a produits. Hors de ce cas, la relève reste **strictement en lecture
+  seule** (les mails ne sont même pas marqués « lus »).
 - **Import de fichiers Outlook `.pst` / `.ost`** (page *Import Outlook*) : traitement ponctuel
   d'une archive Outlook, en plus de l'IMAP. Lecture via `libpff` (pypff, multiplateforme) ou
-  Outlook/`pywin32` (Windows). Dépôt par upload ou chemin serveur (volume monté).
+  Outlook/`pywin32` (Windows). Dépôt par upload ou chemin serveur (volume monté). Cette page a son
+  **propre** rangement des traités, distinct de celui de l'IMAP : rapprochement par **Message-ID**
+  (seule clé qui survit au passage d'une copie de fichier à la boîte Outlook vivante) et Outlook
+  installé requis.
 - **Fournisseur LLM au choix** (pas de bascule automatique) : Ollama (local) ou point d'accès
   compatible OpenAI (OpenRouter / Gemini / …), selon le réglage `llm.provider`.
 - **Secrets chiffrés au repos** : `enc:v2:` (Fernet portable, clé dérivée de `CV_AGENT_SECRET`) ou,
@@ -62,7 +75,9 @@ Détails complets dans **[`CLAUDE.md`](CLAUDE.md)** (guide de contribution) et l
 ## Prérequis
 
 - **PostgreSQL** (fourni par Docker Compose, ou un serveur existant via `CV_AGENT_DB_URL`)
-- Docker (voie recommandée) **ou** Windows 10/11 + Python 3.11+ (déploiement natif)
+- Docker (voie recommandée) **ou** Windows 10/11 + Python 3.11+ (déploiement natif) **ou** le
+  **support d'installation hors ligne** `iso\` (PostgreSQL 17.10 et Ollama fournis dans
+  `iso\Prerequis\` : aucun accès Internet requis, repli winget seulement si le dossier est vide)
 - Une boîte mail dédiée aux candidatures sur **n'importe quel serveur IMAP** ; selon le
   fournisseur (Gmail, Outlook…), un **mot de passe d'application** peut être requis
 - Pour le LLM local : [Ollama](https://ollama.com) avec un modèle (ex. `qwen2.5:14b`)
@@ -148,12 +163,35 @@ pyinstaller cv-agent.spec --noconfirm     # onedir -> dist\CV-Agent\
 .\build_installer.ps1                      # installeur Inno Setup + régénère le manuel PDF
 ```
 
+### Support d'installation hors ligne (`iso\`)
+
+Le dossier `iso\` est un support prêt à copier sur clé USB : il installe l'application **et** ses
+prérequis sur un poste Windows 10/11 **sans connexion Internet**.
+
+```
+iso\
+├─ Installer.ps1                  Installateur tout-en-un (PostgreSQL, base, variables, app)
+├─ GUIDE_INSTALLATION.md / .pdf   Toutes les étapes, mode réseau, désinstallation, dépannage
+├─ LISEZ-MOI.txt                  Démarrage rapide
+├─ Application\
+│   ├─ CV-Agent\                  L'application (sortie de PyInstaller)
+│   └─ CV-Agent-Setup.exe         Installateur graphique de l'application seule (mise à jour)
+├─ Prerequis\                     postgresql-17.10-…exe, OllamaSetup.exe, Installer-PostgreSQL.ps1
+└─ Manuels\                       Manuel utilisateur + manuel de déploiement (PDF + Markdown)
+```
+
+**Après un changement de code**, rafraîchir le support : reconstruire (`pyinstaller`,
+`build_installer.ps1`), puis copier `dist\CV-Agent\` → `iso\Application\CV-Agent\` et
+`dist\CV-Agent-Setup.exe` → `iso\Application\`. Les binaires du support (`iso\Application\`,
+`iso\Manuels\`, `iso\Prerequis\*.exe`) sont **gitignorés** : ils se régénèrent, ils ne se
+committent pas. Détails d'installation côté poste client : [`iso\GUIDE_INSTALLATION.md`](iso/GUIDE_INSTALLATION.md).
+
 ---
 
 ## Configuration
 
-Tout se règle depuis **Administration → Paramètres** dans l'interface (boîte IMAP, fournisseur
-LLM, SMTP, notifications, planification…). `config.yaml` ne sert qu'au tout premier lancement et
+Tout se règle depuis **Administration → Paramètres** dans l'interface (boîte IMAP, rangement des
+mails traités, fournisseur LLM, SMTP, notifications, planification…). `config.yaml` ne sert qu'au tout premier lancement et
 ne doit **jamais** contenir de vrais identifiants (il est embarqué dans l'exe distribué).
 
 ### Variables d'environnement
@@ -228,7 +266,7 @@ webapp.py            Application FastAPI (routes cœur + montage des modules)
 web_core.py          Socle partagé des routeurs de modules ATS
 mod_*.py             Routeurs des modules ATS (dashboard, jobs, matching, alertes…)
 web_pipeline.py      Orchestration d'un cycle du pipeline
-mail_fetcher.py      Relève IMAP
+mail_fetcher.py      Relève IMAP + rangement des mails traités
 pdf_extractor.py     PDF/DOCX → texte
 llm_classifier.py    Détection « est-ce un CV ? »
 llm_extractor.py     Extraction structurée
@@ -236,12 +274,14 @@ llm_provider.py      Dispatch Ollama / cloud (compatible OpenAI)
 matching_core.py     Scoring déterministe offre ↔ candidat
 alerts_engine.py     Moteur d'alertes
 db.py                Adaptateur PostgreSQL (connect(), insert_returning_id)
-state_db.py          Schéma, connexion, idempotence (dédup IMAP, compteur d'ids)
+state_db.py          Schéma, connexion, idempotence (dédup IMAP, compteur d'ids, processed_uids)
 web_db.py            Utilisateurs / candidats / réglages / cycles
 secret_store.py      Chiffrement des secrets au repos (enc:v2 Fernet / enc:v1 DPAPI)
 app_paths.py         Résolution des chemins fichiers (compatible exe figé)
 desktop.py           Point d'entrée PyInstaller (systray + uvicorn loopback)
 init_postgres.py     Provisionne la base PostgreSQL (base + schéma + réglages)
+static/style.css     Thème clair/sombre — palette de marque Rayanox (jetons CSS)
+iso/                 Support d'installation hors ligne (installateur, prérequis, manuels)
 ```
 
 > Il n'y a **pas** de suite de tests automatisés : on valide en lançant un vrai cycle

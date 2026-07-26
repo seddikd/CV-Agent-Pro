@@ -44,9 +44,13 @@ def seed_from_yaml(yaml_path: Path) -> None:
     mapping = {
         "imap.host": imap.get("host"),
         "imap.port": imap.get("port"),
+        "imap.security": imap.get("security"),
         "imap.user": imap.get("user"),
         "imap.password": imap.get("password"),
         "imap.folder": imap.get("folder"),
+        "imap.move_processed": imap.get("move_processed"),
+        "imap.move_folder_cv": imap.get("move_folder_cv"),
+        "imap.move_folder_non_cv": imap.get("move_folder_non_cv"),
         "llm.provider": llm.get("provider"),
         "ollama.model": ollama.get("model"),
         "ollama.host": ollama.get("host"),
@@ -80,7 +84,10 @@ def seed_from_yaml(yaml_path: Path) -> None:
             continue
         if isinstance(v, str) and v.startswith("votre.email"):
             continue
-        items[k] = str(v)
+        # Un booléen YAML donne True/False en Python ; les réglages booléens sont
+        # comparés à la chaîne "true" (settings_to_config), d'où la minuscule —
+        # sans quoi `move_processed: true` serait stocké "True" et resterait inactif.
+        items[k] = str(v).lower() if isinstance(v, bool) else str(v)
 
     if items:
         web_db.set_settings(items)

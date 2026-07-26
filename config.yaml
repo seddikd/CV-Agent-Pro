@@ -6,6 +6,13 @@ imap:
   user: votre.email@gmail.com
   password: MOT_DE_PASSE_APPLICATION
   folder: INBOX
+  # Rangement des mails traités dans la boîte, en fin de chaque cycle.
+  # Seuls les mails DÉJÀ analysés sont déplacés ; les dossiers sont créés au besoin.
+  # Un bouton « Ranger les mails traités maintenant » (Administration → Paramètres
+  # Mail) fait la même chose à la demande, même si l'automatique est désactivé.
+  move_processed: false        # true = ranger automatiquement en fin de cycle
+  move_folder_cv: "Traités"    # dossier des mails ayant produit un candidat
+  move_folder_non_cv: ""       # dossier des mails écartés ; vide = laisser en place
 
 # Choix du moteur LLM selon la machine :
 #   provider: ollama     -> modèle local (PC performant, gratuit)

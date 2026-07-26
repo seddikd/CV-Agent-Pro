@@ -18,6 +18,7 @@ donnée ne sort du réseau, sauf si le fournisseur LLM cloud `openrouter` est ex
 4. [Installation des dépendances](#4-installation-des-dépendances)
 5. [Déploiement Docker (recommandé)](#5-déploiement-docker-recommandé)
 6. [Déploiement natif (serveur + PostgreSQL)](#6-déploiement-natif-serveur--postgresql)
+6bis. [Installation hors ligne depuis le support `iso\`](#6bis-installation-hors-ligne-depuis-le-support-iso)
 7. [Exposition réseau (port applicatif 6060)](#7-exposition-réseau-port-applicatif-6060)
 8. [Postes clients](#8-postes-clients)
 9. [Démarrage automatique au boot](#9-démarrage-automatique-au-boot)
@@ -68,7 +69,8 @@ Points clés :
   plusieurs instances qui relèvent la même boîte (voir [§15](#15-invariants-à-respecter)).
 - Le flux d'un cycle : `mail_fetcher (IMAP)` → `pdf_extractor (PDF/DOCX → texte)` →
   `llm_classifier (est-ce un CV ?)` → `llm_extractor (champs structurés)` →
-  insertion en base.
+  insertion en base → *(optionnel)* **rangement des mails traités** dans la boîte
+  si `imap.move_processed` est activé (voir [§16](#16-exploitation-courante)).
 
 ---
 
@@ -100,12 +102,13 @@ Deux façons d'obtenir cette base :
 
 | Élément | Détail |
 |---|---|
-| **PostgreSQL** | **Obligatoire** dans tous les cas. Fourni par l'image `postgres` en Docker, ou un serveur PostgreSQL **17** existant (natif). |
+| **PostgreSQL** | **Obligatoire** dans tous les cas. Fourni par l'image `postgres` en Docker, par un serveur PostgreSQL **17** existant (natif), ou **installé depuis le support** `iso\Prerequis\` (PostgreSQL 17.10, sans téléchargement — [§6bis](#6bis-installation-hors-ligne-depuis-le-support-iso)). |
 | OS | Windows 10 / 11 (déploiement natif) — ou **n'importe quel OS via Docker** ([§5](#5-déploiement-docker-recommandé)) |
-| Python | 3.11 ou supérieur (déploiement depuis les sources / venv ; inutile en Docker) |
-| LLM local | [Ollama](https://ollama.com) + un modèle (ex. `qwen2.5:14b`) — recommandé, gratuit, 100 % local |
+| Python | 3.11 ou supérieur (déploiement depuis les sources / venv ; inutile en Docker **et** avec le support `iso\`, qui distribue un exécutable autonome) |
+| LLM local | [Ollama](https://ollama.com) + un modèle (ex. `qwen2.5:14b`) — recommandé, gratuit, 100 % local. L'installeur d'Ollama est **fourni** sur le support (`iso\Prerequis\OllamaSetup.exe`) ; le **modèle**, lui, reste à télécharger (`ollama pull`). |
 | LLM cloud | *ou* une clé API OpenRouter (si la machine est trop modeste pour Ollama) |
 | Boîte mail | **Tout serveur IMAP** (Gmail, Outlook/Office 365, OVH, Zoho, serveur interne…). Certains fournisseurs exigent un **mot de passe d'application**. |
+| Internet | **Non requis** avec le support `iso\` (prérequis fournis) ; winget n'est utilisé qu'en **repli** si `iso\Prerequis\` est vide. Requis pour Docker (téléchargement des images) et pour les modèles Ollama. |
 | Réseau | LAN entre le serveur et les postes RH |
 
 ---
@@ -128,6 +131,11 @@ Ou via l'installateur fourni (crée le venv, installe, puis bootstrap interactif
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
+
+> Sur un poste Windows **vierge, sans les sources ni Python**, passez plutôt par le support
+> d'installation `iso\` ([§6bis](#6bis-installation-hors-ligne-depuis-le-support-iso)) : il pose
+> PostgreSQL, les variables d'environnement et l'application (exécutable autonome) en une
+> commande, sans connexion Internet.
 
 > `requirements.txt` inclut **`cryptography`** (chiffrement portable des secrets `enc:v2`)
 > et **`psycopg[binary]`** (pilote PostgreSQL). Si vous distribuez un `.exe` déjà construit,
@@ -239,6 +247,11 @@ La page **Import Outlook** permet de traiter une archive `.pst`/`.ost` en plus d
   disponible. Le choix se règle via `outlook.backend` (`auto` | `pypff` | `win32com`).
 - Un import se suit comme un cycle (page **Cycles**, source `import_outlook`) et respecte le
   même invariant « un seul traitement à la fois ».
+- Le bouton **« 📁 Ranger les traités »** de cette page exige **Outlook + `pywin32`** (COM) : il
+  est donc **grisé en Docker/Linux**, où seul `pypff` (lecture seule) est disponible. Le
+  rangement de la **boîte IMAP** est une fonction distincte (`mail_fetcher.move_processed_messages`,
+  rapprochement par **UID**) : elle n'a **aucune dépendance Windows/Outlook** et fonctionne en
+  conteneur — voir [§16](#16-exploitation-courante).
 
 ### 5.7 Exploitation Docker
 
@@ -346,13 +359,13 @@ Toujours dans le dossier du projet, **nouveau terminal** (pour hériter des vari
 
 1. crée la base cible si elle n'existe pas (via la base de maintenance `postgres`) ;
 2. crée le schéma complet (tables à clé `SERIAL`) ;
-3. sème les 30 réglages par défaut.
+3. sème les réglages par défaut (41 clés dans `web_db.DEFAULT_SETTINGS` à ce jour).
 
 Sortie attendue :
 
 ```
 Base « cvagent » créée.            (ou « déjà présente — conservée »)
-Schéma créé + 30 réglages par défaut dans « cvagent ».
+Schéma créé + 41 réglages par défaut dans « cvagent ».
 Prochaine étape : démarrer l'application et créer l'admin via /setup.
 ```
 
@@ -372,6 +385,77 @@ configurez **IMAP / LLM / SMTP** dans **Administration → Paramètres**.
 
 > **Alternative en ligne de commande** : avec `CV_AGENT_DB_URL` posée, `python
 > bootstrap.py` crée aussi l'admin directement dans PostgreSQL.
+
+---
+
+## 6bis. Installation hors ligne depuis le support `iso\`
+
+Le dossier **`iso\`** est un support prêt à graver ou à copier sur clé USB. Il installe
+l'application **et tous ses prérequis** sur un poste Windows 10/11 **sans connexion
+Internet** : les installeurs de PostgreSQL et d'Ollama sont fournis dans `Prerequis\`.
+C'est la voie à privilégier pour un poste client vierge (ni Python, ni sources, ni accès
+au réseau externe).
+
+### 6bis.1 Contenu du support
+
+```
+iso\
+├─ Installer.ps1                         Installateur tout-en-un (6 étapes)
+├─ LISEZ-MOI.txt                         Démarrage rapide
+├─ GUIDE_INSTALLATION.md / .pdf          Guide complet (étapes, réseau, dépannage)
+├─ Application\
+│   ├─ CV-Agent\                         L'application (CV-Agent.exe + dépendances)
+│   └─ CV-Agent-Setup.exe                Installateur graphique de l'application seule
+├─ Prerequis\
+│   ├─ postgresql-17.10-1-windows-x64.exe   PostgreSQL 17 (installation silencieuse)
+│   ├─ OllamaSetup.exe                      Moteur LLM local (optionnel)
+│   └─ Installer-PostgreSQL.ps1             Base seule (secours / serveur dédié)
+├─ Config\                               (réservé)
+└─ Manuels\                              Manuel utilisateur + manuel de déploiement
+```
+
+### 6bis.2 Installation complète (`Installer.ps1`)
+
+Clic droit sur `Installer.ps1` → **Exécuter avec PowerShell** (élévation administrateur), ou :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Installer.ps1
+powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -InstallOllama     # + LLM local
+powershell -ExecutionPolicy Bypass -File .\Installer.ps1 -InstallDir "D:\CVAgent"
+```
+
+Le script enchaîne six étapes : **PostgreSQL 17** (silencieux, depuis `Prerequis\` ; mot de
+passe superutilisateur généré et enregistré dans un fichier), **Ollama** si demandé, **rôle et
+base `cvagent`**, **variables machine** `CV_AGENT_DB_URL` et `CV_AGENT_SECRET`, **copie de
+l'application** (+ raccourcis Bureau et menu Démarrer), puis **démarrage** avec ouverture du
+navigateur sur la page de création de l'administrateur.
+
+> Si `Prerequis\` a été vidé (support allégé), les scripts se **rabattent sur winget**, qui
+> télécharge : la connexion Internet redevient alors nécessaire.
+
+### 6bis.3 Mise à jour d'un poste : `CV-Agent-Setup.exe`
+
+`Application\CV-Agent-Setup.exe` est un assistant Inno Setup (français, **sans droits
+administrateur**) qui installe **l'application seule** et propose la création du compte admin.
+Il **n'installe ni PostgreSQL ni les variables d'environnement** : réservez-le à la **mise à
+jour** d'un poste déjà installé, ou à un poste dont la base et les variables existent déjà
+(posées par `Installer.ps1` ou `Prerequis\Installer-PostgreSQL.ps1`).
+
+### 6bis.4 Rafraîchir le support après un changement de code
+
+```powershell
+pyinstaller cv-agent.spec --noconfirm        # -> dist\CV-Agent\
+.\build_installer.ps1                        # -> dist\CV-Agent-Setup.exe
+# puis remplacer sur le support :
+#   dist\CV-Agent\           -> iso\Application\CV-Agent\
+#   dist\CV-Agent-Setup.exe  -> iso\Application\
+python build_pdf.py                          # manuels PDF, à recopier dans iso\Manuels\
+```
+
+> Les binaires du support (`iso\Application\`, `iso\Manuels\`, `iso\Prerequis\*.exe`) sont
+> **exclus de git** : ils se régénèrent depuis les sources et ne doivent pas être committés.
+> Les scripts et le guide (`Installer.ps1`, `GUIDE_INSTALLATION.md`, `LISEZ-MOI.txt`,
+> `Prerequis\*.ps1`), eux, sont versionnés.
 
 ---
 
@@ -504,6 +588,11 @@ powershell -ExecutionPolicy Bypass -File .\build_exe.ps1
 
 # Signature (optionnelle)
 powershell -ExecutionPolicy Bypass -File .\sign.ps1
+
+# Rafraîchir le support d'installation avec la nouvelle version
+#   dist\CV-Agent\           -> iso\Application\CV-Agent\
+#   dist\CV-Agent-Setup.exe  -> iso\Application\
+python build_pdf.py                 # régénère les 2 manuels PDF (à recopier dans iso\Manuels\)
 ```
 
 Points d'attention :
@@ -517,6 +606,10 @@ Points d'attention :
 - Le `.exe` figé écrit ses fichiers dans `%LOCALAPPDATA%\CV-Agent-Pro\` (logs,
   `cv_pdfs`, `session.secret`), jamais dans le dossier d'installation (lecture seule).
   La base, elle, est sur PostgreSQL.
+- **Le support `iso\` ne se met pas à jour tout seul** : après un build, recopiez-y
+  `dist\CV-Agent\` et `dist\CV-Agent-Setup.exe` ([§6bis.4](#6bis-installation-hors-ligne-depuis-le-support-iso)),
+  sinon les postes installés depuis le support recevront l'ancienne version. Ces binaires
+  sont gitignorés : ils se régénèrent, ils ne se committent pas.
 
 ---
 
@@ -599,7 +692,12 @@ le volume `cvagent-data`.
   applicatifs (ou deux conteneurs) qui relèvent la **même** boîte : ils dédoublonneraient
   mal et se disputeraient l'écriture. En architecture serveur unique, ce risque n'existe
   pas. Si vous multipliez les instances (déconseillé), désactivez le planificateur sur
-  toutes sauf une (**Admin → Paramètres → planification désactivée**).
+  toutes sauf une (**Admin → Paramètres → planification désactivée**) — et n'activez le
+  **rangement automatique des mails traités** que sur cette même instance.
+- **Ne déplacer que des mails déjà analysés.** Le rangement (IMAP comme PST/OST) ne touche
+  que les messages présents dans la table `processed_emails`. Déplacer un mail jamais analysé
+  le ferait sortir du dossier relevé **sans laisser de trace** : il ne serait jamais traité.
+  Conservez cette restriction si vous touchez à `mail_fetcher.move_processed_messages()`.
 - **Requêtes SQL** (pour toute évolution du code) : placeholders `?`, token `{PK}`,
   `db.insert_returning_id(...)`, upserts `ON CONFLICT`.
 - **Chemins via `app_paths.data_path()`** pour tout fichier écrit.
@@ -617,6 +715,16 @@ le volume `cvagent-data`.
   `running` résiduelle est **nettoyée automatiquement au démarrage suivant**.
 - **Planification** : par défaut, relève automatique toutes les 60 min (réglable dans
   Paramètres). Le premier cycle démarre peu après le lancement du serveur.
+- **Rangement des mails traités** (optionnel, **désactivé par défaut**) : activez-le dans
+  **Administration → Paramètres Mail** (`imap.move_processed`, plus les dossiers cibles CV et
+  non-CV). Chaque cycle se termine alors en déplaçant, **par UID**, les mails déjà analysés —
+  les dossiers IMAP sont créés au besoin et le déplacement se fait par **lots de 200 UID**
+  (certains serveurs rejettent les commandes trop longues). C'est du *best effort* : un échec
+  produit un `Run N — rangement IMAP échoué : …` dans `logs\agent.log` **sans** faire échouer
+  le cycle, et la passe est sautée si le cycle a été annulé. Le succès se lit
+  `Run N — rangement IMAP : X CV rangé(s) dans « … »`. Un bouton **« Ranger les mails traités
+  maintenant »** (`POST /admin/settings/move-imap`) fait la même chose à la demande ; il est
+  **refusé pendant un cycle** et utilise les réglages **enregistrés**.
 
 ---
 
@@ -635,6 +743,9 @@ le volume `cvagent-data`.
 | L'exe ne trouve pas `cryptography` / `psycopg` | Exe construit **avant** l'ajout de la dépendance. Reconstruisez (`build_exe.ps1`). |
 | Variables d'environnement ignorées | `setx` n'affecte que les nouveaux processus : **rouvrez** le terminal (et redémarrez la tâche planifiée) après les avoir posées. |
 | L'IA ne répond pas | Ollama non démarré / modèle non téléchargé, ou clé OpenRouter absente/invalide. Voir `logs\agent.log`. |
+| *Rangement échoué : …* (journal ou bouton manuel) | Droits IMAP insuffisants pour créer/écrire un dossier, dossier cible supprimé entre-temps, ou coupure réseau. **Sans effet sur le cycle** : les mails restent en place et seront rangés au cycle suivant. Vérifiez les droits du compte et le nom des dossiers. |
+| *Un traitement est en cours — réessayez après sa fin.* au clic sur **Ranger** | Un cycle relève la même boîte au même moment. Attendez sa fin (page **Cycles**) ou arrêtez-le, puis recliquez. |
+| Le dossier « Traités » est créé au mauvais niveau (à côté d'INBOX) | Certains serveurs imposent un **préfixe de namespace** : saisissez `INBOX.Traités` (ou `INBOX/Traités` selon le séparateur du serveur) dans le réglage du dossier. |
 | Test Ollama : « serveur injoignable » (`Connection refused` sur `:11434`) | Mauvaise `ollama.host`. En Docker : `http://host.docker.internal:11434` (Ollama sur l'hôte) ou `http://<IP_du_serveur>:11434` (autre machine). Vérifier aussi qu'Ollama écoute sur `0.0.0.0` (pas seulement `127.0.0.1`) et que le port 11434 est ouvert. Test : `curl http://<cible>:11434/api/tags`. |
 
 ---
@@ -684,21 +795,24 @@ docker compose down
 - [ ] `docker compose up -d`
 - [ ] Conteneur *healthy* ; admin créé via `http://<hôte>:6060/setup`
 - [ ] IMAP (serveur + **sécurité** + identifiants) / LLM / SMTP configurés dans Administration → Paramètres
+- [ ] Rangement des mails traités décidé (activé ou non + dossiers CV / non-CV)
 - [ ] `ollama.host` = `http://host.docker.internal:11434` (ou clé OpenRouter valide)
 - [ ] Port **6060** accessible depuis les postes clients
 - [ ] Sauvegarde planifiée (`pg_dump` + volume `cvagent-data`)
 
 ### 18.4 Checklist — déploiement natif (PostgreSQL)
 
-- [ ] PostgreSQL 17 installé et démarré (serveur local ou dédié)
+- [ ] PostgreSQL 17 installé et démarré (serveur local ou dédié — ou posé automatiquement
+      depuis `iso\Prerequis\`, version 17.10, voir [§6bis](#6bis-installation-hors-ligne-depuis-le-support-iso))
 - [ ] Rôle `cvagent` créé (LOGIN + CREATEDB), propriétaire de la base
 - [ ] `CV_AGENT_SECRET` généré et posé (`setx /M`)
 - [ ] `CV_AGENT_DB_URL` posée avec mot de passe **percent-encodé** (`setx /M`)
 - [ ] Terminal rouvert (héritage des variables)
-- [ ] `init_postgres.py` exécuté sans erreur (schéma + 30 réglages)
+- [ ] `init_postgres.py` exécuté sans erreur (schéma + réglages par défaut semés)
 - [ ] Règle pare-feu **6060** ouverte au LAN (5432 **non** exposé)
 - [ ] Application démarrée (`run_web.bat` ou tâche planifiée)
 - [ ] Admin créé via `/setup` ; IMAP (avec **sécurité**) / LLM / SMTP configurés
+- [ ] Rangement des mails traités décidé (activé ou non + dossiers CV / non-CV)
 - [ ] Ollama opérationnel (ou clé OpenRouter valide)
 - [ ] Un poste client accède bien à `http://IP_SERVEUR:6060`
 - [ ] Sauvegarde PostgreSQL planifiée (`pg_dump`)

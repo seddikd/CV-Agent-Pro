@@ -470,6 +470,17 @@ ne cochez jamais cette case.**
 > L'administrateur dispose aussi, sur la page Cycles, d'un bouton **🗑 Vider historique +
 > candidats** — action **irréversible** réservée à la maintenance.
 
+### Rangement des mails en fin de cycle
+
+Si l'option **Ranger automatiquement les mails traités** est activée (§19), chaque cycle se
+termine par une passe de rangement : les mails analysés quittent la boîte de réception pour
+les dossiers configurés. Deux garde-fous :
+
+- un rangement qui échoue (dossier supprimé, coupure réseau, droits insuffisants) **ne fait
+  jamais échouer le cycle** — les mails restent simplement en place et seront rangés au cycle
+  suivant ou via le bouton manuel ;
+- si vous **arrêtez** le cycle avec **■ Arrêter le cycle**, la passe de rangement est **sautée**.
+
 ---
 
 ## 17bis. Import de fichiers Outlook (PST / OST)
@@ -498,7 +509,11 @@ vous pouvez d'ailleurs l'**arrêter** depuis cette page.
 > (chiffrés / liés au profil) peuvent échouer : convertissez-les alors en PST depuis
 > Outlook avant l'import.
 
-### Ranger les mails traités *(manager/admin)*
+### Ranger les mails traités — import PST/OST *(manager/admin)*
+
+> 📬 Pour la **boîte IMAP**, le rangement équivalent se règle dans **§19 — Paramètres Mail**
+> (automatique en fin de cycle ou bouton manuel) et ne nécessite **pas** Outlook. La section
+> ci-dessous ne concerne que les fichiers `.pst` / `.ost`.
 
 Après un import, le bouton **📁 Ranger les traités** (sur chaque ligne de fichier)
 déplace **tous les mails porteurs d'un CV** (PDF/DOCX) vers un dossier dédié — par
@@ -516,7 +531,9 @@ Le comportement dépend du type de fichier :
 Les dossiers système (**Éléments envoyés**, **Éléments supprimés**, **Brouillons**, **Boîte
 d'envoi**, **Courrier indésirable**) ne sont jamais touchés.
 
-> ⚠️ **Nécessite Microsoft Outlook installé** sur le serveur (composant `win32com`). Sans
+> ⚠️ **Nécessite Microsoft Outlook installé** sur le serveur (composant `win32com`) — cette
+> contrainte vaut **uniquement** pour le rangement des fichiers PST/OST, pas pour celui de la
+> boîte IMAP (§19), qui n'a besoin de rien d'autre que la connexion à votre messagerie. Sans
 > Outlook, le bouton est **grisé** : le lecteur `pypff` seul est en lecture seule et ne peut
 > pas déplacer de message. Pour un `.ost`, le déplacement modifie la vraie boîte : cette
 > action **n'est pas annulable en masse**, vérifiez le dossier de destination avant de valider.
@@ -572,6 +589,9 @@ immédiatement. Pour les mots de passe, **laisser vide conserve** la valeur actu
 | **Utilisateur (email)** | L'adresse de la boîte de candidatures. |
 | **Mot de passe** | Le mot de passe de la boîte. Certains fournisseurs (Gmail, Outlook) exigent un **mot de passe d'application** dédié, pas le mot de passe habituel du compte. |
 | **Dossier IMAP** | Dossier à relever (ex. `INBOX`). |
+| **Ranger automatiquement les mails traités en fin de cycle** | ✅ *Activé* / ⬜ *Désactivé* (**désactivé par défaut**). Activé, chaque synchronisation se termine en déplaçant les mails **déjà analysés** vers les deux dossiers ci-dessous. |
+| **Rangement : dossier des CV** | Dossier d'arrivée des mails ayant produit un candidat (défaut **Traités**). |
+| **Rangement : dossier des non-CV (vide = laisser en place)** | Dossier d'arrivée des mails analysés mais écartés (pas une candidature). **Laissé vide**, ces mails ne bougent pas. |
 | **Profondeur historique (jours)** | Ancienneté maximale des emails relevés. |
 | **Max emails / cycle** | Nombre maximal d'emails traités par synchronisation. |
 | **Intervalle planificateur (min)** | Fréquence des synchronisations automatiques. |
@@ -582,10 +602,33 @@ immédiatement. Pour les mots de passe, **laisser vide conserve** la valeur actu
 | **Utilisateur / Mot de passe SMTP** | Identifiants d'envoi. |
 | **Expéditeur (From)** | Adresse affichée comme expéditeur des notifications. |
 
-Deux boutons de test évitent les erreurs de saisie :
+Trois boutons complètent la page :
 
 - **📬 Tester la connexion à la boîte mail** : vérifie les identifiants IMAP.
 - **✉️ Tester SMTP** : envoie un email de test aux destinataires renseignés.
+- **📁 Ranger les mails traités maintenant** : lance le rangement **immédiatement**, sans
+  attendre le prochain cycle.
+
+### Le rangement des mails traités
+
+Il déplace, **dans votre boîte mail**, les messages que l'application a **déjà analysés** :
+les CV vers le dossier des CV, les mails écartés vers celui des non-CV s'il est renseigné.
+Les dossiers sont **créés automatiquement** s'ils n'existent pas.
+
+- **Rien n'est supprimé** : les mails changent seulement de dossier.
+- **Seuls les mails déjà analysés bougent.** Un message arrivé après la dernière
+  synchronisation reste dans la boîte de réception jusqu'à ce qu'il soit traité.
+- Un mail rangé n'est **pas** réanalysé ensuite : le suivi des emails traités est conservé
+  indépendamment de leur emplacement.
+
+Trois points à connaître pour le bouton manuel :
+
+1. Il utilise les réglages **enregistrés** — cliquez d'abord sur **💾 Enregistrer** si vous
+   venez de modifier les noms de dossiers.
+2. Il est **refusé pendant une synchronisation** (message *« Un traitement est en cours —
+   réessayez après sa fin. »*) : le cycle lit la même boîte au même moment.
+3. Il fonctionne **même si l'option automatique est désactivée** — pratique pour ranger de
+   temps en temps sans changer le comportement des cycles.
 
 > Les mots de passe et clés sont **chiffrés** dans la base ; ils ne s'affichent jamais en clair.
 
@@ -671,6 +714,18 @@ administrateur.
 **« Un cycle est déjà en cours ».**
 Une synchronisation tourne déjà : attendez qu'elle se termine (page **Cycles**), ou utilisez
 **■ Arrêter le cycle**.
+
+**Des mails ont disparu de la boîte de réception.**
+Si le **rangement des mails traités** est activé (§19), les messages analysés sont déplacés
+vers les dossiers de rangement (par défaut **Traités**). **Rien n'est supprimé** : ouvrez ces
+dossiers dans votre messagerie pour les retrouver. Les candidats déjà enregistrés ne sont pas
+affectés, et les mails rangés ne seront pas réanalysés.
+
+**J'ai cliqué sur « Ranger les mails traités » et rien n'a bougé.**
+Quatre causes possibles : les mails concernés **n'ont pas encore été analysés** (lancez d'abord
+une synchronisation) ; ils ont **déjà été rangés** lors d'un cycle précédent ; le **dossier des
+non-CV est vide** dans les réglages, donc les mails écartés restent volontairement en place ;
+ou vos modifications de réglages **n'ont pas été enregistrées** avant le clic.
 
 **Aucune alerte n'apparaît.**
 Vérifiez que des offres sont **Publiées** (§9), puis cliquez sur **🔄 Recalculer** dans la page
