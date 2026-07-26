@@ -178,6 +178,69 @@ def fetch_new_emails(
     return fetched
 
 
+def move_processed_messages(
+    host: str,
+    port: int,
+    user: str,
+    password: str,
+    folder: str,
+    processed: dict[str, int],
+    target_folder: str = "Traités",
+    non_cv_folder: str = "",
+    security: str = "SSL",
+) -> tuple[int, int, str]:
+    """Range les mails DÉJÀ traités du dossier IMAP dans des dossiers de la boîte.
+
+    `processed` : uid -> is_cv, issu de `state_db.processed_uids(folder)`. Seuls les
+    mails présents dans ce dict bougent — un mail jamais analysé (arrivé après le
+    dernier cycle, ou hors profondeur d'historique) n'est PAS touché. Les CV vont
+    dans `target_folder` ; les non-CV dans `non_cv_folder` si renseigné (sinon
+    laissés en place). Les dossiers cibles sont créés s'ils n'existent pas.
+
+    Le rapprochement par UID est sans ambiguïté ICI (même dossier que celui qui a
+    produit les UID), contrairement au rangement PST/OST qui doit passer par le
+    Message-ID. Après déplacement, l'UID disparaît du dossier relevé : la dédup par
+    `processed_emails` n'est pas affectée (le mail n'est simplement plus relevé).
+
+    Retourne (nb_cv_déplacés, nb_non_cv_déplacés, message de synthèse).
+    """
+    target_folder = (target_folder or "").strip()
+    non_cv_folder = (non_cv_folder or "").strip()
+    if not target_folder:
+        return 0, 0, "Aucun dossier de rangement configuré : rien à faire."
+    if not processed:
+        return 0, 0, "Aucun mail traité connu pour ce dossier : rien à ranger."
+
+    with _open_mailbox(host, port, security).login(
+        user, password, initial_folder=folder
+    ) as mailbox:
+        # Intersection boîte réelle ∩ table des traités : on ne déplace que ce qui
+        # est encore présent dans le dossier (le reste a déjà été rangé ou supprimé).
+        uids = mailbox.uids("ALL")
+        cv_uids = [u for u in uids if processed.get(u) == 1]
+        non_cv_uids = [u for u in uids if processed.get(u) == 0] if non_cv_folder else []
+        if not cv_uids and not non_cv_uids:
+            return 0, 0, "Aucun mail traité à ranger (déjà rangés ou plus dans le dossier)."
+
+        for dest in dict.fromkeys([target_folder] + ([non_cv_folder] if non_cv_uids else [])):
+            if not mailbox.folder.exists(dest):
+                mailbox.folder.create(dest)
+                log.info("Dossier IMAP créé : %s", dest)
+
+        # chunks=200 : borne la longueur de la commande UID MOVE/COPY (certains
+        # serveurs rejettent les lignes trop longues sur les grosses boîtes).
+        if cv_uids:
+            mailbox.move(cv_uids, target_folder, chunks=200)
+        if non_cv_uids:
+            mailbox.move(non_cv_uids, non_cv_folder, chunks=200)
+
+    detail = f"{len(cv_uids)} CV rangé(s) dans « {target_folder} »"
+    if non_cv_folder:
+        detail += f" et {len(non_cv_uids)} non-CV dans « {non_cv_folder} »"
+    log.info("Rangement IMAP (%s) : %s", folder, detail)
+    return len(cv_uids), len(non_cv_uids), detail + "."
+
+
 def save_attachment(att: Attachment, storage_dir: str, prefix: str) -> Path:
     """Enregistre la pièce jointe sur disque et renvoie son chemin complet."""
     storage = Path(storage_dir)

@@ -30,6 +30,13 @@ DEFAULT_SETTINGS = {
     "imap.user": "",
     "imap.password": "",
     "imap.folder": "INBOX",
+    # Rangement des mails traités dans la boîte IMAP (pendant du « Ranger les
+    # traités » de l'import PST/OST). `move_processed` : rangement automatique en
+    # fin de cycle. Les dossiers servent aussi au bouton manuel des Paramètres Mail.
+    "imap.move_processed": "false",
+    "imap.move_folder_cv": "Traités",
+    "imap.move_folder_non_cv": "",  # vide = laisser les non-CV en place
+
     "llm.provider": "ollama",  # "ollama" (local) ou "openrouter" (cloud)
     "ollama.model": "qwen2.5:14b",
     "ollama.host": "http://localhost:11434",
@@ -178,6 +185,11 @@ def settings_to_config(settings: dict[str, str]) -> dict:
             "user": settings.get("imap.user", ""),
             "password": settings.get("imap.password", ""),
             "folder": settings.get("imap.folder", DEFAULT_SETTINGS["imap.folder"]),
+            "move_processed": settings.get("imap.move_processed", "false") == "true",
+            "move_folder_cv": settings.get(
+                "imap.move_folder_cv", DEFAULT_SETTINGS["imap.move_folder_cv"]
+            ).strip() or "Traités",
+            "move_folder_non_cv": settings.get("imap.move_folder_non_cv", "").strip(),
         },
         "llm": {
             # Fournisseur choisi selon la machine : local vs cloud.

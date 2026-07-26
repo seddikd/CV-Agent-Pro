@@ -331,6 +331,21 @@ def processed_message_ids(folder: str) -> dict[str, int]:
     return {r["message_id"]: int(r["is_cv"]) for r in rows}
 
 
+def processed_uids(folder: str) -> dict[str, int]:
+    """UID des mails traités de `folder` -> is_cv (1 = CV, 0 = analysé, pas un CV).
+
+    Sert au rangement IMAP : contrairement au rangement PST/OST (rapprochement par
+    Message-ID entre deux contextes de lecture), on reste ICI dans le contexte qui a
+    produit les UID — le dossier IMAP lui-même. L'UID y est la clé la plus sûre :
+    toujours présent (le Message-ID, lui, peut manquer) et unique dans le dossier.
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT uid, is_cv FROM processed_emails WHERE folder = ?", (folder,)
+        ).fetchall()
+    return {r["uid"]: int(r["is_cv"]) for r in rows}
+
+
 def next_candidate_id() -> int:
     with connect() as conn:
         conn.execute(

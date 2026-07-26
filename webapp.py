@@ -829,6 +829,9 @@ MAIL_FIELDS = [
     ("imap.user", "Utilisateur (email)", "text"),
     ("imap.password", "Mot de passe (ou d'application selon le fournisseur)", "password"),
     ("imap.folder", "Dossier IMAP", "text"),
+    ("imap.move_processed", "Ranger automatiquement les mails traités en fin de cycle", "bool"),
+    ("imap.move_folder_cv", "Rangement : dossier des CV", "text"),
+    ("imap.move_folder_non_cv", "Rangement : dossier des non-CV (vide = laisser en place)", "text"),
     ("processing.fetch_since_days", "Profondeur historique (jours)", "number"),
     ("processing.max_emails_per_run", "Max emails / cycle", "number"),
     ("scheduler.interval_minutes", "Intervalle planificateur (min)", "number"),
@@ -992,6 +995,35 @@ def admin_test_imap(
         p = 993
     ok, message = mail_fetcher.check_connection(h, p, u, pw, f, security=sec)
     return _test_result_html(ok, message)
+
+
+@app.post("/admin/settings/move-imap", response_class=HTMLResponse)
+def admin_move_imap(request: Request):
+    """Range MAINTENANT les mails traités de la boîte IMAP (bouton manuel).
+
+    Pendant IMAP du « Ranger les traités » de l'import PST/OST, mais par UID (voir
+    `mail_fetcher.move_processed_messages`). Utilise les réglages ENREGISTRÉS
+    (connexion + dossiers de rangement) : enregistrer avant de cliquer. Refusé si
+    un cycle tourne : il lit le même dossier, déplacer sous ses pieds fausserait
+    la relève en cours.
+    """
+    web_auth.require_admin(request)
+    if web_db.running_run_exists():
+        return _test_result_html(False, "Un traitement est en cours — réessayez après sa fin.")
+    cfg = web_db.settings_to_config(web_db.get_all_settings())["imap"]
+    if not cfg["user"] or not cfg["password"]:
+        return _test_result_html(False, "Identifiants IMAP non configurés.")
+    try:
+        _cv, _non_cv, message = mail_fetcher.move_processed_messages(
+            host=cfg["host"], port=cfg["port"], user=cfg["user"],
+            password=cfg["password"], folder=cfg["folder"], security=cfg["security"],
+            processed=state_db.processed_uids(cfg["folder"]),
+            target_folder=cfg["move_folder_cv"],
+            non_cv_folder=cfg["move_folder_non_cv"],
+        )
+        return _test_result_html(True, message)
+    except Exception as e:
+        return _test_result_html(False, f"Rangement échoué : {e}")
 
 
 @app.post("/admin/settings/test-smtp", response_class=HTMLResponse)

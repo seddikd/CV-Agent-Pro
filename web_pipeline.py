@@ -252,6 +252,26 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
         except Exception as e:
             log.warning("Notification alertes échouée : %s", e)
 
+        # Rangement automatique des mails traités (option imap.move_processed).
+        # Best effort : un échec (dossier supprimé, droits, coupure réseau) ne doit
+        # jamais faire échouer le cycle — les mails restent simplement en place et
+        # seront rangés au cycle suivant ou via le bouton manuel. Sauté si le cycle
+        # a été annulé : l'utilisateur veut que ça s'arrête, pas qu'on enchaîne une
+        # passe de rangement.
+        if cfg["imap"]["move_processed"] and not cancelled:
+            try:
+                _cv, _non_cv, msg_move = mail_fetcher.move_processed_messages(
+                    host=cfg["imap"]["host"], port=cfg["imap"]["port"],
+                    user=cfg["imap"]["user"], password=cfg["imap"]["password"],
+                    folder=cfg["imap"]["folder"], security=cfg["imap"]["security"],
+                    processed=state_db.processed_uids(cfg["imap"]["folder"]),
+                    target_folder=cfg["imap"]["move_folder_cv"],
+                    non_cv_folder=cfg["imap"]["move_folder_non_cv"],
+                )
+                log.info("Run %d — rangement IMAP : %s", run_id, msg_move)
+            except Exception as e:
+                log.warning("Run %d — rangement IMAP échoué : %s", run_id, e)
+
         web_db.update_run(
             run_id, status="cancelled" if cancelled else "success",
             cvs_detected=cvs, finished=True,

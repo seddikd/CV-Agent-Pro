@@ -88,6 +88,12 @@
       </div>
       <small class="muted">Modèles cloud (OpenRouter agrège OpenAI, Google, Anthropic, Mistral…). Liste éditable — saisissez n'importe quel identifiant.
         <a href="https://openrouter.ai/models" target="_blank" rel="noopener">Catalogue complet ↗</a></small>
+      {% elif kind == 'bool' %}
+      {% set bval = values.get(key, 'false') %}
+      <select name="{{ key }}">
+        <option value="true" {% if bval == 'true' %}selected{% endif %}>✅ Activé</option>
+        <option value="false" {% if bval != 'true' %}selected{% endif %}>⬜ Désactivé</option>
+      </select>
       {% elif kind == 'password' %}
       <input type="password" name="{{ key }}" placeholder="(inchangé si vide)">
       {% else %}
@@ -105,6 +111,20 @@
         📬 Tester la connexion à la boîte mail
       </button>
       <span id="imap-test-result" style="margin-left:.6rem"></span>
+    </div>
+    <div style="margin-top:.4rem">
+      <button type="button" class="btn"
+              hx-post="/admin/settings/move-imap"
+              hx-confirm="Ranger maintenant les mails déjà traités de la boîte IMAP ?&#10;&#10;Seuls les mails analysés par la solution sont déplacés (CV → dossier des CV ; non-CV → dossier des non-CV s'il est renseigné). L'opération utilise les réglages ENREGISTRÉS : enregistrez d'abord vos modifications."
+              hx-target="#imap-move-result" hx-swap="innerHTML">
+        📁 Ranger les mails traités maintenant
+      </button>
+      <span id="imap-move-result" style="margin-left:.6rem"></span>
+      <div class="small muted" style="margin-top:.25rem">
+        Déplace, dans la boîte IMAP, les mails déjà analysés vers les dossiers de
+        rangement ci-dessus (créés s'ils n'existent pas). Le rangement automatique
+        en fin de cycle fait la même chose s'il est activé.
+      </div>
     </div>
     <div style="margin-top:.4rem">
       <button type="button" class="btn"
