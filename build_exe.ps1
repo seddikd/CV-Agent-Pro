@@ -1,4 +1,4 @@
-# Compile l'application desktop CV Agent en exécutable Windows autonome.
+﻿# Compile l'application desktop CV Agent en exécutable Windows autonome.
 # Résultat : dist\CV-Agent\CV-Agent.exe (dossier autonome, rien à installer).
 #
 # USAGE : powershell -ExecutionPolicy Bypass -File .\build_exe.ps1

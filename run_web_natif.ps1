@@ -1,4 +1,4 @@
-# Lance CV Agent NATIVEMENT sous Windows, branché sur le PostgreSQL de Docker.
+﻿# Lance CV Agent NATIVEMENT sous Windows, branché sur le PostgreSQL de Docker.
 #
 # Pourquoi ce script ? Le rangement des mails traités (« Ranger les traités », onglet
 # Import Outlook) pilote Outlook via COM/win32com. Le conteneur applicatif tourne sous

@@ -1,4 +1,4 @@
-# Installateur CV Agent — crée l'environnement, installe les dépendances,
+﻿# Installateur CV Agent — crée l'environnement, installe les dépendances,
 # initialise la base et crée le compte administrateur. Idempotent (ré-exécutable).
 #
 # USAGE (double-clic sur install.bat) ou en PowerShell :

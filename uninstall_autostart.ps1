@@ -1,4 +1,4 @@
-# Remove the CV Agent Web Scheduled Task and the firewall rule.
+﻿# Remove the CV Agent Web Scheduled Task and the firewall rule.
 #
 # USAGE: Open PowerShell AS ADMINISTRATOR and run:
 #   powershell -ExecutionPolicy Bypass -File D:\clab-labs\cv-agent\uninstall_autostart.ps1

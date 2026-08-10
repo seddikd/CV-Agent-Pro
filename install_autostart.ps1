@@ -1,4 +1,4 @@
-# Install CV Agent Web as a Windows Scheduled Task that starts at boot.
+﻿# Install CV Agent Web as a Windows Scheduled Task that starts at boot.
 # Also opens the LAN firewall port 6060.
 #
 # USAGE: Open PowerShell AS ADMINISTRATOR and run:

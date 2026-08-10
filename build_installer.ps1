@@ -1,4 +1,4 @@
-# Compile l'installeur Windows CV-Agent-Setup.exe via Inno Setup.
+﻿# Compile l'installeur Windows CV-Agent-Setup.exe via Inno Setup.
 # Prérequis : dossier dist\CV-Agent produit par build_exe.ps1, et Inno Setup 6 installé.
 #
 # USAGE : powershell -ExecutionPolicy Bypass -File .\build_installer.ps1

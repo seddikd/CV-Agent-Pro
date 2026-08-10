@@ -1,4 +1,4 @@
-# Signe numériquement CV-Agent.exe et CV-Agent-Setup.exe avec un certificat .pfx.
+﻿# Signe numériquement CV-Agent.exe et CV-Agent-Setup.exe avec un certificat .pfx.
 #
 # USAGE :
 #   powershell -ExecutionPolicy Bypass -File .\sign.ps1 -Pfx "C:\chemin\cert.pfx" -Password "motdepasse"
