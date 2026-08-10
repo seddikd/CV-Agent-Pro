@@ -1,4 +1,4 @@
-#Requires -RunAsAdministrator
+﻿#Requires -RunAsAdministrator
 <#
     Installateur CV Agent Pro — Windows 10 / 11 (déploiement natif).
     Met en place TOUS les prérequis et l'application :
