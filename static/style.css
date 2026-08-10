@@ -119,7 +119,7 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 
 /* ============================================================
    Coquille applicative : barre latérale sombre + zone principale
-   (inspirée de la maquette UI.jpg). Compatible thème clair/sombre.
+   (d'après la maquette d'origine). Compatible thème clair/sombre.
    ============================================================ */
 /* Barre latérale claire par défaut (façon Talentfly) — variantes sombres
    définies plus bas pour le thème sombre. */
@@ -720,7 +720,7 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 
 /* ============================================================
    Tableau de bord — bannière d'accueil + cartes statistiques pastel
-   (inspiré de la maquette UI.jpg)
+   (d'après la maquette d'origine)
    ============================================================ */
 /* Bannière d'accueil : teintes dérivées de la palette Rayanox. Les textes visent
    ≥ 4,5:1 sur le dégradé le plus clair (#233873 sur #eef5fc ≈ 10:1). */
