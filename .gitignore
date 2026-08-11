@@ -8,6 +8,11 @@ state.db-*
 session.secret
 # Fichier d'environnement Docker (secrets : CV_AGENT_SECRET, POSTGRES_PASSWORD).
 .env
+# Copie de sauvegarde du .env faite avant une restauration.
+.env.avant-restauration
+# Archives produites par deploiement/*/sauvegarde.* : elles contiennent le dump
+# de la base ET le secret de chiffrement. Les versionner exposerait tout.
+sauvegardes/
 # CV et pièces jointes reçus (données personnelles candidats).
 cv_pdfs/
 # Journaux d'exécution.

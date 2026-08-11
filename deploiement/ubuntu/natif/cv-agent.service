@@ -1,0 +1,57 @@
+[Unit]
+Description=CV Agent Pro — tableau de bord RH (FastAPI/uvicorn)
+Documentation=file:/opt/cv-agent/deploiement/ubuntu/README.md
+# La base est locale dans ce mode : on attend PostgreSQL, sinon le premier
+# démarrage échoue sur une connexion refusée avant que la temporisation de
+# Restart= ne rattrape le coup.
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=cvagent
+Group=cvagent
+WorkingDirectory=/opt/cv-agent
+
+# CV_AGENT_DB_URL, CV_AGENT_SECRET et CV_AGENT_DATA_DIR vivent ici (chmod 600) :
+# jamais dans la ligne de commande, qui serait lisible par tout le système via
+# /proc et « ps aux ».
+EnvironmentFile=/etc/cv-agent/cv-agent.env
+
+# UN SEUL worker : invariant du projet. APScheduler et le compteur candidate_counter
+# supposent un unique processus par instance ; passer à --workers 2 déclencherait des
+# cycles de collecte en double et des identifiants idNNNN en collision.
+ExecStart=/opt/cv-agent/.venv/bin/python -m uvicorn webapp:app \
+    --host 0.0.0.0 --port 6060 --workers 1 --log-level info
+
+Restart=always
+RestartSec=5s
+KillSignal=SIGINT
+TimeoutStopSec=30s
+
+# ---- Durcissement ----------------------------------------------------------
+# L'application n'écrit que dans son DATA_DIR (cv_pdfs, logs) : tout le reste du
+# système peut rester en lecture seule.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cv-agent
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+# IMAP/SMTP sortants + LLM : IPv4/IPv6 et sockets Unix (PostgreSQL local) suffisent.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# Journalisation : « journalctl -u cv-agent -f ». Les logs applicatifs détaillés
+# restent dans $CV_AGENT_DATA_DIR/logs/agent.log.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cv-agent
+
+[Install]
+WantedBy=multi-user.target
