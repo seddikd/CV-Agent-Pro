@@ -369,7 +369,7 @@ def insert_candidate(
 ) -> None:
     now = _now()
     with connect() as conn:
-        # Upsert portable (SQLite/PostgreSQL) : en cas de ré-insertion d'un même
+        # Upsert PostgreSQL : en cas de ré-insertion d'un même
         # id, on rafraîchit les champs extraits mais on PRÉSERVE le suivi RH
         # (statut, commentaires) et created_at — ceux-ci ne figurent pas dans le
         # DO UPDATE, ils gardent donc leur valeur d'origine.
@@ -534,6 +534,7 @@ def get_candidate(candidate_id: int) -> dict | None:
 def update_candidate_status(
     candidate_id: int, statut: str | None = None,
     commentaires: str | None = None,
+    motif_refus: str | None = None,
 ) -> None:
     fields = []
     values: list[Any] = []
@@ -543,6 +544,9 @@ def update_candidate_status(
     if commentaires is not None:
         fields.append("commentaires = ?")
         values.append(commentaires)
+    if motif_refus is not None:
+        fields.append("motif_refus = ?")
+        values.append(motif_refus)
     if not fields:
         return
     fields.append("updated_at = ?")

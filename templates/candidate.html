@@ -4,47 +4,67 @@
 
 <a href="/" class="back">← Retour à la liste</a>
 
-<div class="cand-grid">
-  <div class="card">
-    <h2>{{ c.prenom or '' }} {{ c.nom or '' }}
-      <span class="badge status-{{ (c.statut or 'Nouveau')|replace(' ', '_') }}">{{ c.statut }}</span>
-    </h2>
-    <p class="muted">Candidature reçue le {{ c.received_at[:10] }} à {{ c.received_at[11:16] }}</p>
+<div class="candidate-layout">
+  <main class="candidate-main">
+    <header class="candidate-hero">
+      <div class="candidate-avatar" aria-hidden="true">
+        {{ (c.prenom or c.nom or '?')[:1]|upper }}{{ (c.nom or '')[:1]|upper }}
+      </div>
+      <div class="candidate-identity">
+        <div class="candidate-heading">
+          <h1>{{ c.prenom or '' }} {{ c.nom or '' }}</h1>
+          <span class="badge status-{{ (c.statut or 'Nouveau')|replace(' ', '_') }}">{{ c.statut or 'Nouveau' }}</span>
+        </div>
+        <p>{{ c.poste_recherche or 'Poste recherché non précisé' }}</p>
+        <span class="candidate-received">Reçue le {{ c.received_at[:10] }} à {{ c.received_at[11:16] }}</span>
+      </div>
+      <div class="candidate-quick-actions">
+        <a href="/candidate/{{ c.id }}/pdf" target="_blank" class="btn ghost">📄 Ouvrir le CV</a>
+        {% if can_write %}
+        <a href="/entretiens/nouveau?candidate_id={{ c.id }}" class="btn primary">📅 Planifier un entretien</a>
+        {% endif %}
+      </div>
+    </header>
 
-    {% if can_write %}
-    <p><a href="/entretiens/nouveau?candidate_id={{ c.id }}" class="btn primary">📅 Planifier un entretien</a></p>
+    {% if c.motif_refus %}
+    <div class="alert error"><strong>Motif de refus :</strong> {{ c.motif_refus }}</div>
     {% endif %}
 
-    <dl class="info">
-      <dt>Expéditeur</dt><dd>{{ c.expediteur or '—' }}</dd>
-      <dt>Email</dt><dd>{% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% else %}—{% endif %}</dd>
-      <dt>Téléphone</dt><dd>{{ c.telephone or '—' }}</dd>
-      <dt>Poste recherché</dt><dd>{{ c.poste_recherche or '—' }}</dd>
-      <dt>Spécialité</dt><dd>{{ c.specialite or '—' }}</dd>
-      <dt>Wilaya / Ville</dt><dd>{{ c.wilaya or '—' }}</dd>
-      <dt>Années d'expérience</dt><dd>{{ c.annees_experience if c.annees_experience is not none else '—' }}</dd>
-      <dt>Disponibilité</dt><dd>{{ c.disponibilite or '—' }}</dd>
-      <dt>Salaire souhaité</dt><dd>{{ c.salaire_souhaite or '—' }}</dd>
-      <dt>Niveau d'étude</dt><dd>{{ c.niveau_etude or '—' }}</dd>
-      <dt>Diplôme</dt><dd>{{ c.diplome_plus_eleve or '—' }}</dd>
-      <dt>Université</dt><dd>{{ c.universite or '—' }}</dd>
-      <dt>Compétences techniques</dt><dd>{{ c.competences or '—' }}</dd>
-      <dt>Logiciels</dt><dd>{{ c.logiciels or '—' }}</dd>
-      <dt>Soft skills</dt><dd>{{ c.soft_skills or '—' }}</dd>
-      <dt>Langues</dt><dd>{{ c.langues or '—' }}</dd>
-      <dt>Certifications</dt><dd>{{ c.certifications or '—' }}</dd>
-      <dt>Entreprises</dt><dd>{{ c.entreprises or '—' }}</dd>
-      <dt>Permis</dt><dd>{{ c.permis or '—' }}</dd>
-      <dt>Résumé</dt><dd>{{ c.resume or '—' }}</dd>
-      <dt>Fichier</dt>
-      <dd>
-        <a href="/candidate/{{ c.id }}/pdf" target="_blank">📄 {{ c.pdf_filename }}</a>
-      </dd>
-    </dl>
+    <section class="candidate-section">
+      <div class="candidate-section-head"><h2>Coordonnées et profil</h2><span>Informations extraites du CV</span></div>
+      <dl class="candidate-info-grid">
+        <div><dt>Email</dt><dd>{% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% else %}—{% endif %}</dd></div>
+        <div><dt>Téléphone</dt><dd>{% if c.telephone %}<a href="tel:{{ c.telephone }}">{{ c.telephone }}</a>{% else %}—{% endif %}</dd></div>
+        <div><dt>Spécialité</dt><dd>{{ c.specialite or '—' }}</dd></div>
+        <div><dt>Wilaya / Ville</dt><dd>{{ c.wilaya or '—' }}</dd></div>
+        <div><dt>Expérience</dt><dd>{{ c.annees_experience if c.annees_experience is not none else '—' }}{% if c.annees_experience is not none %} an(s){% endif %}</dd></div>
+        <div><dt>Disponibilité</dt><dd>{{ c.disponibilite or '—' }}</dd></div>
+        <div><dt>Niveau d'étude</dt><dd>{{ c.niveau_etude or c.diplome_plus_eleve or '—' }}</dd></div>
+        <div><dt>Université</dt><dd>{{ c.universite or '—' }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-section">
+      <div class="candidate-section-head"><h2>Compétences</h2></div>
+      <dl class="candidate-info-grid candidate-info-wide">
+        <div><dt>Compétences techniques</dt><dd>{{ c.competences or '—' }}</dd></div>
+        <div><dt>Logiciels</dt><dd>{{ c.logiciels or '—' }}</dd></div>
+        <div><dt>Soft skills</dt><dd>{{ c.soft_skills or '—' }}</dd></div>
+        <div><dt>Langues</dt><dd>{{ c.langues or '—' }}</dd></div>
+        <div><dt>Certifications</dt><dd>{{ c.certifications or '—' }}</dd></div>
+        <div><dt>Permis</dt><dd>{{ c.permis or '—' }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-section">
+      <div class="candidate-section-head"><h2>Résumé du profil</h2></div>
+      <p class="candidate-summary">{{ c.resume or 'Aucun résumé n’a pu être extrait du CV.' }}</p>
+    </section>
 
     {% if experiences %}
-    <h3 class="exp-title">Expériences professionnelles</h3>
-    <ul class="exp-list">
+    <section class="candidate-section">
+    <div class="candidate-section-head"><h2>Expériences professionnelles</h2></div>
+    <ul class="candidate-experiences">
       {% for e in experiences %}
       <li class="exp-item">
         <strong>{{ e.poste or '—' }}</strong>{% if e.entreprise %} — {{ e.entreprise }}{% endif %}
@@ -53,28 +73,24 @@
       </li>
       {% endfor %}
     </ul>
+    </section>
     {% endif %}
 
-    {% if can_write %}
-    <form method="post" action="/candidate/{{ c.id }}/update" class="edit-form">
-      <label>Statut
-        <select name="statut">
-          {% for s in statuts %}
-          <option value="{{ s }}" {% if c.statut == s %}selected{% endif %}>{{ s }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label>Commentaires RH
-        <textarea name="commentaires" rows="6" placeholder="Vos notes...">{{ c.commentaires or '' }}</textarea>
-      </label>
-      <button type="submit" class="btn primary">💾 Enregistrer</button>
-    </form>
-    {% else %}
-    <dl class="info">
-      <dt>Statut</dt><dd>{{ c.statut }}</dd>
-      <dt>Commentaires RH</dt><dd>{{ c.commentaires or '—' }}</dd>
-    </dl>
-    {% endif %}
+    <section class="candidate-section candidate-followup">
+      <div class="candidate-section-head"><h2>Suivi RH</h2><span>Informations internes</span></div>
+      {% if can_write %}
+      <form method="post" action="/candidate/{{ c.id }}/update" class="candidate-followup-form">
+        <label>Statut
+          <select name="statut">{% for s in statuts %}<option value="{{ s }}" {% if c.statut == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+        </label>
+        <label>Commentaires RH<textarea name="commentaires" rows="5" placeholder="Vos notes internes…">{{ c.commentaires or '' }}</textarea></label>
+        <label>Motif de refus<textarea name="motif_refus" rows="3" placeholder="À renseigner si le candidat est refusé.">{{ c.motif_refus or '' }}</textarea></label>
+        <button type="submit" class="btn primary">💾 Enregistrer le suivi</button>
+      </form>
+      {% else %}
+      <dl class="candidate-info-grid candidate-info-wide"><div><dt>Commentaires RH</dt><dd>{{ c.commentaires or '—' }}</dd></div></dl>
+      {% endif %}
+    </section>
 
     <!-- Module Résumé IA : fiche synthétique (chargée à la demande). -->
     <section id="resume-ia" hx-get="/candidate/{{ c.id }}/resume-ia"
@@ -97,7 +113,7 @@
              hx-trigger="load" hx-swap="innerHTML"></section>
 
     <!-- Module RGPD : export des données (portabilité) et suppression définitive. -->
-    <div class="rgpd-actions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <div class="rgpd-actions">
       <a href="/candidate/{{ c.id }}/rgpd/export" class="btn small">⬇️ Exporter (RGPD)</a>
       {% if user.role == 'admin' %}
       <form method="post" action="/candidate/{{ c.id }}/rgpd/supprimer"
@@ -106,11 +122,12 @@
       </form>
       {% endif %}
     </div>
-  </div>
+  </main>
 
-  <div class="pdf-pane">
+  <aside class="pdf-pane">
+    <div class="pdf-pane-head"><span>CV original</span><a href="/candidate/{{ c.id }}/pdf" target="_blank">Ouvrir ↗</a></div>
     <iframe src="/candidate/{{ c.id }}/pdf" title="CV"></iframe>
-  </div>
+  </aside>
 </div>
 
 {% endblock %}

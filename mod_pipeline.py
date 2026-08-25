@@ -93,19 +93,32 @@ def rechercher_vivier(request: Request, q: str = ""):
 
 
 @router.post("/pipeline/{cid}/stage")
-def changer_etape(request: Request, cid: int, stage: str = Form(...)):
+def changer_etape(
+    request: Request, cid: int, stage: str = Form(...), motif_refus: str = Form("")
+):
     """Déplace un candidat vers une nouvelle étape (appel AJAX du glisser-déposer)."""
     user = require_user(request)
     if stage not in ETAPES:
         raise HTTPException(status_code=400, detail="Étape invalide")
+    motif_refus = motif_refus.strip()
+    if stage == "Refusé" and not motif_refus:
+        raise HTTPException(status_code=400, detail="Le motif de refus est obligatoire")
     with connect() as conn:
-        conn.execute(
-            "UPDATE candidates SET stage = ?, updated_at = ? WHERE id = ?",
-            (stage, _now(), cid),
-        )
+        if stage == "Refusé":
+            conn.execute(
+                "UPDATE candidates SET stage = ?, statut = 'Refusé', motif_refus = ?, "
+                "updated_at = ? WHERE id = ?",
+                (stage, motif_refus, _now(), cid),
+            )
+        else:
+            conn.execute(
+                "UPDATE candidates SET stage = ?, updated_at = ? WHERE id = ?",
+                (stage, _now(), cid),
+            )
         # Journal d'activité (timeline) + base du « temps par étape » du reporting :
         # le nom brut de l'étape est stocké dans `detail`.
-        activity.log(conn, cid, activity.ETAPE, f"Étape → {stage}", stage)
+        detail = motif_refus if stage == "Refusé" else stage
+        activity.log(conn, cid, activity.ETAPE, f"Étape → {stage}", detail)
     # Réponse légère : le JS n'a besoin que du succès HTTP.
     return Response(status_code=204)
 

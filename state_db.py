@@ -232,6 +232,8 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("candidates", "duplicate_of", "INTEGER"),
     # Étape dans le pipeline de recrutement (module « Pipeline »).
     ("candidates", "stage", "TEXT"),
+    # Motif saisi par les RH lorsqu'un candidat est placé à l'étape « Refusé ».
+    ("candidates", "motif_refus", "TEXT"),
     # Rappel email envoyé pour un entretien (module « Entretiens ») — idempotence.
     ("entretiens", "reminder_sent", "INTEGER DEFAULT 0"),
     # Message-ID RFC 5322 du mail d'origine. `uid` n'identifie un mail que DANS le

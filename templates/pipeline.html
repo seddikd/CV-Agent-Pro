@@ -300,6 +300,19 @@
         // Rien à faire si la carte est relâchée dans sa colonne d'origine.
         if (origine === zone) return;
 
+        // Un refus doit toujours être explicité afin que la fiche conserve le
+        // contexte lors d'une consultation ultérieure.
+        var motifRefus = '';
+        if (etapeCible === 'Refusé') {
+          motifRefus = window.prompt('Motif de refus pour ce candidat :', '');
+          if (motifRefus === null) return;
+          motifRefus = motifRefus.trim();
+          if (!motifRefus) {
+            alert('Veuillez renseigner un motif de refus.');
+            return;
+          }
+        }
+
         // 1) Déplacement optimiste dans le DOM.
         zone.appendChild(carte);
         majCompteurs();
@@ -308,7 +321,7 @@
         fetch('/pipeline/' + cid + '/stage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ stage: etapeCible })
+          body: new URLSearchParams({ stage: etapeCible, motif_refus: motifRefus })
         }).then(function (r) {
           if (!r.ok) throw new Error('HTTP ' + r.status);
         }).catch(function () {

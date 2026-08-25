@@ -468,6 +468,7 @@ def candidate_update(
     request: Request, cid: int,
     statut: str | None = Form(None),
     commentaires: str | None = Form(None),
+    motif_refus: str | None = Form(None),
 ):
     user = web_auth.require_user(request)
     c = web_db.get_candidate(cid)
@@ -475,12 +476,19 @@ def candidate_update(
         raise HTTPException(404)
     if statut is not None and statut not in web_db.STATUTS:
         raise HTTPException(400, "Statut invalide")
+    # Le motif est géré uniquement lors d'un refus, afin de préserver l'historique
+    # si le candidat repasse ultérieurement dans un autre état.
+    if statut != "Refusé":
+        motif_refus = None
+    elif motif_refus is not None:
+        motif_refus = motif_refus.strip()
     web_db.update_candidate_status(
-        cid, statut=statut, commentaires=commentaires
+        cid, statut=statut, commentaires=commentaires, motif_refus=motif_refus
     )
     # Journal d'activité (timeline) — hors transaction, ne casse jamais la MAJ.
     if statut is not None:
-        activity.log_now(cid, activity.STATUT, f"Statut → {statut}")
+        detail = motif_refus if statut == "Refusé" and motif_refus else ""
+        activity.log_now(cid, activity.STATUT, f"Statut → {statut}", detail)
     if request.headers.get("HX-Request"):
         c = web_db.get_candidate(cid)
         return render(request, "_status_cell.html",
