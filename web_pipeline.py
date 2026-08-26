@@ -117,6 +117,16 @@ def _process_email(email, cfg: dict, folder: str | None = None) -> bool:
             email_subject=email.subject,
         )
 
+        # Une erreur LLM/JSON renvoie un ExtractionResult vide. Ne jamais créer
+        # une fiche candidat ni consommer un identifiant dans ce cas.
+        if not llm_extractor.has_meaningful_data(extraction):
+            log.warning("[%s] extraction vide : candidat non créé", uid)
+            state_db.mark_processed(
+                uid, folder, now_iso, is_cv=False,
+                notes="extraction_failed", message_id=msgid,
+            )
+            return None
+
         # CV confirmé + extraction réussie : on alloue l'id et on écrit le fichier
         # définitif. En cas d'échec avant ce point, aucun id/fichier n'est consommé.
         candidate_id = state_db.next_candidate_id()

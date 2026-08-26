@@ -21,6 +21,9 @@
       <div class="candidate-quick-actions">
         <a href="/candidate/{{ c.id }}/pdf" target="_blank" class="btn ghost">📄 Ouvrir le CV</a>
         {% if can_write %}
+        {% if whatsapp_url %}
+        <a href="{{ whatsapp_url }}" target="_blank" rel="noopener" class="btn whatsapp">WhatsApp</a>
+        {% endif %}
         <a href="/entretiens/nouveau?candidate_id={{ c.id }}" class="btn primary">📅 Planifier un entretien</a>
         {% endif %}
       </div>
@@ -34,7 +37,17 @@
       <div class="candidate-section-head"><h2>Coordonnées et profil</h2><span>Informations extraites du CV</span></div>
       <dl class="candidate-info-grid">
         <div><dt>Email</dt><dd>{% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% else %}—{% endif %}</dd></div>
-        <div><dt>Téléphone</dt><dd>{% if c.telephone %}<a href="tel:{{ c.telephone }}">{{ c.telephone }}</a>{% else %}—{% endif %}</dd></div>
+        <div>
+          <dt>Téléphone</dt>
+          <dd>
+            {% if c.telephone %}
+            <a href="tel:{{ c.telephone }}">{{ c.telephone }}</a>
+            {% if can_write and whatsapp_url %}
+            <a href="{{ whatsapp_url }}" target="_blank" rel="noopener" class="candidate-contact-link">Contacter sur WhatsApp</a>
+            {% endif %}
+            {% else %}—{% endif %}
+          </dd>
+        </div>
         <div><dt>Spécialité</dt><dd>{{ c.specialite or '—' }}</dd></div>
         <div><dt>Wilaya / Ville</dt><dd>{{ c.wilaya or '—' }}</dd></div>
         <div><dt>Expérience</dt><dd>{{ c.annees_experience if c.annees_experience is not none else '—' }}{% if c.annees_experience is not none %} an(s){% endif %}</dd></div>

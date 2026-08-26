@@ -395,6 +395,8 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .btn.primary:hover { filter: brightness(1.05); box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 55%, transparent); }
 .btn.ghost { background: transparent; box-shadow: none; border-color: var(--border); }
 .btn.ghost:hover { background: var(--surface-2); }
+.btn.whatsapp { background: var(--success-bg); color: var(--success); border-color: color-mix(in srgb, var(--success) 28%, var(--border)); }
+.btn.whatsapp:hover { background: color-mix(in srgb, var(--success-bg) 80%, var(--surface)); color: var(--success); }
 .btn.small { padding: 5px 10px; font-size: 12px; border-radius: 7px; }
 .btn.danger { background: var(--danger); color: #fff; border-color: transparent; }
 .btn.danger:hover { filter: brightness(1.05); }
@@ -506,6 +508,8 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .candidate-info-grid > div { min-width: 0; }
 .candidate-info-grid dt { color: var(--muted); font-size: 10.5px; font-weight: 800; letter-spacing: .55px; text-transform: uppercase; margin-bottom: 3px; }
 .candidate-info-grid dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.candidate-contact-link { display: block; width: fit-content; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--success); }
+.candidate-contact-link:hover { color: var(--success); text-decoration: underline; }
 .candidate-info-wide { grid-template-columns: 1fr; }
 .candidate-summary { margin: 0; color: var(--text); line-height: 1.7; white-space: pre-line; }
 .candidate-experiences { display: grid; gap: 10px; padding: 0; margin: 0; list-style: none; }

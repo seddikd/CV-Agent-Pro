@@ -4,12 +4,14 @@ import html
 import json
 import logging
 import os
+import re
 import secrets
 import threading
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -305,6 +307,37 @@ def _reset_login_attempts(email: str) -> None:
         _login_attempts.pop(email, None)
 
 
+def _numero_whatsapp(telephone: str | None) -> str:
+    """Convertit un numéro saisi librement en format wa.me, sans le signe +."""
+    if not telephone:
+        return ""
+    numero = re.sub(r"\D+", "", telephone)
+    if numero.startswith("00"):
+        numero = numero[2:]
+    elif numero.startswith("0") and len(numero) == 10:
+        numero = "213" + numero[1:]
+    elif len(numero) == 9 and numero[0] in {"5", "6", "7"}:
+        numero = "213" + numero
+    return numero if len(numero) >= 10 else ""
+
+
+def _lien_whatsapp_candidat(candidat: dict) -> str:
+    """Prépare un message WhatsApp manuel, envoyé par le RH depuis son compte."""
+    numero = _numero_whatsapp(candidat.get("telephone"))
+    if not numero:
+        return ""
+    nom = " ".join(
+        p for p in (candidat.get("prenom"), candidat.get("nom")) if p
+    ).strip()
+    salutation = f" {nom}" if nom else ""
+    poste = candidat.get("poste_recherche") or "votre candidature"
+    message = (
+        f"Bonjour{salutation}, nous vous contactons concernant {poste}. "
+        "Merci de nous confirmer votre disponibilité."
+    )
+    return f"https://wa.me/{numero}?text={quote(message)}"
+
+
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -459,7 +492,12 @@ def candidate_page(request: Request, cid: int):
             experiences = []
     return render(
         request, "candidate.html",
-        {"c": c, "statuts": web_db.STATUTS, "experiences": experiences},
+        {
+            "c": c,
+            "statuts": web_db.STATUTS,
+            "experiences": experiences,
+            "whatsapp_url": _lien_whatsapp_candidat(c),
+        },
     )
 
 

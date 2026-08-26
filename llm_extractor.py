@@ -90,6 +90,30 @@ class ExtractionResult:
     resume: str | None = None
 
 
+def has_meaningful_data(result: ExtractionResult) -> bool:
+    """Indique si l'extraction contient assez d'informations pour créer un candidat.
+
+    Un résultat vide est retourné en cas d'échec LLM ou JSON. Il ne doit jamais
+    déclencher la création d'une fiche candidat vide.
+    """
+    champs_texte = (
+        result.nom, result.prenom, result.email, result.telephone,
+        result.poste_recherche, result.specialite, result.wilaya,
+        result.date_naissance, result.diplome_plus_eleve, result.niveau_etude,
+        result.universite, result.permis, result.disponibilite,
+        result.salaire_souhaite, result.resume,
+    )
+    if any(isinstance(v, str) and v.strip() for v in champs_texte):
+        return True
+    if result.age is not None or result.annees_experience is not None:
+        return True
+    return any((
+        result.competences_principales, result.soft_skills, result.logiciels,
+        result.langues, result.entreprises, result.certifications,
+        result.experiences,
+    ))
+
+
 def _coerce_int(v) -> int | None:
     if v is None:
         return None
