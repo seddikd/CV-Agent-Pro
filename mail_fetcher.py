@@ -54,6 +54,7 @@ def check_connection(
         return False, f"Échec de connexion : {e}"
 
 ALLOWED_ATTACHMENT_EXTS = {".pdf", ".docx", ".doc"}
+IMAP_FETCH_BATCH_SIZE = 10
 
 
 @dataclass
@@ -129,6 +130,11 @@ def _extract_doc_attachments(msg) -> list[Attachment]:
     return out
 
 
+def _chunks(items: list[str], size: int):
+    for start in range(0, len(items), size):
+        yield start, items[start:start + size]
+
+
 def fetch_new_emails(
     host: str,
     port: int,
@@ -175,33 +181,39 @@ def fetch_new_emails(
             log.info("Aucun email non traité à récupérer depuis %s", folder)
             return fetched
 
-        fetch_criteria = AND(uid=selected_uids)
         log.info(
-            "%d UID non traité(s) retenu(s) ; récupération %s",
-            len(selected_uids), fetch_criteria,
+            "%d UID non traité(s) retenu(s) ; récupération par lots de %d",
+            len(selected_uids), IMAP_FETCH_BATCH_SIZE,
         )
-        for msg in mailbox.fetch(
-            fetch_criteria, mark_seen=False, bulk=50, reverse=True
-        ):
-            uid = msg.uid
-            if uid is None:
-                continue
-
-            from_name = (msg.from_values.name if msg.from_values else "") or ""
-            from_addr = msg.from_ or ""
-
-            fetched.append(
-                FetchedEmail(
-                    uid=uid,
-                    subject=msg.subject or "",
-                    from_addr=from_addr,
-                    from_name=from_name,
-                    received_at=msg.date,
-                    body_text=(msg.text or msg.html or "")[:5000],
-                    attachments=_extract_doc_attachments(msg),
-                    message_id=normalize_message_id(_imap_message_id(msg)),
-                )
+        for start, uid_batch in _chunks(selected_uids, IMAP_FETCH_BATCH_SIZE):
+            end = start + len(uid_batch)
+            log.info(
+                "Récupération IMAP lot %d-%d/%d",
+                start + 1, end, len(selected_uids),
             )
+            for msg in mailbox.fetch(
+                AND(uid=uid_batch), mark_seen=False, bulk=False, reverse=True
+            ):
+                uid = msg.uid
+                if uid is None:
+                    continue
+
+                from_name = (msg.from_values.name if msg.from_values else "") or ""
+                from_addr = msg.from_ or ""
+
+                fetched.append(
+                    FetchedEmail(
+                        uid=uid,
+                        subject=msg.subject or "",
+                        from_addr=from_addr,
+                        from_name=from_name,
+                        received_at=msg.date,
+                        body_text=(msg.text or msg.html or "")[:5000],
+                        attachments=_extract_doc_attachments(msg),
+                        message_id=normalize_message_id(_imap_message_id(msg)),
+                    )
+                )
+            log.info("Lot IMAP %d-%d/%d terminé", start + 1, end, len(selected_uids))
 
     log.info("%d emails non traités relevés depuis %s", len(fetched), folder)
     return fetched
