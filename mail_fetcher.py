@@ -148,8 +148,15 @@ def fetch_new_emails(
     since_date = (datetime.now() - timedelta(days=since_days)).date()
     fetched: list[FetchedEmail] = []
 
-    with _open_mailbox(host, port, security).login(user, password, initial_folder=folder) as mailbox:
+    log.info(
+        "Connexion IMAP à %s:%s dossier=%s sécurité=%s depuis=%s",
+        host, port, folder, security, since_date,
+    )
+    with _open_mailbox(host, port, security, timeout=30).login(
+        user, password, initial_folder=folder
+    ) as mailbox:
         criteria = AND(all=True, date_gte=since_date)
+        log.info("Dossier IMAP sélectionné : %s ; recherche %s", folder, criteria)
         # reverse=True : les emails les plus RÉCENTS d'abord. Essentiel : avec un
         # plafond max_emails, les candidatures récentes doivent être traitées en
         # priorité (sinon, boîte chargée = CV récents jamais atteints).
