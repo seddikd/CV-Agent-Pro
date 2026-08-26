@@ -972,6 +972,7 @@ async def admin_settings_llm_save(request: Request):
 @app.post("/admin/settings/test-openrouter", response_class=HTMLResponse)
 def admin_test_openrouter(
     request: Request,
+    base_url: str = Form(""),
     model: str = Form(""),
     api_key: str = Form(""),
 ):
@@ -980,6 +981,8 @@ def admin_test_openrouter(
     # formulaire si elles sont renseignées — permet de tester AVANT d'enregistrer.
     cfg = web_db.settings_to_config(web_db.get_all_settings())
     orc = dict(cfg["llm"]["openrouter"])
+    if base_url.strip():
+        orc["base_url"] = base_url.strip()
     if model.strip():
         orc["model"] = model.strip()
     if api_key.strip():

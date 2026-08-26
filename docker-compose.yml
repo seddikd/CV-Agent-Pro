@@ -8,6 +8,12 @@
 #   docker run -d -p 6060:6060 -e CV_AGENT_SECRET=<hex> -v cvagent-data:/data cv-agent-pro
 
 services:
+  agentrouter-proxy:
+    build: ./agentrouter-proxy
+    image: cv-agent-agentrouter-proxy:latest
+    restart: unless-stopped
+    # Le proxy n'est accessible que par les autres conteneurs du réseau Compose.
+
   db:
     image: postgres:17-alpine
     restart: unless-stopped
@@ -31,6 +37,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      agentrouter-proxy:
+        condition: service_started
     environment:
       # Le schéma et les réglages par défaut sont créés automatiquement au 1er
       # démarrage (lifespan FastAPI) ; l'admin se crée ensuite via /setup.

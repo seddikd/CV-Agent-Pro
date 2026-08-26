@@ -39,6 +39,8 @@ def list_cloud_models(timeout: int = 15) -> list[str]:
 def _cloud_url(orc: dict) -> str:
     """URL /chat/completions à partir de l'URL de base configurée."""
     base = (orc.get("base_url") or DEFAULT_CLOUD_BASE).rstrip("/")
+    if base.endswith("/chat/completions"):
+        return base
     return base + "/chat/completions"
 
 
@@ -163,7 +165,15 @@ def check_openrouter(orc: dict) -> tuple[bool, str]:
     try:
         data = r.json()
     except ValueError:
-        return False, "Réponse non-JSON du serveur."
+        apercu = (r.text or "").strip().replace("\n", " ")[:120]
+        url = _cloud_url(orc)
+        return (
+            False,
+            "Réponse non-JSON du serveur. Vérifiez l'URL de base API "
+            f"(appel testé : {url}). Pour AgentRouter, utilisez "
+            "https://agentrouter.org/v1 ou https://co.agentrouter.org/v1. "
+            + (f"Aperçu : {apercu}" if apercu else ""),
+        )
     if data.get("choices"):
         return True, f"OK — modèle « {model} » accessible."
     if data.get("error"):
