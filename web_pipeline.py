@@ -198,7 +198,11 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
     _active_event.set()
 
     try:
-        emails = mail_fetcher.fetch_new_emails(
+        # Relève ET traitement par lots : chaque lot est traité avant que le suivant
+        # soit relevé, pour ne pas garder en mémoire les pièces jointes de tout le
+        # run (max_emails_per_run mails × leurs CV). `should_stop` fait aussi réagir
+        # l'annulation pendant la relève et pas seulement pendant le traitement.
+        batches = mail_fetcher.iter_new_email_batches(
             host=cfg["imap"]["host"],
             port=cfg["imap"]["port"],
             user=cfg["imap"]["user"],
@@ -210,37 +214,53 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
             already_processed=lambda uid: state_db.is_processed(
                 uid, cfg["imap"]["folder"]
             ),
+            should_stop=_cancel_event.is_set,
         )
-        web_db.update_run(run_id, emails_fetched=len(emails))
-        log.info("Run %d: %d new emails to process", run_id, len(emails))
 
         cvs = 0
+        emails_fetched = 0
         new_candidates = []
         cancelled = False
-        for email in emails:
-            if _cancel_event.is_set():
-                cancelled = True
-                log.info("Run %d: arrêt demandé par l'utilisateur", run_id)
-                break
-            try:
-                candidate = _process_email(email, cfg)
-                if candidate:
-                    cvs += 1
-                    new_candidates.append(candidate)
-            except Exception as e:
-                # On marque l'email comme traité (en erreur) pour NE PAS le reprendre
-                # à chaque cycle : sinon boucle infinie qui regaspille id/fichier/quota
-                # LLM. Pour forcer une reprise : bouton « Recommencer à zéro ».
-                log.exception("[%s] échec du traitement : %s", email.uid, e)
-                try:
-                    state_db.mark_processed(
-                        email.uid, cfg["imap"]["folder"],
-                        datetime.now().isoformat(timespec="seconds"),
-                        is_cv=False, notes=f"erreur: {str(e)[:150]}",
-                        message_id=getattr(email, "message_id", "") or None,
-                    )
-                except Exception as e2:
-                    log.warning("[%s] marquage 'traité' impossible : %s", email.uid, e2)
+        try:
+            for batch in batches:
+                emails_fetched += len(batch)
+                web_db.update_run(run_id, emails_fetched=emails_fetched)
+                log.info(
+                    "Run %d: traitement d'un lot de %d email(s) (%d relevé(s) au total)",
+                    run_id, len(batch), emails_fetched,
+                )
+                for email in batch:
+                    if _cancel_event.is_set():
+                        cancelled = True
+                        log.info("Run %d: arrêt demandé par l'utilisateur", run_id)
+                        break
+                    try:
+                        candidate = _process_email(email, cfg)
+                        if candidate:
+                            cvs += 1
+                            new_candidates.append(candidate)
+                    except Exception as e:
+                        # On marque l'email comme traité (en erreur) pour NE PAS le reprendre
+                        # à chaque cycle : sinon boucle infinie qui regaspille id/fichier/quota
+                        # LLM. Pour forcer une reprise : bouton « Recommencer à zéro ».
+                        log.exception("[%s] échec du traitement : %s", email.uid, e)
+                        try:
+                            state_db.mark_processed(
+                                email.uid, cfg["imap"]["folder"],
+                                datetime.now().isoformat(timespec="seconds"),
+                                is_cv=False, notes=f"erreur: {str(e)[:150]}",
+                                message_id=getattr(email, "message_id", "") or None,
+                            )
+                        except Exception as e2:
+                            log.warning("[%s] marquage 'traité' impossible : %s", email.uid, e2)
+                if cancelled:
+                    break
+        finally:
+            # Ferme le générateur — et donc la connexion IMAP — sans attendre le GC,
+            # que la boucle soit allée au bout, ait été interrompue par une annulation,
+            # ou qu'un traitement ait levé.
+            batches.close()
+        log.info("Run %d: %d email(s) relevé(s) et traité(s)", run_id, emails_fetched)
 
         # Alertes : les nouveaux CV correspondent-ils à des offres publiées ? Calcul
         # groupé (une seule connexion, offres chargées une fois) après la boucle.
@@ -291,7 +311,7 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
             run_id, "annulé" if cancelled else "finished", cvs,
         )
         return {
-            "run_id": run_id, "emails_fetched": len(emails),
+            "run_id": run_id, "emails_fetched": emails_fetched,
             "cvs_detected": cvs, "cancelled": cancelled,
         }
 

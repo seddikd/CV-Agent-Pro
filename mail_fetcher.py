@@ -1,12 +1,15 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
+import imaplib
 import logging
 import re
 import socket
 
 from imap_tools import MailBox, MailBoxStartTls, MailBoxUnencrypted, AND
-from imap_tools.errors import MailboxLoginError, MailboxFolderSelectError
+from imap_tools.errors import (
+    MailboxLoginError, MailboxFolderSelectError, MailboxFetchError,
+)
 
 
 log = logging.getLogger(__name__)
@@ -135,7 +138,72 @@ def _chunks(items: list[str], size: int):
         yield start, items[start:start + size]
 
 
-def fetch_new_emails(
+# Erreurs qui signalent « ce fetch IMAP n'a pas abouti » : réponse refusée par le
+# serveur, protocole cassé, socket coupée ou en timeout (socket.timeout et
+# ConnectionError dérivent d'OSError).
+FETCH_ERRORS = (MailboxFetchError, imaplib.IMAP4.error, OSError)
+
+
+def _build_fetched_email(msg) -> FetchedEmail | None:
+    """Convertit un message imap_tools en FetchedEmail. None si l'UID manque."""
+    uid = msg.uid
+    if uid is None:
+        return None
+    return FetchedEmail(
+        uid=uid,
+        subject=msg.subject or "",
+        from_addr=msg.from_ or "",
+        from_name=(msg.from_values.name if msg.from_values else "") or "",
+        received_at=msg.date,
+        body_text=(msg.text or msg.html or "")[:5000],
+        attachments=_extract_doc_attachments(msg),
+        message_id=normalize_message_id(_imap_message_id(msg)),
+    )
+
+
+def _fetch_uids_one_by_one(mailbox, uid_batch: list[str]) -> list[FetchedEmail]:
+    """Repli : un UID FETCH par message, en sautant ceux qui échouent.
+
+    Sert quand le fetch groupé du lot a échoué. Un seul message corrompu ou trop
+    volumineux fait tomber la réponse du lot entier ; en le rejouant message par
+    message on n'abandonne que le fautif au lieu de ses voisins.
+    """
+    out: list[FetchedEmail] = []
+    for uid in uid_batch:
+        try:
+            for msg in mailbox.fetch(AND(uid=[uid]), mark_seen=False, bulk=False):
+                email = _build_fetched_email(msg)
+                if email is not None:
+                    out.append(email)
+        except FETCH_ERRORS as e:
+            log.warning("UID %s illisible, ignoré : %s", uid, e)
+    return out
+
+
+def _fetch_uid_batch(mailbox, uid_batch: list[str]) -> list[FetchedEmail]:
+    """Relève un lot d'UID : un seul UID FETCH, avec repli message par message.
+
+    Chemin rapide : `bulk=True` envoie tout le lot en UNE commande. Le lot est
+    borné à IMAP_FETCH_BATCH_SIZE, donc on reste loin des tailles de réponse qui
+    font tomber certains serveurs sur un fetch de dossier entier.
+    """
+    try:
+        emails = []
+        for msg in mailbox.fetch(
+            AND(uid=uid_batch), mark_seen=False, bulk=True, reverse=True
+        ):
+            email = _build_fetched_email(msg)
+            if email is not None:
+                emails.append(email)
+        return emails
+    except FETCH_ERRORS as e:
+        log.warning(
+            "Fetch groupé du lot échoué (%s) ; reprise message par message", e,
+        )
+        return _fetch_uids_one_by_one(mailbox, uid_batch)
+
+
+def iter_new_email_batches(
     host: str,
     port: int,
     user: str,
@@ -145,14 +213,27 @@ def fetch_new_emails(
     max_emails: int,
     already_processed: callable,
     security: str = "SSL",
-) -> list[FetchedEmail]:
-    """Se connecte en IMAP et renvoie les emails non traités reçus depuis since_days jours.
+    should_stop: callable = None,
+):
+    """Relève les emails non traités par lots de IMAP_FETCH_BATCH_SIZE.
+
+    Générateur : chaque lot est cédé dès qu'il est relevé, pour que l'appelant le
+    traite et libère les pièces jointes avant qu'on relève le suivant. La mémoire
+    est ainsi plafonnée à un lot au lieu de `max_emails` mails complets.
+
+    La connexion IMAP reste ouverte pendant que l'appelant traite un lot ; comme un
+    nouveau FETCH part tous les IMAP_FETCH_BATCH_SIZE mails, le serveur voit de
+    l'activité régulière et ne coupe pas sur inactivité.
+
+    `should_stop` (optionnel) est consulté entre deux lots : renvoyer True arrête la
+    relève sans erreur, ce qui rend l'annulation utilisateur réactive pendant la
+    relève et pas seulement pendant le traitement.
 
     Important : on lit explicitement ALL (lus + non lus). Le filtre "déjà traité"
     reste géré par la table processed_emails, pas par le statut lu/non lu IMAP.
     """
     since_date = (datetime.now() - timedelta(days=since_days)).date()
-    fetched: list[FetchedEmail] = []
+    total = 0
 
     log.info(
         "Connexion IMAP à %s:%s dossier=%s sécurité=%s depuis=%s",
@@ -179,44 +260,42 @@ def fetch_new_emails(
 
         if not selected_uids:
             log.info("Aucun email non traité à récupérer depuis %s", folder)
-            return fetched
+            return
 
         log.info(
             "%d UID non traité(s) retenu(s) ; récupération par lots de %d",
             len(selected_uids), IMAP_FETCH_BATCH_SIZE,
         )
         for start, uid_batch in _chunks(selected_uids, IMAP_FETCH_BATCH_SIZE):
+            if should_stop is not None and should_stop():
+                log.info(
+                    "Relève IMAP interrompue à la demande après %d email(s)", total,
+                )
+                return
             end = start + len(uid_batch)
             log.info(
                 "Récupération IMAP lot %d-%d/%d",
                 start + 1, end, len(selected_uids),
             )
-            for msg in mailbox.fetch(
-                AND(uid=uid_batch), mark_seen=False, bulk=False, reverse=True
-            ):
-                uid = msg.uid
-                if uid is None:
-                    continue
+            batch = _fetch_uid_batch(mailbox, uid_batch)
+            total += len(batch)
+            log.info(
+                "Lot IMAP %d-%d/%d terminé : %d email(s)",
+                start + 1, end, len(selected_uids), len(batch),
+            )
+            if batch:
+                yield batch
 
-                from_name = (msg.from_values.name if msg.from_values else "") or ""
-                from_addr = msg.from_ or ""
+    log.info("%d emails non traités relevés depuis %s", total, folder)
 
-                fetched.append(
-                    FetchedEmail(
-                        uid=uid,
-                        subject=msg.subject or "",
-                        from_addr=from_addr,
-                        from_name=from_name,
-                        received_at=msg.date,
-                        body_text=(msg.text or msg.html or "")[:5000],
-                        attachments=_extract_doc_attachments(msg),
-                        message_id=normalize_message_id(_imap_message_id(msg)),
-                    )
-                )
-            log.info("Lot IMAP %d-%d/%d terminé", start + 1, end, len(selected_uids))
 
-    log.info("%d emails non traités relevés depuis %s", len(fetched), folder)
-    return fetched
+def fetch_new_emails(*args, **kwargs) -> list[FetchedEmail]:
+    """Version « tout en mémoire » de `iter_new_email_batches` (mêmes arguments).
+
+    À réserver aux usages ponctuels (scripts, diagnostic) : le pipeline itère sur
+    les lots pour ne pas garder toutes les pièces jointes en mémoire.
+    """
+    return [email for batch in iter_new_email_batches(*args, **kwargs) for email in batch]
 
 
 def move_processed_messages(
