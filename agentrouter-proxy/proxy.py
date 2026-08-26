@@ -38,6 +38,13 @@ def _messages(body: dict) -> tuple[str, list[dict]]:
 
 def _call(key: str, body: dict):
     system, messages = _messages(body)
+    response_format = body.get("response_format") or {}
+    if isinstance(response_format, dict) and response_format.get("type") == "json_object":
+        json_rule = (
+            "Réponds uniquement avec un objet JSON valide. "
+            "N'ajoute aucun Markdown, aucune balise ``` et aucun texte hors JSON."
+        )
+        system = f"{system}\n\n{json_rule}" if system else json_rule
     kwargs = {
         "model": body.get("model"),
         "messages": messages,

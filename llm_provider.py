@@ -48,6 +48,63 @@ class LLMError(Exception):
     """Le fournisseur LLM n'a pas produit de JSON valide."""
 
 
+def _json_object_from_text(raw: str) -> str:
+    """Retourne un objet JSON valide extrait d'une réponse LLM.
+
+    Certains fournisseurs ignorent `response_format` et entourent l'objet par un
+    bloc Markdown ou une phrase. On récupère le premier objet JSON équilibré pour
+    éviter de perdre une extraction exploitable.
+    """
+    if not isinstance(raw, str):
+        raise LLMError("réponse LLM vide ou non textuelle")
+    text = raw.strip()
+    if not text:
+        raise LLMError("réponse LLM vide")
+    try:
+        parsed = json.loads(text)
+        if not isinstance(parsed, dict):
+            raise LLMError(f"JSON n'est pas un objet ({type(parsed).__name__})")
+        return json.dumps(parsed, ensure_ascii=False)
+    except json.JSONDecodeError:
+        pass
+
+    start = text.find("{")
+    if start < 0:
+        raise LLMError("aucun objet JSON trouvé dans la réponse")
+
+    depth = 0
+    in_string = False
+    escape = False
+    for pos in range(start, len(text)):
+        char = text[pos]
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                candidate = text[start:pos + 1]
+                try:
+                    parsed = json.loads(candidate)
+                except json.JSONDecodeError as exc:
+                    raise LLMError(f"JSON invalide ({exc})") from exc
+                if not isinstance(parsed, dict):
+                    raise LLMError(
+                        f"JSON n'est pas un objet ({type(parsed).__name__})"
+                    )
+                return json.dumps(parsed, ensure_ascii=False)
+    raise LLMError("objet JSON incomplet dans la réponse")
+
+
 def _ollama_chat(oc: dict, system: str, user: str) -> str:
     client = ollama.Client(host=oc["host"], timeout=oc["timeout"])
     resp = client.chat(
@@ -198,12 +255,8 @@ def chat_json(llm_cfg: dict, system: str, user: str) -> tuple[str, str]:
         raise LLMError(f"{provider}: échec de l'appel ({e})") from e
 
     try:
-        parsed = json.loads(raw)
-    except (json.JSONDecodeError, TypeError) as e:
-        raise LLMError(f"{provider}: JSON invalide ({e})") from e
-    # Le contrat attend un OBJET JSON : un tableau/scalaire ferait planter
-    # data.get(...) chez l'appelant. On le transforme en LLMError géré.
-    if not isinstance(parsed, dict):
-        raise LLMError(f"{provider}: JSON n'est pas un objet ({type(parsed).__name__})")
+        raw = _json_object_from_text(raw)
+    except LLMError as e:
+        raise LLMError(f"{provider}: {e}") from e
 
     return raw, provider
