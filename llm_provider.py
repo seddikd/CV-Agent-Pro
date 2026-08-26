@@ -135,6 +135,7 @@ def _openrouter_chat(orc: dict, system: str, user: str) -> str:
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
+        "max_tokens": 12000,
         "temperature": 0.1,
         "response_format": {"type": "json_object"},
     }
@@ -149,9 +150,13 @@ def _openrouter_chat(orc: dict, system: str, user: str) -> str:
         if r.status_code in (400, 404, 422) and "response_format" in attempt:
             continue  # modèle sans support JSON structuré -> retry sans
         r.raise_for_status()
-        content = r.json()["choices"][0]["message"].get("content")
+        choice = r.json()["choices"][0]
+        finish_reason = choice.get("finish_reason")
+        content = choice["message"].get("content")
         if content is None:
             raise LLMError("openrouter: réponse sans contenu (refus / tool-call ?)")
+        if finish_reason in ("length", "max_tokens"):
+            raise LLMError("openrouter: réponse tronquée (max_tokens atteint)")
         return content
     raise LLMError("openrouter: échec (response_format non supporté)")
 

@@ -48,7 +48,7 @@ def _call(key: str, body: dict):
     kwargs = {
         "model": body.get("model"),
         "messages": messages,
-        "max_tokens": int(body.get("max_tokens") or 4096),
+        "max_tokens": int(body.get("max_tokens") or 12000),
     }
     if system:
         kwargs["system"] = system
@@ -76,7 +76,11 @@ async def chat_completions(request: Request):
         "object": "chat.completion",
         "created": 0,
         "model": response.model,
-        "choices": [{"index": 0, "message": {"role": "assistant", "content": text}, "finish_reason": "stop"}],
+        "choices": [{
+            "index": 0,
+            "message": {"role": "assistant", "content": text},
+            "finish_reason": "length" if response.stop_reason == "max_tokens" else "stop",
+        }],
         "usage": {
             "prompt_tokens": response.usage.input_tokens,
             "completion_tokens": response.usage.output_tokens,
