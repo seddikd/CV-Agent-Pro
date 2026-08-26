@@ -157,16 +157,34 @@ def fetch_new_emails(
     ) as mailbox:
         criteria = AND(all=True, date_gte=since_date)
         log.info("Dossier IMAP sélectionné : %s ; recherche %s", folder, criteria)
-        # reverse=True : les emails les plus RÉCENTS d'abord. Essentiel : avec un
-        # plafond max_emails, les candidatures récentes doivent être traitées en
-        # priorité (sinon, boîte chargée = CV récents jamais atteints).
-        for msg in mailbox.fetch(criteria, mark_seen=False, bulk=False, reverse=True):
-            if len(fetched) >= max_emails:
+        uids = mailbox.uids(criteria)
+        log.info("%d UID IMAP trouvé(s) depuis %s", len(uids), since_date)
+
+        # On récupère d'abord les UID seulement (léger), puis on fetch uniquement
+        # les messages non traités retenus. Certains serveurs IMAP bloquent quand
+        # on demande le contenu complet de tous les mails via ALL/SINCE.
+        selected_uids: list[str] = []
+        for uid in reversed(uids):
+            if not uid or already_processed(uid):
+                continue
+            selected_uids.append(uid)
+            if len(selected_uids) >= max_emails:
                 break
+
+        if not selected_uids:
+            log.info("Aucun email non traité à récupérer depuis %s", folder)
+            return fetched
+
+        fetch_criteria = AND(uid=selected_uids)
+        log.info(
+            "%d UID non traité(s) retenu(s) ; récupération %s",
+            len(selected_uids), fetch_criteria,
+        )
+        for msg in mailbox.fetch(
+            fetch_criteria, mark_seen=False, bulk=50, reverse=True
+        ):
             uid = msg.uid
             if uid is None:
-                continue
-            if already_processed(uid):
                 continue
 
             from_name = (msg.from_values.name if msg.from_values else "") or ""
