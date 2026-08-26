@@ -10,6 +10,8 @@
   .tag-list .badge { font-size: .8em; }
   .cmp-col { width: 34px; text-align: center; }
   .cmp-hint { color: var(--muted); font-size: 13px; margin: -4px 0 12px; }
+  .criteria-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+  .criteria-list span { color: var(--muted); font-size: 11px; white-space: nowrap; }
 </style>
 
 <div class="page-head">
@@ -27,6 +29,8 @@
 
 <p class="muted small">
   Compétences requises : {{ offre.competences_requises or '—' }}
+  {% if offre.wilaya %} · Wilaya : {{ offre.wilaya }}{% endif %}
+  {% if offre.commune %} · Commune : {{ offre.commune }}{% endif %}
   {% if offre.experience_min %} · Expérience min. {{ offre.experience_min }} an(s){% endif %}
   {% if offre.niveau_etude %} · Niveau {{ offre.niveau_etude }}{% endif %}
 </p>
@@ -65,6 +69,16 @@
       <td>
         <div class="match-bar"><span style="width: {{ c.compatibilite if c.compatibilite is defined else c.score }}%"></span></div>
         <span class="small muted">{{ c.score }} %</span>
+        {% if c.criteres %}
+        <div class="criteria-list" title="Détail du calcul">
+          <span>Spécialité {{ c.criteres.specialite }}%</span>
+          <span>Exp. poste {{ c.criteres.experience_poste }}%</span>
+          <span>Comp. {{ c.criteres.competences }}%</span>
+          <span>Lieu {{ c.criteres.localisation }}%</span>
+          <span>Exp. {{ c.criteres.experience }}%</span>
+          <span>Études {{ c.criteres.niveau_etude }}%</span>
+        </div>
+        {% endif %}
       </td>
       <td>
         {% if c.points_forts %}

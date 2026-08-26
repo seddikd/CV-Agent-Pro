@@ -63,6 +63,7 @@ def _compute_and_cache(conn, job: dict) -> None:
             {
                 "points_forts": res["points_forts"],
                 "competences_manquantes": res["competences_manquantes"],
+                "criteres": res.get("criteres", {}),
             },
             ensure_ascii=False,
         )
@@ -97,6 +98,7 @@ def _lire_classement(conn, job_id: int) -> list:
             details = {}
         d["points_forts"] = details.get("points_forts", [])
         d["competences_manquantes"] = details.get("competences_manquantes", [])
+        d["criteres"] = details.get("criteres", {})
         d["rang"] = i
         classement.append(d)
     return classement

@@ -53,7 +53,7 @@ def titre_pertinent(job: dict, cand: dict) -> bool:
     Le titre de l'offre doit apparaître :
       - **partiellement** (≥ 2 mots significatifs) dans le diplôme du candidat, OU
       - **totalement** (tous ses mots) dans l'expérience professionnelle, OU
-      - **partiellement** (≥ 2 mots) dans le résumé du candidat.
+      - **totalement** dans la spécialité ou le poste recherché.
 
     Le seuil de 2 mots évite les faux positifs d'un mot isolé et ambigu (ex.
     « civil » du titre qui matcherait « état civil » dans un résumé). Si le titre
@@ -71,26 +71,52 @@ def titre_pertinent(job: dict, cand: dict) -> bool:
     seuil = min(2, len(tokens))
 
     diplome = _normaliser(cand.get("diplome_plus_eleve"))
-    experience = _normaliser(
-        " ".join(v for v in (cand.get("experiences_json"),
-                             cand.get("entreprises")) if v)
-    )
-    resume = _normaliser(
-        " ".join(v for v in (cand.get("resume"), cand.get("resume_ia"),
-                             cand.get("poste_recherche"),
-                             cand.get("specialite")) if v)
-    )
+    # Les résumés générés par l'IA ne servent volontairement pas de filtre
+    # d'éligibilité : une formulation approximative ne doit pas faire entrer un
+    # candidat hors métier dans le classement. On s'appuie sur les champs
+    # structurés et le texte des expériences, plus fiables pour cette décision.
+    specialite = _normaliser(cand.get("specialite"))
 
     # Diplôme : correspondance partielle (≥ seuil mots distincts du titre).
     if sum(1 for tok in tokens if tok in diplome) >= seuil:
         return True
-    # Expérience professionnelle : correspondance totale (tous les mots présents).
-    if all(tok in experience for tok in tokens):
-        return True
-    # Résumé : correspondance partielle (≥ seuil mots distincts du titre).
-    if sum(1 for tok in tokens if tok in resume) >= seuil:
+    # La spécialité est le critère principal : un candidat hors domaine ne doit
+    # pas entrer dans le classement uniquement grâce à une compétence générique.
+    if all(tok in specialite for tok in tokens):
         return True
     return False
+
+
+def _score_specialite(tokens: list[str], cand: dict) -> float:
+    """Score de spécialité : la spécialité déclarée prime sur le diplôme."""
+    if not tokens:
+        return 1.0
+    specialite = _normaliser(cand.get("specialite"))
+    diplome = _normaliser(cand.get("diplome_plus_eleve"))
+    dans_specialite = sum(1 for tok in tokens if tok in specialite)
+    dans_diplome = sum(1 for tok in tokens if tok in diplome)
+    if dans_specialite == len(tokens):
+        return 1.0
+    if dans_diplome == len(tokens):
+        return 0.85
+    if max(dans_specialite, dans_diplome) >= min(2, len(tokens)):
+        return 0.5
+    return 0.0
+
+
+def _score_experience_poste(tokens: list[str], cand: dict) -> float:
+    """Mesure l'expérience dans le domaine du poste, indépendamment des années."""
+    if not tokens:
+        return 1.0
+    experience = _normaliser(
+        " ".join(v for v in (cand.get("experiences_json"), cand.get("entreprises")) if v)
+    )
+    presents = sum(1 for tok in tokens if tok in experience)
+    if presents == len(tokens):
+        return 1.0
+    if presents >= min(2, len(tokens)):
+        return 0.5
+    return 0.0
 
 
 def split_set(*valeurs) -> set:
@@ -112,6 +138,10 @@ def score_candidat(job: dict, cand: dict) -> dict:
     Déterministe, sans LLM. Retourne un dict :
     {"score", "compatibilite", "points_forts", "competences_manquantes"}.
     """
+    tokens_titre = _tokens_titre(job.get("titre") or "")
+    score_specialite = _score_specialite(tokens_titre, cand)
+    score_experience_poste = _score_experience_poste(tokens_titre, cand)
+
     # Compétences requises par l'offre vs. compétences réelles du candidat.
     requises = split_set(job.get("competences_requises"))
     candidat_comp = split_set(
@@ -130,7 +160,26 @@ def score_candidat(job: dict, cand: dict) -> dict:
         points_forts = []
         competences_manquantes = []
 
-    # Score expérience : plein si le candidat atteint le minimum requis.
+    # Score localisation : une wilaya identique répond exactement au besoin.
+    # Une autre wilaya reste admissible mais perd la part de score associée.
+    wilaya_requise = _normaliser(job.get("wilaya")).strip()
+    wilaya_cand = _normaliser(cand.get("wilaya")).strip()
+    commune_requise = _normaliser(job.get("commune")).strip()
+    commune_cand = _normaliser(cand.get("commune")).strip()
+    if not wilaya_requise:
+        score_localisation = 1.0
+        localisation_detail = "Non précisée dans l'offre"
+    elif wilaya_cand != wilaya_requise:
+        score_localisation = 0.0
+        localisation_detail = "Wilaya différente ou non renseignée"
+    elif commune_requise and commune_cand:
+        score_localisation = 1.0 if commune_cand == commune_requise else 0.75
+        localisation_detail = "Commune correspondante" if score_localisation == 1.0 else "Même wilaya, commune différente"
+    else:
+        score_localisation = 1.0
+        localisation_detail = "Wilaya correspondante"
+
+    # Score expérience quantitative : plein si le candidat atteint le minimum requis.
     exp_min = job.get("experience_min")
     try:
         exp_min = int(exp_min) if exp_min not in (None, "") else 0
@@ -158,12 +207,31 @@ def score_candidat(job: dict, cand: dict) -> dict:
     else:
         score_niveau = 0.0
 
+    # Pondération du besoin : spécialité puis expérience dans le poste. Les poids
+    # totalisent 1 : un profil parfaitement aligné atteint 100 %.
     score = round(
-        100 * (0.6 * couverture + 0.3 * score_experience + 0.1 * score_niveau)
+        100 * (
+            0.40 * score_specialite
+            + 0.20 * score_experience_poste
+            + 0.15 * score_experience
+            + 0.10 * score_localisation
+            + 0.10 * couverture
+            + 0.05 * score_niveau
+        )
     )
+    criteres = {
+        "specialite": round(score_specialite * 100),
+        "experience_poste": round(score_experience_poste * 100),
+        "competences": round(couverture * 100),
+        "localisation": round(score_localisation * 100),
+        "experience": round(score_experience * 100),
+        "niveau_etude": round(score_niveau * 100),
+        "localisation_detail": localisation_detail,
+    }
     return {
         "score": score,
         "compatibilite": score,
         "points_forts": points_forts,
         "competences_manquantes": competences_manquantes,
+        "criteres": criteres,
     }
