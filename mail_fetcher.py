@@ -140,12 +140,16 @@ def fetch_new_emails(
     already_processed: callable,
     security: str = "SSL",
 ) -> list[FetchedEmail]:
-    """Se connecte en IMAP et renvoie les emails non traités reçus depuis since_days jours."""
+    """Se connecte en IMAP et renvoie les emails non traités reçus depuis since_days jours.
+
+    Important : on lit explicitement ALL (lus + non lus). Le filtre "déjà traité"
+    reste géré par la table processed_emails, pas par le statut lu/non lu IMAP.
+    """
     since_date = (datetime.now() - timedelta(days=since_days)).date()
     fetched: list[FetchedEmail] = []
 
     with _open_mailbox(host, port, security).login(user, password, initial_folder=folder) as mailbox:
-        criteria = AND(date_gte=since_date)
+        criteria = AND(all=True, date_gte=since_date)
         # reverse=True : les emails les plus RÉCENTS d'abord. Essentiel : avec un
         # plafond max_emails, les candidatures récentes doivent être traitées en
         # priorité (sinon, boîte chargée = CV récents jamais atteints).
@@ -174,7 +178,7 @@ def fetch_new_emails(
                 )
             )
 
-    log.info("%d nouveaux emails relevés depuis %s", len(fetched), folder)
+    log.info("%d emails non traités relevés depuis %s", len(fetched), folder)
     return fetched
 
 
