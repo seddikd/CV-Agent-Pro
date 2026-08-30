@@ -60,6 +60,12 @@ MANUEL_*.pdf
 # Supports de présentation (assets lourds : .pptx, .msi, .pdf, captures) — non versionnés.
 Presentation/
 
+# ─── Outillage local (agents, assistants) ────────────────────────────────────
+# Skills, réglages et scripts de Claude Code : outillage du poste, sans rapport
+# avec le produit (~3,5 Mo). NB : .impeccable/design.json, lui, EST versionné —
+# c'est le fichier compagnon de DESIGN.md, pas de l'outillage.
+.claude/
+
 # ─── IDE / OS ────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
