@@ -1,0 +1,462 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-30T09:40:25+00:00",
+  "title": "Design System: CV Agent Pro",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Marine Rayanox",
+        "canonical": "#295894",
+        "tonalRamp": [
+          "#11243c",
+          "#1c3b64",
+          "#27538c",
+          "#326bb4",
+          "#578dd1",
+          "#87adde",
+          "#bbd1ec",
+          "#ebf1f9"
+        ]
+      },
+      "primary-strong": {
+        "role": "primary",
+        "displayName": "Marine profond",
+        "canonical": "#233873",
+        "tonalRamp": [
+          "#121d3b",
+          "#1e3062",
+          "#2a4389",
+          "#3656b0",
+          "#5b79cd",
+          "#8a9fdb",
+          "#bdc9eb",
+          "#ebeff9"
+        ]
+      },
+      "accent": {
+        "role": "secondary",
+        "displayName": "Bleu vif de marque",
+        "canonical": "#1e8dcc",
+        "tonalRamp": [
+          "#0a2e43",
+          "#104d6f",
+          "#176c9c",
+          "#1d8ac8",
+          "#44aae4",
+          "#7ac2eb",
+          "#b3ddf4",
+          "#e9f5fc"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Gris froid mesuré",
+        "canonical": "#646d7d",
+        "tonalRamp": [
+          "#22252b",
+          "#393e47",
+          "#4f5663",
+          "#666f80",
+          "#8891a0",
+          "#aab0bb",
+          "#cfd2d8",
+          "#f1f2f4"
+        ]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Vert d'aboutissement",
+        "canonical": "#0f7136",
+        "tonalRamp": [
+          "#094420",
+          "#0f7136",
+          "#159e4b",
+          "#1bcb61",
+          "#42e683",
+          "#78eda7",
+          "#b2f5cd",
+          "#e8fcf0"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Rouge de refus",
+        "canonical": "#c62431",
+        "tonalRamp": [
+          "#410c10",
+          "#6c141b",
+          "#971b25",
+          "#c22330",
+          "#de4a56",
+          "#e77e86",
+          "#f2b6ba",
+          "#fbe9eb"
+        ]
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Ambre d'attente",
+        "canonical": "#9a5c00",
+        "tonalRamp": [
+          "#4d2e00",
+          "#804c00",
+          "#b36b00",
+          "#e68900",
+          "#ffa929",
+          "#ffc166",
+          "#ffdca8",
+          "#fff5e5"
+        ]
+      },
+      "info": {
+        "role": "tertiary",
+        "displayName": "Bleu d'information",
+        "canonical": "#0b5cad",
+        "tonalRamp": [
+          "#052648",
+          "#084078",
+          "#0b59a8",
+          "#0e73d8",
+          "#3694f2",
+          "#6fb3f6",
+          "#add4fa",
+          "#e7f2fd"
+        ]
+      },
+      "tone-1": {
+        "role": "tertiary",
+        "displayName": "Indigo d'identité",
+        "canonical": "#4c6ebd",
+        "tonalRamp": [
+          "#151f38",
+          "#22345d",
+          "#304982",
+          "#3e5ea8",
+          "#6380c5",
+          "#8fa4d6",
+          "#c0cce8",
+          "#ecf0f8"
+        ]
+      },
+      "tone-4": {
+        "role": "tertiary",
+        "displayName": "Sarcelle d'identité",
+        "canonical": "#2f7f61",
+        "tonalRamp": [
+          "#15382b",
+          "#225d47",
+          "#308264",
+          "#3ea880",
+          "#63c5a0",
+          "#8fd6bb",
+          "#c0e8d9",
+          "#ecf8f4"
+        ]
+      },
+      "tone-7": {
+        "role": "tertiary",
+        "displayName": "Grenat d'identité",
+        "canonical": "#bd4c5f",
+        "tonalRamp": [
+          "#38151b",
+          "#5d222c",
+          "#82303e",
+          "#a83e50",
+          "#c56373",
+          "#d68f9b",
+          "#e8c0c6",
+          "#f8ecee"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Titre d'écran de connexion et d'administration des utilisateurs."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "h1 de page, dans .page-head."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Titres de carte, en-têtes de section de fiche, panneaux."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texte courant, cellules de tableau, champs."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "En-têtes de colonne, groupes de navigation. Seul emploi de majuscules."
+      }
+    },
+    "shadows": [
+      {
+        "name": "posee",
+        "value": "0 1px 2px rgba(17,24,39,.05), 0 1px 3px rgba(17,24,39,.04)",
+        "purpose": "Carte, tableau, barre d'outils : tout ce qui repose sur le fond de page."
+      },
+      {
+        "name": "reponse",
+        "value": "0 4px 14px rgba(17,24,39,.07)",
+        "purpose": "Survol d'un bouton, barre d'action collante. Le seul niveau qui réagit."
+      },
+      {
+        "name": "superposee",
+        "value": "0 12px 34px rgba(17,24,39,.10)",
+        "purpose": "Menu déroulant, modale, panneau de résultats : ce qui flotte au-dessus."
+      },
+      {
+        "name": "anneau-focus",
+        "value": "0 0 0 3px rgba(41,88,148,.18)",
+        "purpose": "Unique traitement de focus, via :focus-visible. Ce n'est pas une élévation."
+      },
+      {
+        "name": "posee-sombre",
+        "value": "0 1px 2px rgba(0,0,0,.4)",
+        "purpose": "Équivalent thème sombre : le halo diffus ne fonctionne pas sur fond foncé."
+      }
+    ],
+    "motion": [
+      {
+        "name": "etat-court",
+        "value": "120ms",
+        "purpose": "Changement d'état courant : survol, focus, couleur, bordure."
+      },
+      {
+        "name": "pression",
+        "value": "60ms",
+        "purpose": "Enfoncement d'un bouton (translateY 1px)."
+      },
+      {
+        "name": "entree-modale",
+        "value": "160ms ease-out",
+        "purpose": "Apparition d'une modale (opacité + translateY -8px)."
+      },
+      {
+        "name": "mouvement-reduit",
+        "value": "prefers-reduced-motion: reduce → 0.01ms",
+        "purpose": "Toutes les transitions et animations sont neutralisées, sans désactiver les changements d'état."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "kpi-2col",
+        "value": "560px"
+      },
+      {
+        "name": "formulaire-1col",
+        "value": "640px"
+      },
+      {
+        "name": "coquille-onglets-compacte",
+        "value": "720px"
+      },
+      {
+        "name": "sidebar-horizontale",
+        "value": "880px"
+      },
+      {
+        "name": "rail-filtres-deplie",
+        "value": "900px"
+      },
+      {
+        "name": "deux-colonnes-empilees",
+        "value": "1100px"
+      },
+      {
+        "name": "contenu-max",
+        "value": "1440px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Bouton principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Action principale d'un ecran. Un seul par zone d'action.",
+      "html": "<button class=\"ds-btn ds-btn-primary\"><svg class=\"ds-ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14\"/><path d=\"M5 12h14\"/></svg>Planifier un entretien</button>",
+      "css": ".ds-ic { width: 1.15em; height: 1.15em; flex: 0 0 auto; vertical-align: -0.19em; overflow: visible; } .ds-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 15px; border-radius: 9px; border: 1px solid transparent; font-size: 13px; font-weight: 600; font-family: 'Segoe UI', -apple-system, sans-serif; cursor: pointer; transition: transform .06s ease, background .12s, box-shadow .12s; } .ds-btn-primary { background: linear-gradient(180deg, var(--primary, #295894), var(--primary-strong, #233873)); color: var(--on-primary, #fff); box-shadow: 0 2px 8px color-mix(in srgb, var(--primary, #295894) 45%, transparent); } .ds-btn-primary:hover { filter: brightness(1.05); box-shadow: 0 4px 14px color-mix(in srgb, var(--primary, #295894) 55%, transparent); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(41, 88, 148, .18); }"
+    },
+    {
+      "name": "Bouton par defaut",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Action secondaire. Fond de surface, bordure appuyee, ombre posee.",
+      "html": "<button class=\"ds-btn ds-btn-default\"><svg class=\"ds-ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"10.75\" cy=\"10.75\" r=\"6.75\"/><path d=\"M15.75 15.75 20.5 20.5\"/></svg>Tester la connexion</button>",
+      "css": ".ds-ic { width: 1.15em; height: 1.15em; flex: 0 0 auto; vertical-align: -0.19em; overflow: visible; } .ds-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 15px; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: 'Segoe UI', -apple-system, sans-serif; cursor: pointer; transition: transform .06s ease, background .12s, box-shadow .12s; } .ds-btn-default { background: var(--surface, #fff); color: var(--text, #1b1f27); border: 1px solid var(--border-strong, #dde0e6); box-shadow: 0 1px 2px rgba(17,24,39,.05), 0 1px 3px rgba(17,24,39,.04); } .ds-btn-default:hover { background: var(--surface-2, #f6f7f9); box-shadow: 0 4px 14px rgba(17,24,39,.07); } .ds-btn-default:active { transform: translateY(1px); } .ds-btn-default:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(41,88,148,.18); }"
+    },
+    {
+      "name": "Champ de recherche",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Champ de recherche de bandeau. Icone en element, jamais dans le placeholder.",
+      "html": "<div class=\"ds-search\"><svg class=\"ds-search-ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"10.75\" cy=\"10.75\" r=\"6.75\"/><path d=\"M15.75 15.75 20.5 20.5\"/></svg><input type=\"search\" placeholder=\"Rechercher un candidat…\" aria-label=\"Rechercher un candidat\"></div>",
+      "css": ".ds-search { position: relative; display: inline-block; width: 320px; max-width: 100%; } .ds-search-ic { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--muted, #646d7d); pointer-events: none; } .ds-search input { width: 100%; padding: 9px 15px 9px 38px; border-radius: 999px; border: 1px solid var(--border-strong, #dde0e6); background: var(--surface-2, #f6f7f9); color: var(--text, #1b1f27); font-size: 13.5px; font-family: 'Segoe UI', -apple-system, sans-serif; transition: border-color .12s, box-shadow .12s; } .ds-search input:focus { outline: none; border-color: var(--primary, #295894); background: var(--surface, #fff); box-shadow: 0 0 0 3px rgba(41,88,148,.18); }"
+    },
+    {
+      "name": "Pastille de statut",
+      "kind": "chip",
+      "refersTo": "badge-status",
+      "description": "Statut candidat. Six variantes, chacune avec son triplet fond/texte/bordure mesure.",
+      "html": "<span class=\"ds-badge ds-badge-nouveau\">Nouveau</span><span class=\"ds-badge ds-badge-contacter\">À contacter</span><span class=\"ds-badge ds-badge-embauche\">Embauché</span><span class=\"ds-badge ds-badge-refuse\">Refusé</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; margin-right: 6px; border-radius: 999px; border: 1px solid; font-size: 11px; font-weight: 700; letter-spacing: .2px; white-space: nowrap; font-family: 'Segoe UI', -apple-system, sans-serif; } .ds-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .9; } .ds-badge-nouveau { background: #e6f1ff; color: #1e5fbf; border-color: #bcd8ff; } .ds-badge-contacter { background: #fff5cc; color: #8a6300; border-color: #f2dd88; } .ds-badge-embauche { background: #d6f5df; color: #0f7136; border-color: #a4e6ba; } .ds-badge-refuse { background: #fde8e8; color: #c0303a; border-color: #f6c4c4; }"
+    },
+    {
+      "name": "Puce de filtre",
+      "kind": "chip",
+      "refersTo": "button-ghost",
+      "description": "Filtre a etat avec compteur integre. aria-pressed suivi en JS.",
+      "html": "<button class=\"ds-chip ds-chip-active\" aria-pressed=\"true\">Tous <span class=\"ds-chip-n\">4</span></button><button class=\"ds-chip\" aria-pressed=\"false\">Email <span class=\"ds-chip-n\">2</span></button>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: .4rem; margin-right: 8px; padding: 6px 13px; border-radius: 999px; cursor: pointer; font-size: 12.5px; font-weight: 600; line-height: 1; font-family: 'Segoe UI', -apple-system, sans-serif; border: 1px solid var(--border-strong, #dde0e6); background: var(--surface, #fff); color: var(--text, #1b1f27); transition: background .12s, border-color .12s, color .12s; } .ds-chip:hover { background: var(--surface-2, #f6f7f9); } .ds-chip-active { background: var(--primary, #295894); border-color: transparent; color: var(--on-primary, #fff); } .ds-chip-n { font-size: 11px; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, currentColor 16%, transparent); } .ds-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(41,88,148,.18); }"
+    },
+    {
+      "name": "Carte KPI",
+      "kind": "card",
+      "refersTo": "kpi-card",
+      "description": "Repere chiffre du haut de page. Pastel dedie, pastille d'icone teintee depuis la couleur de la carte.",
+      "html": "<div class=\"ds-kpi ds-kpi-mint\"><span class=\"ds-kpi-ic\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3.5 13.5h4.25l1.5 3h5.5l1.5-3h4.25\"/><path d=\"M3.5 13.5 6.1 5.9a2 2 0 0 1 1.9-1.4h8a2 2 0 0 1 1.9 1.4l2.6 7.6v4.6a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z\"/></svg></span><div><div class=\"ds-kpi-num\">128</div><div class=\"ds-kpi-lbl\">CV reçus ce mois</div></div></div><div class=\"ds-kpi ds-kpi-lav\"><span class=\"ds-kpi-ic\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\"/><circle cx=\"12\" cy=\"12\" r=\"1.1\" fill=\"currentColor\" stroke=\"none\"/></svg></span><div><div class=\"ds-kpi-num\">17</div><div class=\"ds-kpi-lbl\">Correspondances</div></div></div>",
+      "css": ".ds-kpi { display: inline-flex; align-items: center; gap: 14px; margin-right: 16px; border-radius: 16px; padding: 18px 20px; font-family: 'Segoe UI', -apple-system, sans-serif; } .ds-kpi-ic { width: 46px; height: 46px; flex-shrink: 0; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, currentColor 13%, transparent); } .ds-kpi-ic svg { width: 22px; height: 22px; } .ds-kpi-num { font-size: 26px; font-weight: 800; line-height: 1; letter-spacing: -.5px; } .ds-kpi-lbl { font-size: 12.5px; font-weight: 600; opacity: .8; margin-top: 3px; } .ds-kpi-mint { background: #d9f2ec; color: #10514a; } .ds-kpi-lav { background: #e6e4fb; color: #3d3080; }"
+    },
+    {
+      "name": "Lien de navigation",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Entree de la barre laterale. Etat actif sur fond marine voile.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-link ds-nav-active\" href=\"#\"><svg class=\"ds-nav-ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\"/><circle cx=\"12\" cy=\"12\" r=\"1.1\" fill=\"currentColor\" stroke=\"none\"/></svg><span>Matching</span></a><a class=\"ds-nav-link\" href=\"#\"><svg class=\"ds-nav-ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3.5 13.5h4.25l1.5 3h5.5l1.5-3h4.25\"/><path d=\"M3.5 13.5 6.1 5.9a2 2 0 0 1 1.9-1.4h8a2 2 0 0 1 1.9 1.4l2.6 7.6v4.6a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z\"/></svg><span>Import Outlook</span></a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 3px; width: 216px; font-family: 'Segoe UI', -apple-system, sans-serif; } .ds-nav-link { display: flex; align-items: center; gap: 11px; padding: 9px 12px; border-radius: 10px; text-decoration: none; color: var(--muted, #646d7d); font-weight: 600; font-size: 13.5px; transition: background .12s, color .12s; } .ds-nav-ic { width: 18px; height: 18px; flex: 0 0 auto; } .ds-nav-link:hover { background: var(--surface-2, #f6f7f9); color: var(--heading, #12151b); } .ds-nav-active { background: var(--primary-soft, #eaf1f9); color: var(--primary, #295894); font-weight: 700; }"
+    },
+    {
+      "name": "Tableau dense",
+      "kind": "custom",
+      "refersTo": "table-header",
+      "description": "Tableau de travail, toujours dans un conteneur a defilement horizontal.",
+      "html": "<div class=\"ds-table-wrap\"><table class=\"ds-table\"><thead><tr><th scope=\"col\">Candidat</th><th scope=\"col\">Poste</th><th scope=\"col\">Exp.</th><th scope=\"col\">Statut</th></tr></thead><tbody><tr><td><strong>Amel Haddad</strong></td><td>Ingénieur réseaux</td><td class=\"ds-num\">4</td><td><span class=\"ds-badge ds-badge-contacter\">À contacter</span></td></tr><tr><td><strong>Karim Bouzid</strong></td><td>Data analyst</td><td class=\"ds-num\">11</td><td><span class=\"ds-badge ds-badge-embauche\">Embauché</span></td></tr></tbody></table></div>",
+      "css": ".ds-table-wrap { overflow-x: auto; border-radius: 12px; box-shadow: 0 1px 2px rgba(17,24,39,.05), 0 1px 3px rgba(17,24,39,.04); } .ds-table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface, #fff); border: 1px solid var(--border, #ecedf1); border-radius: 12px; overflow: hidden; font-family: 'Segoe UI', -apple-system, sans-serif; font-size: 14px; } .ds-table th, .ds-table td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border, #ecedf1); } .ds-table th { background: var(--surface-2, #f6f7f9); color: var(--muted, #646d7d); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; } .ds-table tbody tr:last-child td { border-bottom: 0; } .ds-table tbody tr:hover td { background: var(--primary-soft, #eaf1f9); } .ds-num { font-variant-numeric: tabular-nums; font-weight: 700; } .ds-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; border: 1px solid; font-size: 11px; font-weight: 700; white-space: nowrap; } .ds-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .9; } .ds-badge-contacter { background: #fff5cc; color: #8a6300; border-color: #f2dd88; } .ds-badge-embauche { background: #d6f5df; color: #0f7136; border-color: #a4e6ba; }"
+    },
+    {
+      "name": "Avatar d'identite",
+      "kind": "custom",
+      "refersTo": "icon",
+      "description": "Couleur deterministe d'un candidat : rampe a huit tons, choisie par identifiant % 8.",
+      "html": "<span class=\"ds-av\" style=\"--av: #4c6ebd\">AH</span><span class=\"ds-av\" style=\"--av: #2f7f61\">KB</span><span class=\"ds-av\" style=\"--av: #956937\">NC</span><span class=\"ds-av\" style=\"--av: #bd4c5f\">SM</span>",
+      "css": ".ds-av { width: 38px; height: 38px; margin-right: 8px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--av); color: #fff; font-weight: 700; font-size: 13px; letter-spacing: .3px; font-family: 'Segoe UI', -apple-system, sans-serif; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Le dossier d'instruction",
+    "overview": "Rien n'est décidé au jugé. Chaque teinte de cette interface porte, en commentaire dans la feuille de style, le ratio de contraste auquel elle a été mesurée et le fond sur lequel elle a été mesurée. Ce n'est pas de la documentation d'après coup : c'est la méthode. Quand une couleur ne passe pas le seuil, on la redescend d'un cran et on note la nouvelle valeur. Un écran de cette application se défend comme une pièce de dossier — on peut dire pourquoi chaque élément est là et pourquoi il a cette apparence.\n\nLa conséquence pratique est une discipline de la couleur : la couleur qualifie un état, elle ne décore jamais. Le marine de marque porte les liens, les actions principales et la sélection courante. Les six pastilles de statut candidat, les quatre teintes d'alerte et la rampe d'identité à huit tons existent parce qu'un opérateur RH doit reconnaître un état d'un coup d'œil dans une liste de cinq cents lignes. Tout le reste est neutre.\n\nLa densité est assumée. C'est un outil de travail quotidien pour une équipe qui trie des candidatures, pas un tableau de bord de démonstration : les tableaux portent beaucoup de colonnes, les listes beaucoup de lignes, et l'interface s'efface derrière la tâche. Mais la densité ne veut pas dire l'agression — les angles sont généreux, les repères chiffrés vivent sur des pastels doux, et rien ne claque dans une journée passée à lire des CV.",
+    "keyCharacteristics": [
+      "Contrastes mesurés et notés, jamais estimés — le commentaire du ratio fait partie du token",
+      "Palette de marque Rayanox contraignante : marine #233873 → bleu vif #1e8dcc, non négociable",
+      "Thème clair et sombre, l'échelle de marque s'inversant intégralement en sombre",
+      "Français professionnel, vouvoiement, vocabulaire RH métier — jusque dans les noms de classes et d'icônes",
+      "Densité tabulaire élevée, angles à 12 px, pastels réservés aux repères chiffrés",
+      "Aucune dépendance externe : pas de CDN, pas de bundler, pas de police distante"
+    ],
+    "rules": [
+      {
+        "name": "La Règle du Ratio Écrit",
+        "section": "colors",
+        "body": "Aucune couleur n'entre dans la feuille de style sans son ratio de contraste mesuré, noté en commentaire à côté du token, avec le fond sur lequel il a été mesuré. Une valeur sans commentaire est une valeur non vérifiée."
+      },
+      {
+        "name": "La Règle du Fond Apparié",
+        "section": "colors",
+        "body": "Une couleur sémantique se mesure sur SON fond (--success sur --success-bg), pas sur du blanc. C'est là qu'elle vit : dans une alerte, un badge, une pastille."
+      },
+      {
+        "name": "La Règle de l'Aplat Marine",
+        "section": "colors",
+        "body": "Tout texte posé sur un aplat --primary prend var(--on-primary), jamais #fff. L'échelle de marque s'inverse en thème sombre."
+      },
+      {
+        "name": "La Règle du Marine pour le Texte",
+        "section": "colors",
+        "body": "--accent est un accent graphique, pas une couleur de texte. En dessous de 24 px, c'est --primary."
+      },
+      {
+        "name": "La Règle des Chiffres Alignés",
+        "section": "typography",
+        "body": "Toute colonne numérique comparable porte font-variant-numeric: tabular-nums."
+      },
+      {
+        "name": "La Règle de l'Échelle Fixe",
+        "section": "typography",
+        "body": "Aucun clamp() typographique. Les postes de travail RH sont à densité de pixels constante."
+      },
+      {
+        "name": "La Règle de l'En-tête Adossé",
+        "section": "layout",
+        "body": "Toute barre collante du contenu se pose à calc(var(--sticky-top) + N), jamais à top: 0."
+      },
+      {
+        "name": "La Règle du Tableau Enveloppé",
+        "section": "layout",
+        "body": "Un <table class=\"table\"> vit toujours dans un <div class=\"table-wrap\">. À 390 px de large, scrollWidth doit valoir 390."
+      },
+      {
+        "name": "La Règle de l'En-tête Accroché",
+        "section": "layout",
+        "body": "Un position: sticky sur un <thead> n'a d'effet que si son conteneur a une hauteur bornée."
+      },
+      {
+        "name": "La Règle de l'Ombre Décalée",
+        "section": "elevation",
+        "body": "Toute ombre porte un décalage vertical et un flou. Une ombre à décalage nul est un halo décoratif."
+      },
+      {
+        "name": "La Règle de l'Ombre au Conteneur",
+        "section": "elevation",
+        "body": "Quand un élément ombré entre dans un conteneur en overflow, l'ombre passe sur le conteneur."
+      },
+      {
+        "name": "La Règle du Rayon à Trois Crans",
+        "section": "shapes",
+        "body": "Bloc 12 px, commande 9 px, détail 8 px."
+      },
+      {
+        "name": "La Règle du Vocabulaire Unique",
+        "section": "components",
+        "body": "Un rôle, un composant. Un même candidat porte la même couleur d'identité sur tous les écrans."
+      },
+      {
+        "name": "La Règle des Sept États",
+        "section": "components",
+        "body": "Tout élément interactif possède défaut, survol, focus, actif, désactivé, chargement et erreur."
+      },
+      {
+        "name": "La Règle de la Cible de 24 px",
+        "section": "components",
+        "body": "Toute cible tactile fait au moins 24 × 24 px. Une case native ignore la marge intérieure : c'est un <label> qui porte la zone de clic."
+      }
+    ],
+    "dos": [
+      "Do noter le ratio de contraste mesuré, avec son fond, en commentaire à côté de chaque couleur ajoutée.",
+      "Do mesurer une couleur sémantique sur son fond apparié, pas sur du blanc.",
+      "Do utiliser var(--on-primary) pour tout texte posé sur un aplat --primary.",
+      "Do envelopper chaque <table class=\"table\"> dans un <div class=\"table-wrap\">.",
+      "Do adosser toute barre collante à calc(var(--sticky-top) + N).",
+      "Do borner la hauteur d'un conteneur avant d'y attendre un position: sticky fonctionnel.",
+      "Do passer par la macro ui.ic('nom') et le sprite pour toute icône.",
+      "Do appliquer font-variant-numeric: tabular-nums à toute colonne numérique comparable.",
+      "Do doubler chaque variante :root[data-theme=\"dark\"] d'une variante @media (prefers-color-scheme: dark).",
+      "Do écrire les états vides de façon à ouvrir une sortie."
+    ],
+    "donts": [
+      "Don't employer --accent (#1e8dcc) pour du texte sous 24 px : 3,66:1 sur --surface.",
+      "Don't coder color: #fff en dur sur un fond de marque.",
+      "Don't référencer une variable CSS qui n'existe pas en comptant sur son repli.",
+      "Don't introduire de teinte hors palette de marque, en particulier les valeurs par défaut de Tailwind.",
+      "Don't poser un liseré coloré de plus de 1 px sur une carte, une alerte ou un élément de liste.",
+      "Don't employer un emoji ni un glyphe géométrique à la place d'une icône.",
+      "Don't appeler alert(), prompt() ou une boîte système pour une saisie ou un message.",
+      "Don't animer width, height, padding ou margin — utiliser transform et opacity.",
+      "Don't livrer un chemin qui n'existe qu'à la souris.",
+      "Don't dimensionner une icône avec font-size."
+    ]
+  }
+}
