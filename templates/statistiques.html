@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Statistiques RH{% endblock %}
 {% block content %}
 
@@ -42,19 +43,19 @@
 
 <div class="kpi-cards">
   <div class="kpi-card kpi-mint">
-    <span class="kpi-ic">📥</span>
+    <span class="kpi-ic">{{ ui.ic('boite-entree') }}</span>
     <div><div class="kpi-num">{{ total }}</div><div class="kpi-lbl">Candidats au total</div></div>
   </div>
   <div class="kpi-card kpi-lavender">
-    <span class="kpi-ic">⏱️</span>
+    <span class="kpi-ic">{{ ui.ic('chrono') }}</span>
     <div><div class="kpi-num">{{ temps_moyen_txt }}{% if temps_moyen_txt != 'N/A' %}<span class="kpi-unit">j</span>{% endif %}</div><div class="kpi-lbl">Temps moyen de recrutement</div></div>
   </div>
   <div class="kpi-card kpi-amber">
-    <span class="kpi-ic">🎉</span>
+    <span class="kpi-ic">{{ ui.ic('trophee') }}</span>
     <div><div class="kpi-num">{{ taux_recrutement }}<span class="kpi-unit">%</span></div><div class="kpi-lbl">Taux de recrutement</div></div>
   </div>
   <div class="kpi-card kpi-pink">
-    <span class="kpi-ic">🚫</span>
+    <span class="kpi-ic">{{ ui.ic('interdit') }}</span>
     <div><div class="kpi-num">{{ taux_refus }}<span class="kpi-unit">%</span></div><div class="kpi-lbl">Taux de refus</div></div>
   </div>
 </div>

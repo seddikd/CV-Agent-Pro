@@ -1,8 +1,9 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Premier lancement{% endblock %}
 {% block content %}
 <div class="login-card">
-  <h1>📨 CV Agent</h1>
+  <h1>{{ ui.ic('enveloppe') }} CV Agent</h1>
   <p class="subtitle">Bienvenue — création du compte administrateur</p>
   <p class="muted">Première utilisation : définissez le compte admin qui gérera l'application.</p>
 

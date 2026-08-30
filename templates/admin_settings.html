@@ -1,12 +1,13 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
 
 <div class="page-head"><h1>{{ title }}</h1></div>
 
 <div class="stats" style="margin-bottom:16px">
-  <a class="stat" href="/admin/settings/mail" style="{% if section=='mail' %}border-color:var(--primary);color:var(--primary){% endif %}">📧 Paramètres Mail</a>
-  <a class="stat" href="/admin/settings/llm" style="{% if section=='llm' %}border-color:var(--primary);color:var(--primary){% endif %}">🤖 Paramètres LLM</a>
+  <a class="stat" href="/admin/settings/mail" style="{% if section=='mail' %}border-color:var(--primary);color:var(--primary){% endif %}">{{ ui.ic('enveloppe') }} Paramètres Mail</a>
+  <a class="stat" href="/admin/settings/llm" style="{% if section=='llm' %}border-color:var(--primary);color:var(--primary){% endif %}">{{ ui.ic('etincelles') }} Paramètres LLM</a>
 </div>
 
 {% if msg %}<div class="alert info">{{ msg }}</div>{% endif %}
@@ -28,8 +29,8 @@
       <small class="muted">({{ key }})</small>
       {% if kind == 'select' and key == 'llm.provider' %}
       <select name="{{ key }}" id="llm-provider">
-        <option value="ollama" {% if provider == 'ollama' %}selected{% endif %}>💻 Local (Ollama)</option>
-        <option value="openrouter" {% if provider == 'openrouter' %}selected{% endif %}>☁️ Cloud (OpenRouter / Gemini / OpenAI…)</option>
+        <option value="ollama" {% if provider == 'ollama' %}selected{% endif %}>Local (Ollama)</option>
+        <option value="openrouter" {% if provider == 'openrouter' %}selected{% endif %}>Cloud (OpenRouter / Gemini / OpenAI…)</option>
       </select>
       {% elif kind == 'select' and key == 'smtp.security' %}
       {% set sec = values.get('smtp.security', 'TLS') %}
@@ -86,16 +87,16 @@
         <option value="x-ai/grok-2">xAI Grok 2</option>
       </datalist>
       <div style="margin-top:.35rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
-        <button type="button" class="btn small" id="load-cloud-models">🔄 Charger les modèles cloud (OpenRouter)</button>
+        <button type="button" class="btn small" id="load-cloud-models">{{ ui.ic('cycle') }} Charger les modèles cloud (OpenRouter)</button>
         <span id="cloud-models-status" class="muted small"></span>
       </div>
       <small class="muted">Modèles cloud (OpenRouter agrège OpenAI, Google, Anthropic, Mistral…). Liste éditable — saisissez n'importe quel identifiant.
-        <a href="https://openrouter.ai/models" target="_blank" rel="noopener">Catalogue complet ↗</a></small>
+        <a href="https://openrouter.ai/models" target="_blank" rel="noopener">Catalogue complet{{ ui.ic('lien-externe') }}</a></small>
       {% elif kind == 'bool' %}
       {% set bval = values.get(key, 'false') %}
       <select name="{{ key }}">
-        <option value="true" {% if bval == 'true' %}selected{% endif %}>✅ Activé</option>
-        <option value="false" {% if bval != 'true' %}selected{% endif %}>⬜ Désactivé</option>
+        <option value="true" {% if bval == 'true' %}selected{% endif %}>Activé</option>
+        <option value="false" {% if bval != 'true' %}selected{% endif %}>Désactivé</option>
       </select>
       {% elif kind == 'password' %}
       <input type="password" name="{{ key }}" placeholder="(inchangé si vide)">
@@ -111,7 +112,7 @@
               hx-post="/admin/settings/test-imap"
               hx-include="[name='imap.host'],[name='imap.port'],[name='imap.security'],[name='imap.user'],[name='imap.password'],[name='imap.folder']"
               hx-target="#imap-test-result" hx-swap="innerHTML">
-        📬 Tester la connexion à la boîte mail
+        {{ ui.ic('enveloppe-coche') }} Tester la connexion à la boîte mail
       </button>
       <span id="imap-test-result" style="margin-left:.6rem"></span>
     </div>
@@ -120,7 +121,7 @@
               hx-post="/admin/settings/move-imap"
               hx-confirm="Ranger maintenant les mails déjà traités de la boîte IMAP ?&#10;&#10;Seuls les mails analysés par la solution sont déplacés (CV → dossier des CV ; non-CV → dossier des non-CV s'il est renseigné). L'opération utilise les réglages ENREGISTRÉS : enregistrez d'abord vos modifications."
               hx-target="#imap-move-result" hx-swap="innerHTML">
-        📁 Ranger les mails traités maintenant
+        {{ ui.ic('dossier') }} Ranger les mails traités maintenant
       </button>
       <span id="imap-move-result" style="margin-left:.6rem"></span>
       <div class="small muted" style="margin-top:.25rem">
@@ -134,7 +135,7 @@
               hx-post="/admin/settings/test-smtp"
               hx-include="[name='smtp.host'],[name='smtp.port'],[name='smtp.security'],[name='smtp.user'],[name='smtp.password'],[name='smtp.from'],[name='notify.recipients']"
               hx-target="#smtp-test-result" hx-swap="innerHTML">
-        ✉️ Tester SMTP (envoie un test aux destinataires si renseignés)
+        {{ ui.ic('enveloppe') }} Tester SMTP (envoie un test aux destinataires si renseignés)
       </button>
       <span id="smtp-test-result" style="margin-left:.6rem"></span>
     </div>
@@ -146,7 +147,7 @@
               hx-post="/admin/settings/test-ollama"
               hx-include="[name='ollama.model'],[name='ollama.host']"
               hx-target="#ollama-test-result" hx-swap="innerHTML">
-        🔌 Tester Ollama (serveur + modèle)
+        {{ ui.ic('prise') }} Tester Ollama (serveur + modèle)
       </button>
       <span id="ollama-test-result" style="margin-left:.6rem"></span>
     </div>
@@ -155,13 +156,13 @@
               hx-post="/admin/settings/test-openrouter"
               hx-include="[name='openrouter.base_url'],[name='openrouter.model'],[name='openrouter.api_key']"
               hx-target="#or-test-result" hx-swap="innerHTML">
-        🔌 Tester la connexion cloud
+        {{ ui.ic('prise') }} Tester la connexion cloud
       </button>
       <span id="or-test-result" style="margin-left:.6rem"></span>
     </div>
     {% endif %}
 
-    <button type="submit" class="btn primary">💾 Enregistrer</button>
+    <button type="submit" class="btn primary">{{ ui.ic('enregistrer') }} Enregistrer</button>
   </form>
 </div>
 

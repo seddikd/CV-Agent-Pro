@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Recherche IA{% endblock %}
 {% block content %}
 
@@ -30,14 +31,14 @@
 <form method="post" action="/recherche-ia" class="card ia-form">
   <textarea name="q" placeholder="Trouve-moi un ingénieur réseau Cisco avec plus de 5 ans d'expérience parlant anglais…">{{ q }}</textarea>
   <div class="actions">
-    <button type="submit" class="btn primary">✨ Rechercher</button>
+    <button type="submit" class="btn primary">{{ ui.ic('etincelles') }} Rechercher</button>
     <a href="/recherche-ia" class="btn ghost">Réinitialiser</a>
   </div>
 </form>
 
 {% if erreur %}
   <div class="card ia-erreur">
-    <p class="muted">⚠️ {{ erreur }}</p>
+    <p class="muted">{{ ui.ic('alerte') }} {{ erreur }}</p>
   </div>
 {% endif %}
 
@@ -77,39 +78,41 @@
       {{ nb_resultats }} résultat(s){% if nb_resultats == 500 %} (limité à 500){% endif %}.
     </p>
 
-    <table class="table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Candidat</th>
-          <th>Poste</th>
-          <th>Spécialité</th>
-          <th>Exp.</th>
-          <th>Compétences</th>
-          <th>Statut</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for c in rows %}
-        <tr>
-          <td>{{ c.id }}</td>
-          <td>
-            <a href="/candidate/{{ c.id }}" class="cand-link">
-              <strong>{{ (c.prenom or '') }} {{ (c.nom or '') }}</strong>
-            </a><br>
-            <span class="small muted">{{ c.email or '' }}</span>
-          </td>
-          <td class="small">{{ c.poste_recherche or '—' }}</td>
-          <td class="small">{{ c.specialite or '—' }}</td>
-          <td>{{ c.annees_experience if c.annees_experience is not none else '—' }}</td>
-          <td class="small">{{ (c.competences or '')[:80] }}{% if c.competences and c.competences|length > 80 %}…{% endif %}</td>
-          <td>{{ c.statut or '—' }}</td>
-        </tr>
-      {% else %}
-        <tr><td colspan="7" class="empty">Aucun candidat ne correspond à ces critères.</td></tr>
-      {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Candidat</th>
+            <th>Poste</th>
+            <th>Spécialité</th>
+            <th>Exp.</th>
+            <th>Compétences</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for c in rows %}
+          <tr>
+            <td>{{ c.id }}</td>
+            <td>
+              <a href="/candidate/{{ c.id }}" class="cand-link">
+                <strong>{{ (c.prenom or '') }} {{ (c.nom or '') }}</strong>
+              </a><br>
+              <span class="small muted">{{ c.email or '' }}</span>
+            </td>
+            <td class="small">{{ c.poste_recherche or '—' }}</td>
+            <td class="small">{{ c.specialite or '—' }}</td>
+            <td>{{ c.annees_experience if c.annees_experience is not none else '—' }}</td>
+            <td class="small">{{ (c.competences or '')[:80] }}{% if c.competences and c.competences|length > 80 %}…{% endif %}</td>
+            <td>{{ c.statut or '—' }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="empty">Aucun candidat ne correspond à ces critères.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% endif %}
 {% endif %}
 

@@ -1114,13 +1114,22 @@ async def admin_test_smtp(request: Request):
 
 
 def _test_result_html(ok: bool, message: str) -> HTMLResponse:
-    color = "#1a7f37" if ok else "#c1121f"
-    icon = "✓" if ok else "✗"
+    """Fragment HTMX inséré dans la page des réglages après un test de connexion.
+
+    L'icône référence le sprite déjà présent dans la page (templates/_icones.html)
+    et la couleur passe par les tokens sémantiques : ce fragment suit donc le
+    thème clair/sombre, ce que ne faisaient ni le ✓/✗ ni les hex codés en dur.
+    """
+    role = "success" if ok else "danger"
+    symbole = "coche-cercle" if ok else "interdit"
     # message peut contenir du contenu renvoyé par un serveur distant (modèles
     # Ollama, corps d'erreur d'une API) : l'échapper pour éviter une injection HTML.
     safe_message = html.escape(message)
     return HTMLResponse(
-        f'<span style="color:{color};font-weight:600">{icon} {safe_message}</span>'
+        f'<span class="test-result" style="color:var(--{role})">'
+        f'<svg class="icone" aria-hidden="true" focusable="false">'
+        f'<use href="#i-{symbole}"></use></svg>'
+        f'{safe_message}</span>'
     )
 
 

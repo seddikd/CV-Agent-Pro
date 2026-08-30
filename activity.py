@@ -42,15 +42,17 @@ EMAIL = "EMAIL"          # Email envoyé au candidat
 NOTE = "NOTE"            # Note interne RH ajoutée
 DOC = "DOC"              # Document / pièce jointe ajouté
 
-# Icône associée à chaque type (utilisée par le template de frise).
+# Icône associée à chaque type. Ce sont des NOMS du jeu d'icônes
+# (templates/_icones.html), pas des emoji : le gabarit de frise les passe à la
+# macro `ui.ic`, qui produit le SVG correspondant.
 ICONES = {
-    RECU: "📥",
-    STATUT: "🏷️",
-    ETAPE: "📊",
-    ENTRETIEN: "📅",
-    EMAIL: "✉️",
-    NOTE: "📝",
-    DOC: "📎",
+    RECU: "boite-entree",
+    STATUT: "etiquette",
+    ETAPE: "pipeline",
+    ENTRETIEN: "calendrier",
+    EMAIL: "enveloppe",
+    NOTE: "note",
+    DOC: "trombone",
 }
 
 

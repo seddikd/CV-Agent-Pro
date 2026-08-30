@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Reporting{% endblock %}
 {% block content %}
 
@@ -60,19 +61,19 @@
 
 <div class="kpi-cards">
   <div class="kpi-card kpi-mint">
-    <span class="kpi-ic">📥</span>
+    <span class="kpi-ic">{{ ui.ic('boite-entree') }}</span>
     <div><div class="kpi-num">{{ kpis.total }}</div><div class="kpi-lbl">Candidats au total</div></div>
   </div>
   <div class="kpi-card kpi-amber">
-    <span class="kpi-ic">🎉</span>
+    <span class="kpi-ic">{{ ui.ic('trophee') }}</span>
     <div><div class="kpi-num">{{ kpis.embauches }}</div><div class="kpi-lbl">Embauchés</div></div>
   </div>
   <div class="kpi-card kpi-pink">
-    <span class="kpi-ic">📈</span>
+    <span class="kpi-ic">{{ ui.ic('courbe') }}</span>
     <div><div class="kpi-num">{{ kpis.taux_embauche }}<span class="kpi-unit">%</span></div><div class="kpi-lbl">Taux d'embauche</div></div>
   </div>
   <div class="kpi-card kpi-lavender">
-    <span class="kpi-ic">⏱️</span>
+    <span class="kpi-ic">{{ ui.ic('chrono') }}</span>
     <div><div class="kpi-num">{{ kpis.time_to_hire_txt }}{% if kpis.time_to_hire_txt != 'N/A' %}<span class="kpi-unit">j</span>{% endif %}</div><div class="kpi-lbl">Time-to-hire moyen</div></div>
   </div>
 </div>

@@ -1,3 +1,4 @@
+{% import "_ui_macros.html" as ui %}
 {# Fragment « Emails » de la fiche candidat : choix d'un modèle, aperçu rendu,
    bouton d'envoi et historique des envois. Chargé/rechargé dans #emails-candidat. #}
 <h3>Emails</h3>
@@ -52,7 +53,7 @@
   <div style="margin-top:.5rem;">
     <button type="submit" class="btn primary"
             {% if not smtp_ok or not destinataire or not can_write %}disabled{% endif %}>
-      ✉️ Envoyer{% if destinataire %} à {{ destinataire }}{% endif %}
+      {{ ui.ic('enveloppe') }} Envoyer{% if destinataire %} à {{ destinataire }}{% endif %}
     </button>
   </div>
 </form>

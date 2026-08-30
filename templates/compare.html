@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Comparaison de candidats{% endblock %}
 {% block content %}
 
@@ -15,7 +16,18 @@
   }
 
   /* ── Tableau de comparaison ──────────────────────────────────────────── */
-  .cmp-wrap { overflow-x: auto; border-radius: var(--radius); }
+  /* Hauteur bornée : sans elle le conteneur grandissait sans fin, seule la page
+     défilait, et ni l'en-tête collant ni la colonne « Critère » ne s'accrochaient
+     — sur une comparaison longue on perdait de vue à qui appartient la colonne. */
+  .cmp-wrap {
+    overflow: auto; border-radius: var(--radius);
+    max-height: calc(100vh - var(--sticky-top) - 150px);
+    overscroll-behavior: contain;
+    scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
+  }
+  .cmp-wrap::-webkit-scrollbar { width: 10px; height: 10px; }
+  .cmp-wrap::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+  .cmp-wrap::-webkit-scrollbar-track { background: transparent; }
   .cmp-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 640px; }
   .cmp-table th, .cmp-table td {
     border-bottom: 1px solid var(--border);
@@ -34,8 +46,10 @@
   .cmp-head-id .n a:hover { color: var(--primary); }
   .cmp-head-id .n .poste { font-size: 11.5px; color: var(--muted); font-weight: 500; }
   .cmp-head-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  /* Sans « margin-left: auto », le bouton reste collé au statut du candidat :
+     rejeté au bord de la colonne, il semblait appartenir au candidat suivant. */
   .cmp-remove {
-    margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 600;
+    color: var(--muted); font-size: 12px; font-weight: 600;
     border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px;
     background: var(--surface); white-space: nowrap;
   }
@@ -51,7 +65,9 @@
 
   /* Ligne d'en-tête de section */
   .cmp-sec td {
-    background: var(--primary-soft); color: var(--accent);
+    /* --accent (#1e8dcc) ne fait que 3,22:1 sur --primary-soft : sous le seuil
+       pour du 11,5 px. --primary est la teinte prévue pour ce fond (6,32:1). */
+    background: var(--primary-soft); color: var(--primary);
     font-size: 11.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
     padding: 7px 14px; border-bottom: 1px solid var(--border);
   }
@@ -73,7 +89,8 @@
   }
 
   /* Expérience : valeur forte + pastille « max » */
-  .cmp-exp { font-weight: 700; font-size: 15px; }
+  .cmp-exp { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .cmp-unit { font-weight: 500; font-size: 12px; color: var(--muted); }
   .cmp-max {
     display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 800;
     letter-spacing: .4px; padding: 1px 7px; border-radius: 999px; vertical-align: middle;
@@ -84,8 +101,9 @@
   .cmp-legend .cmp-chip.common { font-size: 10.5px; padding: 1px 8px; }
 
   /* ── Écran de sélection ──────────────────────────────────────────────── */
+  /* Le collage vient de .sticky-bar : « top: 0 » plaçait cette barre sous le
+     bandeau de navigation, où elle disparaissait au défilement. */
   .cmp-pick-bar {
-    position: sticky; top: 0; z-index: 5;
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
     padding: 12px 14px; margin-bottom: 14px;
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -102,11 +120,15 @@
 
   /* ── Recherche + résultats déroulants ────────────────────────────────── */
   .cmp-searchwrap { position: relative; flex: 1 1 260px; min-width: 200px; }
-  .cmp-searchwrap .cmp-search { width: 100%; }
+  .cmp-searchwrap .cmp-search { width: 100%; padding-left: 36px; }
+  .cmp-search-ic {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; color: var(--muted); pointer-events: none;
+  }
   .cmp-results {
     position: absolute; left: 0; right: 0; top: calc(100% + 5px); z-index: 30;
     background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-    box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,.18));
+    box-shadow: var(--shadow-md);
     max-height: 320px; overflow-y: auto; display: none;
   }
   .cmp-results.open { display: block; }
@@ -120,7 +142,7 @@
   .cmp-result .n { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
   .cmp-result .n strong { font-size: 14px; color: var(--heading); }
   .cmp-result .n .poste { font-size: 11.5px; color: var(--muted); }
-  .cmp-result-empty { padding: 11px 12px; color: var(--muted); font-style: italic; }
+  .cmp-result-empty { padding: 11px 12px; color: var(--muted); }
 
   /* ── Candidats sélectionnés (puces sous la barre) ────────────────────── */
   .cmp-selected { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 6px; }
@@ -138,16 +160,17 @@
   }
   .cmp-chosen .rm:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
   .cmp-selected-empty { color: var(--muted); font-size: 13px; padding: 8px 2px; }
+  /* Remplace alert() : le message s'affiche là où la limite se constate. */
+  .cmp-note { margin: 0 0 10px; font-size: 12.5px; font-weight: 600; color: var(--danger); }
+  .cmp-note[hidden] { display: none; }
 </style>
-
-{% set palette = ['#2563eb','#7c3aed','#0891b2','#059669','#d97706','#db2777','#4f46e5','#0d9488'] %}
 
 <div class="page-head">
   <h1>Comparaison de candidats</h1>
   {% if candidats %}
   <div class="actions">
-    <a href="/comparer?ids={{ candidats|map(attribute='id')|join(',') }}&edit=1" class="btn ghost">✎ Modifier la sélection</a>
-    <a href="/comparer" class="btn">↺ Nouvelle comparaison</a>
+    <a href="/comparer?ids={{ candidats|map(attribute='id')|join(',') }}&edit=1" class="btn ghost">{{ ui.ic('crayon') }} Modifier la sélection</a>
+    <a href="/comparer" class="btn">{{ ui.ic('cycle') }} Nouvelle comparaison</a>
   </div>
   {% endif %}
 </div>
@@ -161,15 +184,15 @@
     <table class="cmp-table">
       <thead>
         <tr>
-          <th class="cmp-crit">Critère</th>
+          <th scope="col" class="cmp-crit">Critère</th>
           {% for c in candidats %}
           {% set parts = (c.nom_complet or ('#' ~ c.id)).split() %}
           {% set initials = (parts[0][0] ~ (parts[1][0] if parts|length > 1 else ''))|upper %}
           {% set autres = candidats|rejectattr('id','equalto',c.id)|map(attribute='id')|join(',') %}
-          <th>
+          <th scope="col">
             <div class="cmp-head">
               <div class="cmp-head-id">
-                <span class="cmp-av" style="background: {{ palette[c.id % 8] }}">{{ initials }}</span>
+                <span class="cmp-av" style="{{ ui.av(c.id) }}" aria-hidden="true">{{ initials }}</span>
                 <span class="n">
                   <a href="/candidate/{{ c.id }}" class="cand-link">{{ c.nom_complet or ('#' ~ c.id) }}</a>
                   {% if c.poste_recherche %}<span class="poste">{{ c.poste_recherche }}</span>{% endif %}
@@ -177,7 +200,7 @@
               </div>
               <div class="cmp-head-meta">
                 {% if c.statut %}<span class="badge status-{{ c.statut|replace(' ','_') }}">{{ c.statut }}</span>{% endif %}
-                {% if autres %}<a class="cmp-remove" href="/comparer?ids={{ autres }}" title="Retirer de la comparaison">✕ Retirer</a>{% endif %}
+                {% if autres %}<a class="cmp-remove" href="/comparer?ids={{ autres }}" title="Retirer de la comparaison">{{ ui.ic('croix') }} Retirer</a>{% endif %}
               </div>
             </div>
           </th>
@@ -187,18 +210,21 @@
       <tbody>
         {% for section, lignes in criteres_groupes %}
         <tr class="cmp-sec">
+          {# La bande de section garde des cellules distinctes : en colspan, son
+             libellé sortait du champ dès que le tableau défilait latéralement,
+             alors qu'ici la première cellule reste figée à gauche. #}
           <td class="cmp-crit">{{ section }}</td>
           {% for c in candidats %}<td></td>{% endfor %}
         </tr>
         {% for libelle, cle in lignes %}
         <tr>
-          <td class="cmp-crit">{{ libelle }}</td>
+          <th scope="row" class="cmp-crit">{{ libelle }}</th>
           {% for c in candidats %}
             {% set val = c[cle] %}
             {% if cle == 'annees_experience' %}
               <td>
                 {% if val is not none %}
-                  <span class="cmp-exp">{{ val }} <span style="font-weight:500;font-size:12px;color:var(--muted)">ans</span></span>
+                  <span class="cmp-exp">{{ val }} <span class="cmp-unit">{{ 'an' if val == 1 else 'ans' }}</span></span>
                   {% if c.id in best_exp_ids %}<span class="cmp-max">MAX</span>{% endif %}
                 {% else %}<span class="cmp-empty">—</span>{% endif %}
               </td>
@@ -237,8 +263,11 @@
 
   <div class="cmp-pick-bar">
     <div class="cmp-searchwrap">
+      {# La loupe vivait dans le placeholder, qui disparaît dès la première
+         frappe. En élément, elle reste visible pendant toute la saisie. #}
+      {{ ui.ic('recherche', 'cmp-search-ic') }}
       <input type="search" class="cmp-search" id="cmp-search" autocomplete="off"
-             placeholder="🔍 Rechercher un candidat (nom, poste)…"
+             placeholder="Rechercher un candidat (nom, poste)…"
              aria-label="Rechercher un candidat à comparer">
       <div class="cmp-results" id="cmp-results" role="listbox"></div>
     </div>
@@ -246,6 +275,7 @@
     <button type="button" class="btn primary" id="cmp-submit" disabled>Comparer</button>
   </div>
 
+  <p class="cmp-note" id="cmp-note" role="status" aria-live="polite" hidden></p>
   <div class="cmp-selected" id="cmp-selected"></div>
   <p class="cmp-selected-empty" id="cmp-selected-empty">Aucun candidat sélectionné pour l'instant.</p>
 
@@ -255,9 +285,22 @@
   </script>
 
   <script>
+  // Fabrique un <svg><use> pointant vers un symbole du sprite : c'est
+  // l'équivalent en JS de la macro Jinja `ui.ic`.
+  function icone(nom) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'icone');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    var use = document.createElementNS(NS, 'use');
+    use.setAttribute('href', '#i-' + nom);
+    svg.appendChild(use);
+    return svg;
+  }
+
   (function () {
     var MIN = {{ min_candidats }}, MAX = {{ max_candidats }};
-    var PALETTE = ['#2563eb','#7c3aed','#0891b2','#059669','#d97706','#db2777','#4f46e5','#0d9488'];
 
     var champ = document.getElementById('cmp-search');
     var boite = document.getElementById('cmp-results');
@@ -266,6 +309,7 @@
     var videSel = document.getElementById('cmp-selected-empty');
     var count = document.getElementById('cmp-count');
     var submit = document.getElementById('cmp-submit');
+    var note = document.getElementById('cmp-note');
     if (!champ) return;
 
     var choisis = [];        // candidats sélectionnés [{id, prenom, nom, poste_recherche}]
@@ -283,9 +327,19 @@
     function avatar(c) {
       var av = document.createElement('span');
       av.className = 'cmp-av';
-      av.style.background = PALETTE[c.id % 8];
+      // Même rampe et même règle de choix que la macro Jinja `ui.av` : un
+      // candidat garde sa couleur, qu'il vienne du rendu serveur ou d'ici.
+      av.style.setProperty('--av', 'var(--tone-' + ((c.id % 8) + 1) + ')');
+      av.setAttribute('aria-hidden', 'true');
       av.textContent = initiales(c);
       return av;
+    }
+
+    // Message contextuel affiché sous la barre (remplace alert()).
+    function signaler(texte) {
+      if (!note) return;
+      note.textContent = texte;
+      note.hidden = !texte;
     }
 
     function majEtat() {
@@ -297,6 +351,7 @@
     }
 
     function retirer(id) {
+      signaler('');   // retirer libère une place : le message n'a plus lieu d'être
       choisis = choisis.filter(function (c) { return c.id !== id; });
       rendreChoisis();
       majEtat();
@@ -325,7 +380,8 @@
         rm.className = 'rm';
         rm.title = 'Retirer';
         rm.setAttribute('aria-label', 'Retirer ' + nomComplet(c));
-        rm.textContent = '✕';
+        // Même icône que le rendu serveur : on clone le symbole du sprite.
+        rm.appendChild(icone('croix'));
         rm.addEventListener('click', function () { retirer(c.id); });
 
         puce.appendChild(avatar(c));
@@ -337,7 +393,10 @@
 
     function ajouter(c) {
       if (choisis.some(function (x) { return x.id === c.id; })) return;  // déjà pris
-      if (choisis.length >= MAX) { alert('Maximum ' + MAX + ' candidats.'); return; }
+      if (choisis.length >= MAX) {
+        signaler('Maximum ' + MAX + ' candidats comparés. Retirez-en un pour en ajouter un autre.');
+        return;
+      }
       choisis.push(c);
       rendreChoisis();
       majEtat();

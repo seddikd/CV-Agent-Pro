@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Recherche avancée{% endblock %}
 {% block content %}
 
@@ -11,7 +12,9 @@
   .rech-fieldset { border: 0; margin: 0 0 16px; padding: 0; }
   .rech-fieldset > legend {
     font-size: 11.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
-    color: var(--accent); padding: 0; margin: 0 0 10px;
+    /* --accent (#1e8dcc) ne fait que 3,66:1 sur --surface : insuffisant pour
+       du 11,5 px. --primary est la teinte prevue pour du petit texte (7,20:1). */
+    color: var(--primary); padding: 0; margin: 0 0 10px;
   }
   .rech-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -50,7 +53,9 @@
   }
   .rech-seg label:first-child span { border-left: 0; }
   .rech-seg label:hover span { background: var(--surface-2); color: var(--text); }
-  .rech-seg input:checked + span { background: var(--primary); color: #fff; }
+  /* --on-primary : en thème sombre --primary devient clair, et le blanc y
+     tombait à 3,12:1. */
+  .rech-seg input:checked + span { background: var(--primary); color: var(--on-primary); }
   .rech-seg input:focus-visible + span { box-shadow: var(--ring) inset; }
   .rech-hint { color: var(--muted); font-size: 12px; flex: 1 1 220px; min-width: 180px; }
   .rech-actions { display: flex; gap: 10px; margin-left: auto; }
@@ -65,11 +70,22 @@
   .rech-limit {
     font-size: 11px; font-weight: 700; letter-spacing: .3px;
     padding: 2px 9px; border-radius: 999px;
-    background: var(--warning-bg, var(--surface-2)); color: var(--warning, var(--muted));
+    background: var(--warning-bg); color: var(--warning);
   }
 
   /* Tableau de résultats */
-  .rech-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  /* Le conteneur borne sa hauteur : sans cela il grandissait indefiniment, seule
+     la page defilait, et l'en-tete « sticky » du tableau ne s'accrochait jamais
+     — sur une liste de 500 lignes, on perdait les intitules de colonnes. */
+  .rech-wrap {
+    overflow: auto; border: 1px solid var(--border); border-radius: var(--radius);
+    max-height: calc(100vh - var(--sticky-top) - 150px);
+    background: var(--surface); overscroll-behavior: contain;
+    scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
+  }
+  .rech-wrap::-webkit-scrollbar { width: 10px; height: 10px; }
+  .rech-wrap::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+  .rech-wrap::-webkit-scrollbar-track { background: transparent; }
   .rech-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 820px; }
   .rech-table th, .rech-table td {
     padding: 11px 14px; text-align: left; vertical-align: middle;
@@ -101,7 +117,10 @@
   .rech-loc { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 
   /* Puces compétences */
-  .rech-chips { display: flex; flex-wrap: wrap; gap: 5px; max-width: 260px; }
+  /* Trois puces au lieu de quatre : à quatre, la cellule passait souvent à
+     trois lignes et la hauteur des lignes du tableau variait du simple au
+     triple, ce qui casse le balayage vertical. */
+  .rech-chips { display: flex; flex-wrap: wrap; gap: 5px; max-width: 250px; }
   .rech-chip {
     display: inline-block; padding: 2px 9px; border-radius: 999px;
     background: var(--surface-2); border: 1px solid var(--border);
@@ -109,15 +128,9 @@
   }
   .rech-chip.more { color: var(--muted); background: transparent; border-style: dashed; }
 
-  /* Expérience */
-  .rech-exp { font-weight: 700; }
-
-  /* Badge statut */
-  .rech-badge {
-    display: inline-block; padding: 3px 10px; border-radius: 999px;
-    font-size: 11.5px; font-weight: 700; white-space: nowrap;
-    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
-  }
+  /* Expérience et âge : chiffres a chasse fixe, les colonnes s'alignent. */
+  .rech-exp { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rech-age { font-variant-numeric: tabular-nums; }
 
   /* État vide */
   .rech-empty {
@@ -125,7 +138,10 @@
     border: 1px dashed var(--border-strong); border-radius: var(--radius);
     background: var(--surface);
   }
-  .rech-empty .ic { font-size: 30px; display: block; margin-bottom: 8px; opacity: .8; }
+  .rech-empty-ic { width: 30px; height: 30px; display: block; margin: 0 auto 10px; color: var(--border-strong); }
+  .rech-empty p { margin: 0 0 4px; color: var(--text); font-weight: 600; font-size: 14px; }
+  .rech-empty .hint { margin: 0; font-size: 13px; }
+  .rech-empty .acts { display: flex; gap: 8px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
 </style>
 
 <div class="page-head">
@@ -213,15 +229,19 @@
     </span>
     <div class="rech-actions">
       <a href="/recherche" class="btn ghost">Réinitialiser</a>
-      <button type="submit" class="btn">🔍 Rechercher</button>
+      <button type="submit" class="btn">{{ ui.ic('recherche') }} Rechercher</button>
     </div>
   </div>
 </form>
 
 {% if aucun_critere %}
   <div class="rech-empty" style="margin-top:18px">
-    <span class="ic">🔎</span>
-    Saisissez au moins un critère puis lancez la recherche.
+    {{ ui.ic('recherche', 'rech-empty-ic') }}
+    <p>Aucun critère saisi pour l'instant.</p>
+    <p class="hint">
+      Renseignez au moins un champ ci-dessus — un mot-clé de compétence, une wilaya
+      ou un nombre d'années d'expérience suffit — puis lancez la recherche.
+    </p>
   </div>
 {% else %}
   <div class="rech-resbar">
@@ -234,49 +254,57 @@
     <table class="rech-table">
       <thead>
         <tr>
-          <th>Candidat</th>
-          <th>Poste</th>
-          <th>Spécialité</th>
-          <th>Wilaya</th>
-          <th>Sit. fam.</th>
-          <th>Âge</th>
-          <th>Exp.</th>
-          <th>Compétences</th>
-          <th>Statut</th>
+          <th scope="col">Candidat</th>
+          <th scope="col">Poste</th>
+          <th scope="col">Spécialité</th>
+          <th scope="col">Wilaya</th>
+          <th scope="col">Situation familiale</th>
+          <th scope="col">Âge</th>
+          <th scope="col">Expérience</th>
+          <th scope="col">Compétences</th>
+          <th scope="col">Statut</th>
         </tr>
       </thead>
       <tbody>
       {% for c in rows %}
         {% set ini = ((c.prenom or c.nom or '?')|trim)[:1]|upper ~ ((c.nom or '')|trim)[:1]|upper %}
-        {% set hue = (c.id * 47) % 360 %}
         <tr>
           <td>
             <div class="rech-cand">
-              <span class="rech-av" style="background: hsl({{ hue }} 52% 45%)">{{ ini or '?' }}</span>
+              <span class="rech-av" style="{{ ui.av(c.id) }}" aria-hidden="true">{{ ini or '?' }}</span>
               <span class="n">
                 <a href="/candidate/{{ c.id }}">{{ (c.prenom or '') }} {{ (c.nom or '') }}</a>
-                <span class="mail">{{ c.email or '#' ~ c.id }}</span>
+                {# Sans email, on nomme la fiche : « #8 » seul, à la place d'une
+                   adresse, se lisait comme une donnée corrompue. #}
+                <span class="mail">{{ c.email or 'Fiche n° ' ~ c.id }}</span>
               </span>
             </div>
           </td>
           <td>{{ c.poste_recherche or '—' }}</td>
           <td>{{ c.specialite or '—' }}</td>
           <td>
-            {% if c.wilaya %}<span class="rech-loc">📍 {{ c.wilaya }}</span>{% else %}<span class="rech-muted">—</span>{% endif %}
+            {# L'épingle était répétée sur chaque ligne sans rien ajouter :
+               l'en-tête de colonne dit déjà « Wilaya ». #}
+            {% if c.wilaya %}<span class="rech-loc">{{ c.wilaya }}</span>{% else %}<span class="rech-muted">—</span>{% endif %}
           </td>
           <td>{{ c.situation_familiale or '—' }}</td>
-          <td>{{ c.age if c.age is not none else '—' }}</td>
+          <td class="rech-age">{{ c.age if c.age is not none else '—' }}</td>
           <td class="rech-exp">{{ c.annees_experience if c.annees_experience is not none else '—' }}</td>
           <td>
             {% set comps = (c.competences or '').replace(';', ',').split(',') | map('trim') | select | list %}
             {% if comps %}
             <div class="rech-chips">
-              {% for sk in comps[:4] %}<span class="rech-chip">{{ sk }}</span>{% endfor %}
-              {% if comps|length > 4 %}<span class="rech-chip more">+{{ comps|length - 4 }}</span>{% endif %}
+              {% for sk in comps[:3] %}<span class="rech-chip">{{ sk }}</span>{% endfor %}
+              {% if comps|length > 3 %}<span class="rech-chip more"
+                    title="{{ comps[3:]|join(', ') }}">+{{ comps|length - 3 }}</span>{% endif %}
             </div>
             {% else %}<span class="rech-muted">—</span>{% endif %}
           </td>
-          <td><span class="rech-badge">{{ c.statut or '—' }}</span></td>
+          <td>
+            {% if c.statut %}
+              <span class="badge status-{{ c.statut|replace(' ', '_') }}">{{ c.statut }}</span>
+            {% else %}<span class="rech-muted">—</span>{% endif %}
+          </td>
         </tr>
       {% endfor %}
       </tbody>
@@ -284,8 +312,19 @@
   </div>
   {% else %}
   <div class="rech-empty">
-    <span class="ic">🫥</span>
-    Aucun candidat ne correspond à ces critères.
+    {{ ui.ic('recherche', 'rech-empty-ic') }}
+    <p>Aucun candidat ne correspond à ces critères.</p>
+    <p class="hint">
+      L'opérateur <b>{{ operateur }}</b> est appliqué à {{ nb_criteres }} critère{{ 's' if nb_criteres != 1 else '' }}.
+      {% if operateur == 'AND' %}Passez en <b>OR</b> pour élargir, ou retirez un critère.
+      {% else %}Retirez un critère pour élargir la recherche.{% endif %}
+    </p>
+    <div class="acts">
+      {% if operateur == 'AND' %}
+      <a class="btn" href="/recherche?{{ requete_or }}">Réessayer en OR</a>
+      {% endif %}
+      <a class="btn ghost" href="/recherche">Réinitialiser les critères</a>
+    </div>
   </div>
   {% endif %}
 {% endif %}

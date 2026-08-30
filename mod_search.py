@@ -1,4 +1,6 @@
 """Module « Recherche avancée » : filtres multicritères. Routeur isolé."""
+from urllib.parse import urlencode
+
 from fastapi import APIRouter, Request
 
 from web_core import require_user, render, connect
@@ -101,6 +103,13 @@ def recherche(request: Request):
 
     rows = []
     aucun_critere = not conditions
+    nb_criteres = len(conditions)
+
+    # Variante « OR » de la requête courante : proposée en sortie de recherche
+    # infructueuse pour élargir sans ressaisir les critères.
+    params_or = dict(request.query_params)
+    params_or["operateur"] = "OR"
+    requete_or = urlencode(params_or)
 
     if conditions:
         # Assemblage des clauses selon l'opérateur logique global.
@@ -139,5 +148,7 @@ def recherche(request: Request):
         "operateurs": OPERATEURS,
         "rows": rows,
         "aucun_critere": aucun_critere,
+        "nb_criteres": nb_criteres,
+        "requete_or": requete_or,
         "nb_resultats": len(rows),
     })

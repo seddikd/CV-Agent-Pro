@@ -1,23 +1,31 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Pipeline de recrutement{% endblock %}
 {% block content %}
 
 <style>
   /* Styles scopés au tableau kanban du pipeline. */
+  /* « align-items: flex-start » dimensionnait chaque colonne sur son contenu :
+     cinq colonnes de hauteurs différentes, en escalier, et une zone de dépôt
+     minuscule pour les étapes peu remplies. Les colonnes s'étirent désormais
+     à la même hauteur et la zone de dépôt occupe tout le reste. */
   .kanban {
     display: flex;
     gap: 14px;
     overflow-x: auto;
     padding-bottom: 14px;
-    align-items: flex-start;
+    align-items: stretch;
+    min-height: 320px;
   }
+  /* --panel n'a jamais existé dans la feuille : ces colonnes tombaient toujours
+     sur le gris de repli, hors palette, identique dans les deux thèmes. */
   .kanban-col {
     flex: 0 0 240px;
     min-width: 240px;
-    background: var(--panel, rgba(127, 127, 127, 0.06));
-    border: 1px solid var(--border, rgba(127, 127, 127, 0.22));
-    /* Filet coloré en tête de colonne (couleur passée via --accent). */
-    border-top: 3px solid var(--accent, #94a3b8);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    /* Filet coloré en tête de colonne (teinte passée via --etape). */
+    border-top: 3px solid var(--etape);
     border-radius: 12px;
     padding: 10px;
     display: flex;
@@ -30,7 +38,7 @@
     justify-content: space-between;
     gap: 6px;
     padding: 2px 2px 8px;
-    border-bottom: 1px solid var(--border, rgba(127, 127, 127, 0.15));
+    border-bottom: 1px solid var(--border);
   }
   .kanban-col-title {
     display: flex;
@@ -43,40 +51,46 @@
   .kanban-dot {
     width: 9px; height: 9px;
     border-radius: 50%;
-    background: var(--accent, #94a3b8);
+    background: var(--etape);
     flex: 0 0 auto;
   }
+  /* Le compteur porte la variante « count » : un nombre n'est pas un statut,
+     il ne prend ni la pastille de tête ni la capitalisation du badge. */
   .kanban-col-head .badge {
-    background: var(--accent, #94a3b8);
+    background: var(--etape);
     color: #fff;
     min-width: 22px;
-    text-align: center;
+    font-variant-numeric: tabular-nums;
   }
   /* Zone de dépôt : hauteur minimale pour rester ciblable même vide. */
   .kanban-dropzone {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex: 1;              /* toute la hauteur restante reste une cible de dépôt */
     min-height: 70px;
     border-radius: 8px;
     transition: background 0.12s ease, outline 0.12s ease;
   }
   /* Surbrillance quand une carte survole la colonne pendant le glisser. */
   .kanban-dropzone.drag-over {
-    background: rgba(80, 140, 255, 0.12);
-    outline: 2px dashed rgba(80, 140, 255, 0.5);
+    background: color-mix(in srgb, var(--etape) 14%, transparent);
+    outline: 2px dashed var(--etape);
     outline-offset: -2px;
   }
   .kanban-card {
     position: relative;
     cursor: grab;
     padding: 10px 12px;
-    padding-right: 30px;   /* place pour le bouton ✕ */
+    padding-right: 34px;   /* place pour le bouton de retrait (24 px + marge) */
     border-radius: 10px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-sm);
     transition: box-shadow 0.12s ease, transform 0.12s ease;
   }
-  .kanban-card:hover { box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12); }
+  .kanban-card:hover { box-shadow: var(--shadow-md); }
+  /* La carte est atteignable au clavier : anneau de focus visible, et les
+     flèches ← → la déplacent de colonne (voir le script). */
+  .kanban-card:focus-visible { outline: none; box-shadow: var(--ring); }
   .kanban-card:active { cursor: grabbing; }
   .kanban-card.dragging { opacity: 0.5; }
   .kanban-card .cand-nom { font-weight: 600; }
@@ -86,29 +100,35 @@
   .kanban-remove {
     position: absolute;
     top: 6px; right: 6px;
-    width: 22px; height: 22px;
+    /* 24 px minimum : à 22 px la cible passait sous le seuil tactile. */
+    width: 24px; height: 24px;
     display: flex; align-items: center; justify-content: center;
     padding: 0;
     border: none;
     border-radius: 6px;
     background: transparent;
-    color: var(--muted, #94a3b8);
+    color: var(--muted);
     font-size: 15px; line-height: 1;
     cursor: pointer;
     opacity: 0;
     transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
   }
   .kanban-card:hover .kanban-remove,
+  .kanban-card:focus-within .kanban-remove,
   .kanban-remove:focus-visible { opacity: 1; }
   .kanban-remove:hover {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
+    background: color-mix(in srgb, var(--danger) 14%, transparent);
+    color: var(--danger);
+  }
+  .kanban-remove:focus-visible { outline: none; box-shadow: var(--ring); }
+  /* Sans survol (tactile), un bouton en opacity: 0 est simplement inatteignable. */
+  @media (hover: none) {
+    .kanban-remove { opacity: .55; }
   }
   .kanban-empty {
     padding: 14px 8px;
-    font-style: italic;
     text-align: center;
-    color: var(--muted, #94a3b8);
+    color: var(--muted);
     font-size: 0.85rem;
   }
 
@@ -118,26 +138,33 @@
     width: 100%;
     padding: 11px 14px;
     border-radius: 10px;
-    border: 1px solid var(--border, rgba(127, 127, 127, 0.3));
-    background: var(--panel, rgba(127, 127, 127, 0.04));
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+    color: var(--text);
     font-size: 0.95rem;
+    transition: border-color .12s, box-shadow .12s;
   }
+  /* L'anneau de focus est celui de la feuille (--ring), pas un bleu générique. */
   .pipeline-search input:focus {
     outline: none;
-    border-color: rgba(80, 140, 255, 0.7);
-    box-shadow: 0 0 0 3px rgba(80, 140, 255, 0.15);
+    border-color: var(--primary);
+    box-shadow: var(--ring);
   }
-  .search-hint { margin-top: 5px; }
+  /* Les deux lignes d'aide couraient sur toute la largeur de la page sous un
+     champ de 520 px. Elles sont ramenées à la largeur du champ et allégées. */
+  .search-hint { margin-top: 6px; font-size: 12.5px; }
   /* Liste déroulante des résultats, superposée sous le champ. */
   .search-results {
     position: absolute;
     left: 0; right: 0;
     top: calc(100% + 4px);
     z-index: 20;
-    background: var(--bg, #fff);
-    border: 1px solid var(--border, rgba(127, 127, 127, 0.3));
+    /* --surface, pas --bg : un panneau superposé prend la couleur des surfaces,
+       pas celle du fond de page (sur lequel il devenait invisible en sombre). */
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    box-shadow: var(--shadow-lg);
     max-height: 340px;
     overflow-y: auto;
     display: none;
@@ -146,15 +173,61 @@
   .search-item {
     padding: 8px 12px;
     cursor: pointer;
-    border-bottom: 1px solid var(--border, rgba(127, 127, 127, 0.15));
+    border-bottom: 1px solid var(--border);
   }
   .search-item:last-child { border-bottom: none; }
-  .search-item:hover, .search-item.active {
-    background: rgba(80, 140, 255, 0.12);
-  }
+  .search-item:hover, .search-item.active { background: var(--primary-soft); }
   .search-item .si-nom { font-weight: 600; }
   .search-item .si-meta { margin-top: 2px; }
-  .search-empty { padding: 10px 12px; font-style: italic; }
+  .search-empty { padding: 10px 12px; color: var(--muted); }
+
+  /* ---- Boîte de dialogue « motif de refus » ----------------------------- */
+  /* Remplace window.prompt() : un champ requis mérite un vrai libellé, une
+     validation visible et un bouton d'annulation, pas une invite système. */
+  .refus-dlg {
+    border: 1px solid var(--border); border-radius: 16px; padding: 0;
+    background: var(--surface); color: var(--text);
+    box-shadow: var(--shadow-lg); width: min(440px, calc(100vw - 32px));
+  }
+  .refus-dlg::backdrop { background: rgba(15, 23, 42, .5); }
+  .refus-dlg h2 { margin: 0; padding: 18px 22px 4px; font-size: 17px; font-weight: 800; color: var(--heading); }
+  .refus-dlg .rd-sub { margin: 0; padding: 0 22px; color: var(--muted); font-size: 13px; }
+  .refus-dlg form { display: block; margin: 0; padding: 14px 22px 18px; }
+  .refus-dlg label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
+  .refus-dlg textarea {
+    width: 100%; box-sizing: border-box; min-height: 84px; resize: vertical;
+    padding: 9px 12px; border: 1px solid var(--border-strong); border-radius: 9px;
+    background: var(--surface); color: var(--text); font: inherit; line-height: 1.5;
+  }
+  .refus-dlg textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
+  .refus-dlg .rd-err { margin: 7px 0 0; font-size: 12.5px; font-weight: 600; color: var(--danger); }
+  .refus-dlg .rd-err[hidden] { display: none; }
+  .refus-dlg .rd-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+
+  /* ---- Bandeau de notification (remplace alert()) ----------------------- */
+  .kanban-toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    z-index: 200; max-width: min(520px, calc(100vw - 32px));
+    padding: 11px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 600;
+    background: var(--danger-bg); color: var(--danger);
+    border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+    box-shadow: var(--shadow-lg);
+  }
+  .kanban-toast.ok { background: var(--success-bg); color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+  .kanban-toast[hidden] { display: none; }
+
+  /* Rappel des commandes clavier : discret, sur la même largeur que le champ.
+     Volontairement en flux inline — en conteneur flex, chaque fragment de texte
+     devenait un élément à part et la phrase se cassait n'importe où. */
+  .kanban-kbd {
+    margin: 0 0 16px; max-width: 520px;
+    font-size: 12.5px; line-height: 2; color: var(--muted);
+  }
+  .kanban-kbd kbd {
+    font: inherit; font-weight: 700; padding: 2px 7px; border-radius: 5px;
+    border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text);
+    white-space: nowrap;
+  }
 </style>
 
 <div class="page-head">
@@ -163,20 +236,20 @@
 
 <div class="kpi-cards">
   <div class="kpi-card kpi-mint">
-    <span class="kpi-ic">📋</span>
+    <span class="kpi-ic">{{ ui.ic('pipeline') }}</span>
     <div><div class="kpi-num">{{ colonnes.values()|map('length')|sum }}</div><div class="kpi-lbl">Candidats en pipeline</div></div>
   </div>
   <div class="kpi-card kpi-pink">
-    <span class="kpi-ic">📅</span>
-    <div><div class="kpi-num">{{ colonnes['Entretien RH']|length + colonnes['Entretien Technique']|length }}</div><div class="kpi-lbl">En entretien</div></div>
+    <span class="kpi-ic">{{ ui.ic('calendrier') }}</span>
+    <div><div class="kpi-num">{{ colonnes.get('Entretien RH', [])|length + colonnes.get('Entretien Technique', [])|length }}</div><div class="kpi-lbl">En entretien</div></div>
   </div>
   <div class="kpi-card kpi-lavender">
-    <span class="kpi-ic">✅</span>
-    <div><div class="kpi-num">{{ colonnes['Présélection']|length }}</div><div class="kpi-lbl">En présélection</div></div>
+    <span class="kpi-ic">{{ ui.ic('coche-cercle') }}</span>
+    <div><div class="kpi-num">{{ colonnes.get('Présélection', [])|length }}</div><div class="kpi-lbl">En présélection</div></div>
   </div>
   <div class="kpi-card kpi-amber">
-    <span class="kpi-ic">🎉</span>
-    <div><div class="kpi-num">{{ colonnes['Embauché']|length }}</div><div class="kpi-lbl">Embauchés</div></div>
+    <span class="kpi-ic">{{ ui.ic('trophee') }}</span>
+    <div><div class="kpi-num">{{ colonnes.get('Embauché', [])|length }}</div><div class="kpi-lbl">Embauchés</div></div>
   </div>
 </div>
 
@@ -185,34 +258,50 @@
 <div class="pipeline-search" id="pipeline-search">
   <input type="text" id="vivier-q" autocomplete="off"
          placeholder="Rechercher un candidat (nom, diplôme, spécialité)…"
-         aria-label="Rechercher un candidat dans le vivier">
-  <div class="small muted search-hint">
+         aria-label="Rechercher un candidat dans le vivier"
+         role="combobox" aria-expanded="false" aria-controls="vivier-results"
+         aria-autocomplete="list" aria-describedby="vivier-hint">
+  <div class="small muted search-hint" id="vivier-hint">
     Cliquez sur un résultat pour l'ajouter en « Présélection », puis glissez-déposez entre les colonnes.
   </div>
-  <div class="search-results" id="vivier-results" role="listbox"></div>
+  <div class="search-results" id="vivier-results" role="listbox" aria-label="Candidats du vivier"></div>
 </div>
 
-{# Couleur d'accent par étape (filet de tête, pastille, badge). #}
+<p class="kanban-kbd">
+  <kbd>Tab</kbd> atteint une carte, <kbd>←</kbd> <kbd>→</kbd> la déplacent d'une
+  colonne, <kbd>Suppr</kbd> la retire du pipeline.
+</p>
+
+{# Teinte d'étape (filet de tête, pastille, compteur, surbrillance de dépôt).
+   Puisée dans la rampe --tone-* de style.css : famille bleue de la marque en
+   tête de parcours, vert à l'embauche, rouge au refus. Ces huit tons sont
+   mesurés pour porter du texte blanc (≥ 4,80:1) et ne s'inversent pas entre
+   les thèmes — les hex Tailwind qu'ils remplacent descendaient à 3,19:1. #}
 {% set couleurs = {
-  'Présélection': '#8b5cf6',
-  'Entretien RH': '#3b82f6',
-  'Entretien Technique': '#06b6d4',
-  'Embauché': '#22c55e',
-  'Refusé': '#ef4444'
+  'Présélection':        'var(--tone-1)',
+  'Entretien RH':        'var(--tone-2)',
+  'Entretien Technique': 'var(--tone-3)',
+  'Embauché':            'var(--tone-5)',
+  'Refusé':              'var(--tone-7)'
 } %}
+{# aria-live : chaque déplacement est annoncé, y compris au clavier. #}
+<p class="sr-only" id="kanban-live" role="status" aria-live="polite"></p>
+
 <div class="kanban" id="kanban">
   {% for etape in etapes %}
-  <div class="kanban-col" style="--accent: {{ couleurs.get(etape, '#94a3b8') }}">
+  <div class="kanban-col" style="--etape: {{ couleurs.get(etape, 'var(--tone-4)') }}">
     <div class="kanban-col-head">
       <span class="kanban-col-title"><span class="kanban-dot"></span>{{ etape }}</span>
-      <span class="badge" data-count>{{ colonnes[etape]|length }}</span>
+      <span class="badge count" data-count>{{ colonnes[etape]|length }}</span>
     </div>
     <!-- data-stage porte l'étape cible utilisée lors du dépôt. -->
     <div class="kanban-dropzone" data-stage="{{ etape }}">
       {% for c in colonnes[etape] %}
-      <div class="card kanban-card" draggable="true" data-cid="{{ c.id }}">
+      <div class="card kanban-card" draggable="true" data-cid="{{ c.id }}"
+           tabindex="0" role="group"
+           aria-label="{{ c.prenom or '' }} {{ c.nom or '' }} — étape {{ etape }}">
         <button type="button" class="kanban-remove" title="Retirer du pipeline"
-                aria-label="Retirer du pipeline">✕</button>
+                aria-label="Retirer {{ c.prenom or '' }} {{ c.nom or '' }} du pipeline">{{ ui.ic('croix') }}</button>
         <div class="cand-nom">{{ c.prenom or '' }} {{ c.nom or '' }}</div>
         <div class="cand-poste small muted">{{ c.poste_recherche or '—' }}</div>
         <a href="/candidate/{{ c.id }}" class="btn small cand-link">Voir la fiche</a>
@@ -226,17 +315,163 @@
   {% endfor %}
 </div>
 
+<dialog class="refus-dlg" id="refus-dlg">
+  <h2>Motif de refus</h2>
+  <p class="rd-sub">Il restera attaché à la fiche du candidat et sera visible lors d'une consultation ultérieure.</p>
+  <form method="dialog" id="refus-form">
+    <label for="refus-motif">Motif <span aria-hidden="true">*</span></label>
+    <textarea id="refus-motif" name="motif" required
+              placeholder="Profil trop junior pour le poste, prétentions hors budget…"></textarea>
+    <p class="rd-err" id="refus-err" hidden>Renseignez un motif avant de valider.</p>
+    <div class="rd-foot">
+      <button type="button" class="btn ghost" id="refus-cancel">Annuler</button>
+      <button type="submit" class="btn primary" id="refus-ok">Confirmer le refus</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="kanban-toast" id="kanban-toast" role="status" aria-live="polite" hidden></div>
+
 <script>
   // ---------------------------------------------------------------------------
   // Glisser-déposer natif (HTML5 drag & drop), sans dépendance externe.
   // Chaque carte est déplaçable ; chaque colonne est une zone de dépôt.
   // Au dépôt : appel POST /pipeline/{cid}/stage, puis déplacement dans le DOM.
   // ---------------------------------------------------------------------------
+  // Fabrique un <svg><use> pointant vers un symbole du sprite : c'est
+  // l'équivalent en JS de la macro Jinja `ui.ic`.
+  function icone(nom) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'icone');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    var use = document.createElementNS(NS, 'use');
+    use.setAttribute('href', '#i-' + nom);
+    svg.appendChild(use);
+    return svg;
+  }
+
   (function () {
     var kanban = document.getElementById('kanban');
     if (!kanban) return;
 
     var carteEnCours = null; // carte actuellement glissée
+
+    // ---- Retours à l'utilisateur -------------------------------------------
+    // alert() bloquait la page et sortait du vocabulaire visuel de l'app ;
+    // ce bandeau dit la même chose sans interrompre le travail en cours.
+    var toast = document.getElementById('kanban-toast');
+    var toastTimer = null;
+    function avertir(message, ok) {
+      if (!toast) return;
+      toast.textContent = message;
+      toast.classList.toggle('ok', !!ok);
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { toast.hidden = true; }, 5000);
+    }
+
+    // Annonce destinée aux lecteurs d'écran (déplacements au clavier compris).
+    var live = document.getElementById('kanban-live');
+    function annoncer(message) { if (live) live.textContent = message; }
+
+    // ---- Motif de refus ----------------------------------------------------
+    // window.prompt() ne permettait ni libellé, ni message d'erreur en place,
+    // ni annulation lisible ; l'échec de saisie enchaînait sur un alert().
+    var dlg = document.getElementById('refus-dlg');
+    var dlgForm = document.getElementById('refus-form');
+    var dlgMotif = document.getElementById('refus-motif');
+    var dlgErr = document.getElementById('refus-err');
+    var dlgCancel = document.getElementById('refus-cancel');
+
+    // Renvoie une promesse : le motif saisi, ou null si l'utilisateur annule.
+    function demanderMotif(nom) {
+      // Repli si <dialog> n'est pas géré : on garde un chemin fonctionnel.
+      if (!dlg || typeof dlg.showModal !== 'function') {
+        var saisi = window.prompt('Motif de refus pour ' + nom + ' :', '');
+        return Promise.resolve(saisi === null ? null : saisi.trim() || null);
+      }
+      dlgMotif.value = '';
+      dlgErr.hidden = true;
+      dlg.showModal();
+      dlgMotif.focus();
+      return new Promise(function (resoudre) {
+        function nettoyer() {
+          dlgForm.removeEventListener('submit', onSubmit);
+          dlgCancel.removeEventListener('click', onCancel);
+          dlg.removeEventListener('cancel', onCancel);
+        }
+        function onSubmit(e) {
+          var v = dlgMotif.value.trim();
+          if (!v) {
+            // Erreur signalée en place, le champ garde le focus.
+            e.preventDefault();
+            dlgErr.hidden = false;
+            dlgMotif.focus();
+            return;
+          }
+          nettoyer();
+          dlg.close();
+          resoudre(v);
+        }
+        function onCancel(e) {
+          e.preventDefault();
+          nettoyer();
+          dlg.close();
+          resoudre(null);
+        }
+        dlgForm.addEventListener('submit', onSubmit);
+        dlgCancel.addEventListener('click', onCancel);
+        dlg.addEventListener('cancel', onCancel);   // touche Échap
+      });
+    }
+
+    // Le libellé accessible d'une carte porte son étape : il suit le déplacement.
+    function majEtiquette(carte, etape) {
+      var nom = (carte.querySelector('.cand-nom') || {}).textContent || '';
+      carte.setAttribute('aria-label', nom.trim() + ' — étape ' + etape);
+    }
+
+    // Déplacement complet d'une carte : motif si refus, DOM optimiste, POST,
+    // retour arrière si le serveur refuse. Partagé par le glisser et le clavier.
+    function deplacer(carte, zone) {
+      var origine = carte.parentNode;
+      if (!zone || origine === zone) return;
+      var etapeCible = zone.dataset.stage;
+      var cid = carte.dataset.cid;
+      var nom = ((carte.querySelector('.cand-nom') || {}).textContent || 'ce candidat').trim();
+
+      var prealable = (etapeCible === 'Refusé')
+        ? demanderMotif(nom)
+        : Promise.resolve('');
+
+      prealable.then(function (motifRefus) {
+        // Refus sans motif : l'utilisateur a annulé, la carte ne bouge pas.
+        if (motifRefus === null) { carte.focus(); return; }
+
+        zone.appendChild(carte);
+        majCompteurs();
+        majEtiquette(carte, etapeCible);
+        annoncer(nom + ' déplacé vers « ' + etapeCible + ' ».');
+        carte.focus();
+
+        fetch('/pipeline/' + cid + '/stage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ stage: etapeCible, motif_refus: motifRefus })
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+        }).catch(function () {
+          // Échec : retour à la colonne d'origine, et on le dit.
+          origine.appendChild(carte);
+          majCompteurs();
+          majEtiquette(carte, origine.dataset.stage);
+          annoncer(nom + ' est resté dans « ' + origine.dataset.stage + ' ».');
+          avertir('Déplacement de ' + nom + ' impossible. La carte est revenue à sa colonne.');
+        });
+      });
+    }
 
     // Recalcule les compteurs de tête et affiche/masque le placeholder « vide ».
     function majCompteurs() {
@@ -253,7 +488,7 @@
 
     // --- Événements sur les cartes (délégation depuis le conteneur) ---
     kanban.addEventListener('dragstart', function (e) {
-      // Un cliquer-glisser initié sur le bouton ✕ ne doit pas déplacer la carte.
+      // Un cliquer-glisser initié sur le bouton de retrait ne doit pas déplacer la carte.
       if (e.target.closest('.kanban-remove')) { e.preventDefault(); return; }
       var carte = e.target.closest('.kanban-card');
       if (!carte) return;
@@ -291,49 +526,13 @@
         e.preventDefault();
         zone.classList.remove('drag-over');
         if (!carteEnCours) return;
-
-        var carte = carteEnCours;
-        var origine = carte.parentNode;             // colonne d'origine
-        var etapeCible = zone.dataset.stage;         // nouvelle étape
-        var cid = carte.dataset.cid;
-
-        // Rien à faire si la carte est relâchée dans sa colonne d'origine.
-        if (origine === zone) return;
-
-        // Un refus doit toujours être explicité afin que la fiche conserve le
-        // contexte lors d'une consultation ultérieure.
-        var motifRefus = '';
-        if (etapeCible === 'Refusé') {
-          motifRefus = window.prompt('Motif de refus pour ce candidat :', '');
-          if (motifRefus === null) return;
-          motifRefus = motifRefus.trim();
-          if (!motifRefus) {
-            alert('Veuillez renseigner un motif de refus.');
-            return;
-          }
-        }
-
-        // 1) Déplacement optimiste dans le DOM.
-        zone.appendChild(carte);
-        majCompteurs();
-
-        // 2) Persistance côté serveur.
-        fetch('/pipeline/' + cid + '/stage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ stage: etapeCible, motif_refus: motifRefus })
-        }).then(function (r) {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-        }).catch(function () {
-          // 3) Échec : rollback visuel puis avertissement.
-          origine.appendChild(carte);
-          majCompteurs();
-          alert('Échec du déplacement du candidat. Veuillez réessayer.');
-        });
+        // Un refus reste toujours motivé : deplacer() s'en charge, quel que
+        // soit le moyen employé (souris ou clavier).
+        deplacer(carteEnCours, zone);
       });
     });
 
-    // --- Retrait d'un candidat du pipeline (bouton ✕, délégation) ---
+    // --- Retrait d'un candidat du pipeline (bouton de retrait, délégation) ---
     kanban.addEventListener('click', function (e) {
       var btn = e.target.closest('.kanban-remove');
       if (!btn) return;
@@ -344,18 +543,48 @@
       if (!confirm('Retirer ' + nom.trim() + ' du pipeline ? Il redeviendra disponible dans la recherche.')) return;
 
       var origine = carte.parentNode;
+      var suivante = carte.nextElementSibling;   // pour rendre le focus au voisin
       // Retrait optimiste, puis persistance.
       carte.remove();
       majCompteurs();
+      annoncer(nom.trim() + ' retiré du pipeline.');
+      // Le focus ne doit pas retomber sur <body> : on le passe au voisin.
+      var cible = (suivante && suivante.classList.contains('kanban-card'))
+        ? suivante : origine.querySelector('.kanban-card');
+      if (cible) cible.focus();
+
       fetch('/pipeline/' + cid + '/retirer', { method: 'POST' })
         .then(function (r) {
           if (!r.ok) throw new Error('HTTP ' + r.status);
         }).catch(function () {
-          // Échec : on réinsère la carte et on avertit.
+          // Échec : on réinsère la carte et on le dit.
           origine.appendChild(carte);
           majCompteurs();
-          alert('Échec du retrait du candidat. Veuillez réessayer.');
+          avertir('Retrait de ' + nom.trim() + ' impossible. La carte a été rétablie.');
         });
+    });
+
+    // --- Clavier : ← / → déplacent la carte focalisée, Suppr la retire ------
+    // Le glisser-déposer HTML5 n'est pilotable ni au clavier ni au lecteur
+    // d'écran : sans ce relais, changer d'étape était impossible sans souris.
+    var zones = Array.prototype.slice.call(kanban.querySelectorAll('.kanban-dropzone'));
+
+    kanban.addEventListener('keydown', function (e) {
+      var carte = e.target.closest ? e.target.closest('.kanban-card') : null;
+      // On laisse passer les frappes destinées aux commandes de la carte.
+      if (!carte || e.target !== carte) return;
+
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        var i = zones.indexOf(carte.parentNode);
+        var j = i + (e.key === 'ArrowRight' ? 1 : -1);
+        if (i < 0 || j < 0 || j >= zones.length) return;   // déjà en bout de rail
+        deplacer(carte, zones[j]);
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        var bouton = carte.querySelector('.kanban-remove');
+        if (bouton) bouton.click();
+      }
     });
 
     // -------------------------------------------------------------------------
@@ -377,14 +606,20 @@
         var carte = document.createElement('div');
         carte.className = 'card kanban-card';
         carte.setAttribute('draggable', 'true');
+        // Mêmes attributs que le rendu serveur : sinon la carte ajoutée en cours
+        // de session n'était ni focusable ni déplaçable au clavier.
+        carte.setAttribute('tabindex', '0');
+        carte.setAttribute('role', 'group');
         carte.dataset.cid = c.id;
 
         var retirer = document.createElement('button');
         retirer.type = 'button';
         retirer.className = 'kanban-remove';
         retirer.title = 'Retirer du pipeline';
-        retirer.setAttribute('aria-label', 'Retirer du pipeline');
-        retirer.textContent = '✕';
+        retirer.setAttribute('aria-label',
+          'Retirer ' + (((c.prenom || '') + ' ' + (c.nom || '')).trim() || 'ce candidat') + ' du pipeline');
+        // Même icône que le rendu serveur : on clone le symbole du sprite.
+        retirer.appendChild(icone('croix'));
         carte.appendChild(retirer);
 
         var nom = document.createElement('div');
@@ -411,12 +646,17 @@
         boite.innerHTML = '';
         derniers = [];
         actif = -1;
+        champ.setAttribute('aria-expanded', 'false');
+        champ.removeAttribute('aria-activedescendant');
       }
 
       function surligner(i) {
         var items = boite.querySelectorAll('.search-item');
         items.forEach(function (el, idx) {
-          el.classList.toggle('active', idx === i);
+          var courant = idx === i;
+          el.classList.toggle('active', courant);
+          el.setAttribute('aria-selected', courant ? 'true' : 'false');
+          if (courant) champ.setAttribute('aria-activedescendant', el.id);
         });
         actif = i;
       }
@@ -425,19 +665,23 @@
       function engager(c) {
         var zone = kanban.querySelector('.kanban-dropzone[data-stage="' + ETAPE_ENTREE + '"]');
         if (!zone) return;
+        var nomComplet = ((c.prenom || '') + ' ' + (c.nom || '')).trim() || ('#' + c.id);
         fetch('/pipeline/' + c.id + '/stage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ stage: ETAPE_ENTREE })
         }).then(function (r) {
           if (!r.ok) throw new Error('HTTP ' + r.status);
-          zone.appendChild(creerCarte(c));
+          var nouvelle = creerCarte(c);
+          zone.appendChild(nouvelle);
+          majEtiquette(nouvelle, ETAPE_ENTREE);
           majCompteurs();
           champ.value = '';
           fermer();
           champ.focus();
+          annoncer(nomComplet + ' ajouté en « ' + ETAPE_ENTREE + ' ».');
         }).catch(function () {
-          alert('Échec de l\'ajout du candidat. Veuillez réessayer.');
+          avertir('Ajout de ' + nomComplet + ' impossible. Veuillez réessayer.');
         });
       }
 
@@ -451,12 +695,15 @@
           vide.textContent = 'Aucun candidat trouvé dans le vivier.';
           boite.appendChild(vide);
           boite.classList.add('open');
+          champ.setAttribute('aria-expanded', 'true');
           return;
         }
         liste.forEach(function (c, idx) {
           var item = document.createElement('div');
           item.className = 'search-item';
+          item.id = 'vivier-opt-' + idx;
           item.setAttribute('role', 'option');
+          item.setAttribute('aria-selected', 'false');
 
           var nom = document.createElement('div');
           nom.className = 'si-nom';
@@ -479,6 +726,7 @@
           boite.appendChild(item);
         });
         boite.classList.add('open');
+        champ.setAttribute('aria-expanded', 'true');
       }
 
       function chercher() {

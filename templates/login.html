@@ -1,8 +1,9 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Connexion{% endblock %}
 {% block content %}
 <div class="login-card">
-  <h1>📨 CV Agent</h1>
+  <h1>{{ ui.ic('enveloppe') }} CV Agent</h1>
   <p class="subtitle">Connexion à l'espace RH</p>
 
   {% if err %}<div class="alert error">{{ err }}</div>{% endif %}

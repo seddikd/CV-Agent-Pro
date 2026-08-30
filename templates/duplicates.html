@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Détection de doublons{% endblock %}
 {% block content %}
 
@@ -13,7 +14,8 @@
     transition: background .12s, border-color .12s, color .12s;
   }
   .dup-chip:hover { background: var(--surface-2); }
-  .dup-chip.active { background: var(--primary); border-color: transparent; color: #fff; }
+  /* --on-primary : le blanc tombait à 3,12:1 sur le --primary du thème sombre. */
+  .dup-chip.active { background: var(--primary); border-color: transparent; color: var(--on-primary); }
   .dup-chip .n {
     font-size: 11px; font-weight: 800; padding: 1px 7px; border-radius: 999px;
     background: color-mix(in srgb, currentColor 16%, transparent);
@@ -22,11 +24,14 @@
   .dup-toolbar .toggle { display: inline-flex; align-items: center; gap: .4rem; font-size: 12.5px; color: var(--muted); cursor: pointer; white-space: nowrap; }
 
   /* ---- Barre d'action collante ---------------------------------------- */
+  /* Le positionnement collant vient de .sticky-bar (calé sur la hauteur d'en-tête
+     de la coquille) : « top: 0 » glissait sous le bandeau de navigation.
+     Le fond passait par var(--card), qui n'existe pas : le repli #fff laissait
+     cette barre blanche en thème sombre. */
   .dup-actionbar {
-    position: sticky; top: 0; z-index: 5;
     display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
     padding: .65rem .85rem; margin: .75rem 0 1.25rem;
-    background: var(--card, #fff); border: 1px solid var(--border, #e5e7eb);
+    background: var(--surface); border: 1px solid var(--border);
     border-radius: 12px; box-shadow: var(--shadow-md);
   }
   .dup-actionbar label { display: inline-flex; align-items: center; gap: .45rem; font-weight: 600; font-size: 13px; cursor: pointer; }
@@ -38,7 +43,9 @@
 
   /* ---- Carte de groupe ------------------------------------------------- */
   .dup-group { margin-bottom: 1.1rem; padding: 0; overflow: hidden; }
-  .dup-group.is-resolved { opacity: .62; }
+  /* .62 faisait passer tout le texte du groupe sous le seuil de contraste.
+     Le badge « Traité » et le texte barré suffisent à marquer l'état. */
+  .dup-group.is-resolved { opacity: .8; }
   .dup-ghead {
     display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
     padding: .7rem .9rem; border-bottom: 1px solid var(--border);
@@ -55,27 +62,45 @@
   .dup-gsel { margin-left: auto; font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; cursor: pointer; }
   .dup-gdone { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--success); display: inline-flex; align-items: center; gap: .35rem; }
 
-  .dup-table-wrap { overflow-x: auto; }
   .dup-group .table { border-radius: 0; }
   .dup-group .table th, .dup-group .table td { padding: 10px 14px; }
+  /* Un numéro de téléphone coupé en deux lignes se compare mal. */
+  .dup-tel { white-space: nowrap; }
 
   /* Ligne de l'original : accent + fond doux. */
   tr.is-original td { background: color-mix(in srgb, var(--primary) 7%, transparent); }
-  tr.is-original td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
+  tr.is-original td:first-child { box-shadow: inset 2px 0 0 var(--primary); }
   tr.is-marked td { opacity: .72; }
   tr.is-marked .cand-name { text-decoration: line-through; text-decoration-color: var(--muted); }
 
   /* Champ qui a déclenché le rapprochement : mis en avant. */
-  .match { background: #fff6d6; color: #7a5a00; padding: 1px 6px; border-radius: 6px; font-weight: 600; }
-  :root[data-theme="dark"] .match { background: #3a3210; color: #f0d88a; }
+  /* --mark-* est défini dans style.css pour les trois états de thème : la règle
+     sombre ne visait ici que data-theme="dark", donc le surlignage restait jaune
+     clair pour un poste réglé en sombre au niveau du système. */
+  .match { background: var(--mark-bg); color: var(--mark-tx); padding: 1px 6px; border-radius: 6px; font-weight: 600; }
 
   .dup-tag { font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
   .dup-tag.orig { color: var(--primary); }
   .dup-tag.done { color: var(--success); }
   .dup-tag.todo { color: var(--muted); }
-  .dup-cb { transform: scale(1.2); cursor: pointer; accent-color: var(--primary); }
+  /* La case de ligne mesurait 16 px de côté, sous les 24 px attendus pour une
+     cible tactile — et une case native ignore toute marge intérieure. C'est
+     donc un <label> qui porte la zone de clic, le carré restant compact.
+     « Tout sélectionner » et « Sélectionner le groupe » sont déjà dans des
+     étiquettes texte : leur cible est large sans rien changer. */
+  .dup-cb-hit {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; margin: -3px; border-radius: 7px; cursor: pointer;
+  }
+  .dup-cb-hit:hover { background: var(--surface-2); }
+  .dup-cb { width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--primary); }
+  .dup-cb:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 5px; }
+  .dup-group-all, #dup-all { accent-color: var(--primary); cursor: pointer; }
   .dup-empty { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
-  .dup-empty .big { font-size: 2.4rem; display: block; margin-bottom: .4rem; }
+  .dup-empty-ic { width: 32px; height: 32px; display: block; margin: 0 auto 10px; color: var(--border-strong); }
+  .dup-empty p { margin: 0 0 4px; color: var(--text); font-weight: 600; font-size: 14px; }
+  .dup-empty .hint { margin: 0; font-weight: 400; font-size: 13px; color: var(--muted); }
+
 </style>
 
 <div class="page-head">
@@ -86,43 +111,47 @@
 
 <div class="kpi-cards">
   <div class="kpi-card kpi-lavender">
-    <span class="kpi-ic">🧬</span>
+    <span class="kpi-ic">{{ ui.ic('doublons') }}</span>
     <div><div class="kpi-num">{{ nb_groupes }}</div><div class="kpi-lbl">Groupes détectés</div></div>
   </div>
   <div class="kpi-card kpi-pink">
-    <span class="kpi-ic">👥</span>
+    <span class="kpi-ic">{{ ui.ic('personnes') }}</span>
     <div><div class="kpi-num">{{ nb_concernes }}</div><div class="kpi-lbl">Candidats concernés</div></div>
   </div>
   <div class="kpi-card kpi-amber">
-    <span class="kpi-ic">📥</span>
+    <span class="kpi-ic">{{ ui.ic('boite-entree') }}</span>
     <div><div class="kpi-num">{{ nb_a_ranger }}</div><div class="kpi-lbl">À ranger</div></div>
   </div>
   <div class="kpi-card kpi-mint">
-    <span class="kpi-ic">🏷️</span>
+    <span class="kpi-ic">{{ ui.ic('etiquette') }}</span>
     <div><div class="kpi-num">{{ nb_marques }}</div><div class="kpi-lbl">Déjà marqués doublon</div></div>
   </div>
 </div>
 
 <p class="small muted">
   Regroupement des candidats potentiellement en double par email, téléphone ou nom.
-  Le plus ancien candidat de chaque groupe (plus petit ID, marqué <span class="dup-tag orig">⭐ Original</span>)
+  Le plus ancien candidat de chaque groupe (plus petit ID, marqué <span class="dup-tag orig"><span aria-hidden="true">{{ ui.ic('etoile') }}</span> Original</span>)
   est considéré comme la fiche à garder. Cochez les doublons à ranger, puis validez en une seule fois.
 </p>
 
 {% if nb_groupes == 0 %}
   <div class="card dup-empty">
-    <span class="big">🎉</span>
-    <div>Aucun doublon potentiel détecté.</div>
+    {{ ui.ic('coche-cercle', 'dup-empty-ic') }}
+    <p>Aucun doublon potentiel détecté.</p>
+    <p class="hint">
+      Les fiches ont été rapprochées par email, téléphone et nom : aucun groupe ne
+      ressort. Cette page se recalcule à chaque relève.
+    </p>
   </div>
 {% else %}
 
-<div class="dup-toolbar" id="dup-filters">
-  <button type="button" class="dup-chip active" data-filter="all">
+<div class="dup-toolbar" id="dup-filters" role="group" aria-label="Filtrer par critère de rapprochement">
+  <button type="button" class="dup-chip active" data-filter="all" aria-pressed="true">
     Tous <span class="n">{{ nb_groupes }}</span>
   </button>
   {% for f in filtres %}{% if f.nb %}
-  <button type="button" class="dup-chip" data-filter="{{ f.cle }}">
-    <span>{{ f.icone }}</span> {{ f.libelle }} <span class="n">{{ f.nb }}</span>
+  <button type="button" class="dup-chip" data-filter="{{ f.cle }}" aria-pressed="false">
+    {{ ui.ic(f.icone) }} {{ f.libelle }} <span class="n">{{ f.nb }}</span>
   </button>
   {% endif %}{% endfor %}
   <span class="sep"></span>
@@ -135,11 +164,11 @@
     <div class="alert error">Le marquage en lot des doublons nécessite JavaScript activé.</div>
   </noscript>
 
-  <div class="dup-actionbar">
+  <div class="dup-actionbar sticky-bar">
     <label><input type="checkbox" id="dup-all"> Tout sélectionner</label>
-    <span class="dup-count zero" id="dup-count">0 sélectionné</span>
+    <span class="dup-count zero" id="dup-count" role="status" aria-live="polite">0 sélectionné</span>
     <button type="submit" class="btn primary" id="dup-submit" style="margin-left:auto" disabled>
-      🏷️ Marquer la sélection comme doublons
+      {{ ui.ic('etiquette') }} Marquer la sélection comme doublons
     </button>
   </div>
 
@@ -147,11 +176,12 @@
   <div class="card dup-group{% if g.nb_markables == 0 %} is-resolved{% endif %}"
        data-crit="{{ g.cle }}" data-done="{{ 1 if g.nb_markables == 0 else 0 }}">
     <div class="dup-ghead">
-      <span class="dup-crit"><span class="ic">{{ {'email':'✉️','telephone':'📞','nom':'🪪'}.get(g.cle, '🔎') }}</span>{{ g.critere }}</span>
+      {% set ic_critere = {'email': 'enveloppe', 'telephone': 'telephone', 'nom': 'carte'}.get(g.cle, 'recherche') %}
+      <span class="dup-crit">{{ ui.ic(ic_critere) }}{{ g.critere }}</span>
       <span class="dup-val" title="{{ g.valeur }}">{{ g.valeur }}</span>
       <span class="dup-gcount">{{ g.nb_membres }} fiches</span>
       {% if g.nb_markables == 0 %}
-        <span class="dup-gdone">✅ Traité</span>
+        <span class="dup-gdone"><span aria-hidden="true">{{ ui.ic('coche') }}</span> Traité</span>
       {% else %}
         <label class="dup-gsel">
           <input type="checkbox" class="dup-group-all"> Sélectionner le groupe
@@ -159,17 +189,17 @@
       {% endif %}
     </div>
 
-    <div class="dup-table-wrap">
+    <div class="table-wrap">
     <table class="table">
       <thead>
         <tr>
-          <th style="width:2.2rem"></th>
-          <th style="width:4rem">ID</th>
-          <th>Candidat</th>
-          <th>Téléphone</th>
-          <th>Poste</th>
-          <th>Statut</th>
-          <th></th>
+          <th scope="col" style="width:2.2rem"><span class="sr-only">Sélection</span></th>
+          <th scope="col" style="width:4rem">ID</th>
+          <th scope="col">Candidat</th>
+          <th scope="col">Téléphone</th>
+          <th scope="col">Poste</th>
+          <th scope="col">Statut</th>
+          <th scope="col"><span class="sr-only">Rôle dans le groupe</span></th>
         </tr>
       </thead>
       <tbody>
@@ -178,8 +208,11 @@
         <tr class="{% if is_orig %}is-original{% elif c.duplicate_of %}is-marked{% endif %}">
           <td>
             {% if not is_orig and not c.duplicate_of %}
-              <input type="checkbox" class="dup-cb"
-                     value="{{ c.id }}:{{ g.original_id }}">
+              <label class="dup-cb-hit">
+                <input type="checkbox" class="dup-cb"
+                       value="{{ c.id }}:{{ g.original_id }}"
+                       aria-label="Marquer {{ (c.prenom or '') }} {{ (c.nom or '') }} (#{{ c.id }}) comme doublon de #{{ g.original_id }}">
+              </label>
             {% endif %}
           </td>
           <td class="small muted">#{{ c.id }}</td>
@@ -193,7 +226,7 @@
               <span class="small muted">—</span>
             {% endif %}
           </td>
-          <td class="small">
+          <td class="small dup-tel">
             {% if c.telephone %}
               <span class="{% if g.cle == 'telephone' %}match{% endif %}">{{ c.telephone }}</span>
             {% else %}—{% endif %}
@@ -202,11 +235,11 @@
           <td><span class="badge status-{{ (c.statut or 'Nouveau')|replace(' ', '_') }}">{{ c.statut or '—' }}</span></td>
           <td>
             {% if is_orig %}
-              <span class="dup-tag orig">⭐ Original</span>
+              <span class="dup-tag orig"><span aria-hidden="true">{{ ui.ic('etoile') }}</span> Original</span>
             {% elif c.duplicate_of %}
-              <span class="dup-tag done">✅ Doublon de #{{ c.duplicate_of }}</span>
+              <span class="dup-tag done">{{ ui.ic('coche') }} Doublon de #{{ c.duplicate_of }}</span>
             {% else %}
-              <span class="dup-tag todo">→ doublon de #{{ g.original_id }}</span>
+              <span class="dup-tag todo">{{ ui.ic('fleche-droite') }} doublon de #{{ g.original_id }}</span>
             {% endif %}
           </td>
         </tr>
@@ -216,6 +249,12 @@
     </div>
   </div>
   {% endfor %}
+
+  <div class="card dup-empty" id="dup-nofilter" hidden>
+    {{ ui.ic('recherche', 'dup-empty-ic') }}
+    <p>Aucun groupe ne correspond à ce filtre.</p>
+    <p class="hint">Choisissez « Tous », ou décochez « Masquer les groupes déjà traités ».</p>
+  </div>
 </form>
 
 <script>
@@ -289,21 +328,31 @@
   // Filtres par critère + masquage des groupes traités.
   var chips = Array.prototype.slice.call(document.querySelectorAll('.dup-chip'));
   var hideDone = document.getElementById('dup-hide-done');
+  var vide = document.getElementById('dup-nofilter');
   var current = 'all';
 
   function applyFilter() {
+    var visibles = 0;
     form.querySelectorAll('.dup-group').forEach(function (grp) {
       var okCrit = current === 'all' || grp.getAttribute('data-crit') === current;
       var okDone = !(hideDone.checked && grp.getAttribute('data-done') === '1');
-      grp.style.display = (okCrit && okDone) ? '' : 'none';
+      var visible = okCrit && okDone;
+      grp.style.display = visible ? '' : 'none';
+      if (visible) visibles++;
     });
+    // Un filtre qui ne laisse rien n'affichait qu'une page vide, sans le dire.
+    if (vide) vide.hidden = visibles > 0;
     refresh();  // recalcule le décompte + « Tout sélectionner » pour la vue visible
   }
 
   chips.forEach(function (chip) {
     chip.addEventListener('click', function () {
-      chips.forEach(function (c) { c.classList.remove('active'); });
+      chips.forEach(function (c) {
+        c.classList.remove('active');
+        c.setAttribute('aria-pressed', 'false');
+      });
       chip.classList.add('active');
+      chip.setAttribute('aria-pressed', 'true');
       current = chip.getAttribute('data-filter');
       applyFilter();
     });

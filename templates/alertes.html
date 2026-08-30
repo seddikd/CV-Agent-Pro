@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Alertes{% endblock %}
 {% block content %}
 
@@ -18,11 +19,11 @@
   <div class="actions alerts-head">
     {% if can_write %}
     <form method="post" action="/alertes/rebuild">
-      <button type="submit" class="btn" title="Rechercher les correspondances pour tous les candidats et toutes les offres publiées">🔄 Recalculer</button>
+      <button type="submit" class="btn" title="Rechercher les correspondances pour tous les candidats et toutes les offres publiées">{{ ui.ic('cycle') }} Recalculer</button>
     </form>
     {% if non_lues %}
     <form method="post" action="/alertes/seen-all">
-      <button type="submit" class="btn ghost">✓ Tout marquer comme lu</button>
+      <button type="submit" class="btn ghost">{{ ui.ic('coche') }} Tout marquer comme lu</button>
     </form>
     {% endif %}
     {% endif %}
@@ -33,56 +34,58 @@
 
 <div class="kpi-cards">
   <div class="kpi-card kpi-lavender">
-    <span class="kpi-ic">🔔</span>
+    <span class="kpi-ic">{{ ui.ic('cloche') }}</span>
     <div><div class="kpi-num">{{ alertes|length }}</div><div class="kpi-lbl">Alertes au total</div></div>
   </div>
   <div class="kpi-card kpi-pink">
-    <span class="kpi-ic">📬</span>
+    <span class="kpi-ic">{{ ui.ic('enveloppe-coche') }}</span>
     <div><div class="kpi-num">{{ non_lues }}</div><div class="kpi-lbl">Non lues</div></div>
   </div>
   <div class="kpi-card kpi-mint">
-    <span class="kpi-ic">✅</span>
+    <span class="kpi-ic">{{ ui.ic('coche-cercle') }}</span>
     <div><div class="kpi-num">{{ alertes|length - non_lues }}</div><div class="kpi-lbl">Lues</div></div>
   </div>
   <div class="kpi-card kpi-amber">
-    <span class="kpi-ic">🎯</span>
+    <span class="kpi-ic">{{ ui.ic('cible') }}</span>
     <div><div class="kpi-num">{{ seuil }}<span class="kpi-unit">/100</span></div><div class="kpi-lbl">Seuil de correspondance</div></div>
   </div>
 </div>
 
 <p class="muted small">Une alerte est créée quand un candidat obtient un score ≥ {{ seuil }}/100 vis-à-vis d'une offre publiée.</p>
 
-<table class="table alerts-table">
-  <thead>
-    <tr>
-      <th>Candidat</th>
-      <th>Offre</th>
-      <th>Score</th>
-      <th>Détectée le</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for a in alertes %}
-    <tr class="{{ 'non-lue' if not a.seen else '' }}">
-      <td><a href="/candidate/{{ a.candidate_id }}" class="cand-link">{{ (a.prenom or '') }} {{ (a.nom or '') }}</a></td>
-      <td><a href="/matching/{{ a.job_id }}" class="cand-link">{{ a.job_titre }}</a></td>
-      <td><span class="score-pill">{{ a.score }}</span></td>
-      <td class="small muted">{{ a.created_at[:16]|replace('T', ' ') }}</td>
-      <td>
-        {% if can_write and not a.seen %}
-        <form method="post" action="/alertes/{{ a.id }}/seen" style="display:inline">
-          <button type="submit" class="btn small ghost">Marquer lu</button>
-        </form>
-        {% elif a.seen %}
-        <span class="muted small">lu</span>
-        {% endif %}
-      </td>
-    </tr>
-  {% else %}
-    <tr><td colspan="5" class="empty">Aucune alerte. Publiez des offres puis cliquez « Recalculer ».</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="table-wrap">
+  <table class="table alerts-table">
+    <thead>
+      <tr>
+        <th>Candidat</th>
+        <th>Offre</th>
+        <th>Score</th>
+        <th>Détectée le</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for a in alertes %}
+      <tr class="{{ 'non-lue' if not a.seen else '' }}">
+        <td><a href="/candidate/{{ a.candidate_id }}" class="cand-link">{{ (a.prenom or '') }} {{ (a.nom or '') }}</a></td>
+        <td><a href="/matching/{{ a.job_id }}" class="cand-link">{{ a.job_titre }}</a></td>
+        <td><span class="score-pill">{{ a.score }}</span></td>
+        <td class="small muted">{{ a.created_at[:16]|replace('T', ' ') }}</td>
+        <td>
+          {% if can_write and not a.seen %}
+          <form method="post" action="/alertes/{{ a.id }}/seen" style="display:inline">
+            <button type="submit" class="btn small ghost">Marquer lu</button>
+          </form>
+          {% elif a.seen %}
+          <span class="muted small">lu</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="empty">Aucune alerte. Publiez des offres puis cliquez « Recalculer ».</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 {% endblock %}

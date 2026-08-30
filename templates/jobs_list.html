@@ -1,29 +1,30 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Offres d'emploi{% endblock %}
 {% block content %}
 
 <div class="page-head">
   <h1>Offres d'emploi</h1>
   <div class="actions">
-    <a href="/offres/nouveau" class="btn primary">➕ Nouvelle offre</a>
+    <a href="/offres/nouveau" class="btn primary">{{ ui.ic('plus') }} Nouvelle offre</a>
   </div>
 </div>
 
 <div class="kpi-cards">
   <div class="kpi-card kpi-mint">
-    <span class="kpi-ic">💼</span>
+    <span class="kpi-ic">{{ ui.ic('mallette') }}</span>
     <div><div class="kpi-num">{{ total_offres }}</div><div class="kpi-lbl">Offres au total</div></div>
   </div>
   <div class="kpi-card kpi-lavender">
-    <span class="kpi-ic">📢</span>
+    <span class="kpi-ic">{{ ui.ic('megaphone') }}</span>
     <div><div class="kpi-num">{{ stats_offres.get('Publiée', 0) }}</div><div class="kpi-lbl">Publiées</div></div>
   </div>
   <div class="kpi-card kpi-amber">
-    <span class="kpi-ic">📝</span>
+    <span class="kpi-ic">{{ ui.ic('note') }}</span>
     <div><div class="kpi-num">{{ stats_offres.get('Brouillon', 0) }}</div><div class="kpi-lbl">Brouillons</div></div>
   </div>
   <div class="kpi-card kpi-pink">
-    <span class="kpi-ic">🗄️</span>
+    <span class="kpi-ic">{{ ui.ic('archive') }}</span>
     <div><div class="kpi-num">{{ stats_offres.get('Archivée', 0) }}</div><div class="kpi-lbl">Archivées</div></div>
   </div>
 </div>
@@ -39,31 +40,33 @@
   <a href="/offres" class="btn ghost">Réinitialiser</a>
 </form>
 
-<table class="table">
-  <thead>
-    <tr>
-      <th>Titre</th>
-      <th>Département</th>
-      <th>Lieu</th>
-      <th>Statut</th>
-      <th>Mise à jour</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for o in offres %}
-    <tr>
-      <td><a href="/offres/{{ o.id }}" class="cand-link"><strong>{{ o.titre }}</strong></a></td>
-      <td>{{ o.departement or '—' }}</td>
-      <td>{{ o.lieu or '—' }}</td>
-      <td><span class="badge status-{{ (o.statut or 'Brouillon')|replace(' ', '_') }}">{{ o.statut }}</span></td>
-      <td class="small muted">{{ (o.updated_at or '')[:10] }}</td>
-      <td><a href="/offres/{{ o.id }}" class="btn small">Voir</a></td>
-    </tr>
-  {% else %}
-    <tr><td colspan="6" class="empty">Aucune offre pour ce filtre.</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Titre</th>
+        <th>Département</th>
+        <th>Lieu</th>
+        <th>Statut</th>
+        <th>Mise à jour</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for o in offres %}
+      <tr>
+        <td><a href="/offres/{{ o.id }}" class="cand-link"><strong>{{ o.titre }}</strong></a></td>
+        <td>{{ o.departement or '—' }}</td>
+        <td>{{ o.lieu or '—' }}</td>
+        <td><span class="badge status-{{ (o.statut or 'Brouillon')|replace(' ', '_') }}">{{ o.statut }}</span></td>
+        <td class="small muted">{{ (o.updated_at or '')[:10] }}</td>
+        <td><a href="/offres/{{ o.id }}" class="btn small">Voir</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="empty">Aucune offre pour ce filtre.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 {% endblock %}

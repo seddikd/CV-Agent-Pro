@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Entretiens{% endblock %}
 {% block content %}
 
@@ -8,10 +9,10 @@
     {% if can_write %}
     <form method="post" action="/entretiens/envoyer-rappels" style="display:inline"
           title="Envoyer immédiatement les rappels des entretiens dont l'échéance approche">
-      <button type="submit" class="btn">📧 Envoyer les rappels maintenant</button>
+      <button type="submit" class="btn">{{ ui.ic('enveloppe') }} Envoyer les rappels maintenant</button>
     </form>
     {% endif %}
-    <a href="/entretiens/nouveau" class="btn primary">➕ Planifier un entretien</a>
+    <a href="/entretiens/nouveau" class="btn primary">{{ ui.ic('plus') }} Planifier un entretien</a>
   </div>
 </div>
 
@@ -23,19 +24,19 @@
 
 <div class="kpi-cards">
   <div class="kpi-card kpi-mint">
-    <span class="kpi-ic">📅</span>
+    <span class="kpi-ic">{{ ui.ic('calendrier') }}</span>
     <div><div class="kpi-num">{{ a_venir }}</div><div class="kpi-lbl">À venir</div></div>
   </div>
   <div class="kpi-card kpi-lavender">
-    <span class="kpi-ic">🗂️</span>
+    <span class="kpi-ic">{{ ui.ic('dossiers') }}</span>
     <div><div class="kpi-num">{{ total }}</div><div class="kpi-lbl">Total planifiés</div></div>
   </div>
   <div class="kpi-card kpi-amber">
-    <span class="kpi-ic">✅</span>
+    <span class="kpi-ic">{{ ui.ic('coche-cercle') }}</span>
     <div><div class="kpi-num">{{ termines }}</div><div class="kpi-lbl">Terminés</div></div>
   </div>
   <div class="kpi-card kpi-pink">
-    <span class="kpi-ic">🚫</span>
+    <span class="kpi-ic">{{ ui.ic('interdit') }}</span>
     <div><div class="kpi-num">{{ annules }}</div><div class="kpi-lbl">Annulés</div></div>
   </div>
 </div>
@@ -50,59 +51,61 @@
   <a href="/entretiens" class="btn ghost">Réinitialiser</a>
 </form>
 
-<table class="table">
-  <thead>
-    <tr>
-      <th>Date & heure</th>
-      <th>Candidat</th>
-      <th>Type</th>
-      <th>Lieu / lien</th>
-      <th>Statut</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for e in entretiens %}
-    {% set passe = e.statut == 'Planifié' and (e.date_heure or '') < maintenant %}
-    <tr>
-      <td>
-        <strong>{{ (e.date_heure or '')[:10] }}</strong>
-        <span class="muted">{{ (e.date_heure or '')[11:16] }}</span>
-        {% if passe %}<span class="badge run-cancelled" title="Date passée, entretien non clôturé">en retard</span>{% endif %}
-      </td>
-      <td>
-        <a href="/candidate/{{ e.candidate_id }}" class="cand-link">
-          <strong>{{ (e.cand_prenom or '') }} {{ (e.cand_nom or '') }}</strong>
-        </a><br>
-        <span class="small muted">{{ e.cand_poste or '—' }}</span>
-      </td>
-      <td class="small">{{ e.type or '—' }}
-        {% if e.reminder_sent %}<br><span class="small muted" title="Rappel email envoyé">📧 rappel envoyé</span>{% endif %}
-      </td>
-      <td class="small">{{ e.lieu or '—' }}</td>
-      <td><span class="badge status-{{ (e.statut or 'Planifié')|replace(' ', '_') }}">{{ e.statut }}</span></td>
-      <td class="actions">
-        <a href="/entretiens/{{ e.id }}/modifier" class="btn small">✏️ Modifier</a>
-        {% if e.statut == 'Planifié' %}
-        <form method="post" action="/entretiens/{{ e.id }}/statut" style="display:inline">
-          <input type="hidden" name="statut" value="Terminé">
-          <button type="submit" class="btn small">✅ Terminé</button>
-        </form>
-        <form method="post" action="/entretiens/{{ e.id }}/statut" style="display:inline">
-          <input type="hidden" name="statut" value="Annulé">
-          <button type="submit" class="btn small ghost">🚫 Annuler</button>
-        </form>
-        {% endif %}
-        <form method="post" action="/entretiens/{{ e.id }}/delete" style="display:inline"
-              onsubmit="return confirm('Supprimer cet entretien ?');">
-          <button type="submit" class="btn small ghost">🗑️</button>
-        </form>
-      </td>
-    </tr>
-  {% else %}
-    <tr><td colspan="6" class="empty">Aucun entretien planifié. Cliquez « Planifier un entretien ».</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Date & heure</th>
+        <th>Candidat</th>
+        <th>Type</th>
+        <th>Lieu / lien</th>
+        <th>Statut</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for e in entretiens %}
+      {% set passe = e.statut == 'Planifié' and (e.date_heure or '') < maintenant %}
+      <tr>
+        <td>
+          <strong>{{ (e.date_heure or '')[:10] }}</strong>
+          <span class="muted">{{ (e.date_heure or '')[11:16] }}</span>
+          {% if passe %}<span class="badge run-cancelled" title="Date passée, entretien non clôturé">en retard</span>{% endif %}
+        </td>
+        <td>
+          <a href="/candidate/{{ e.candidate_id }}" class="cand-link">
+            <strong>{{ (e.cand_prenom or '') }} {{ (e.cand_nom or '') }}</strong>
+          </a><br>
+          <span class="small muted">{{ e.cand_poste or '—' }}</span>
+        </td>
+        <td class="small">{{ e.type or '—' }}
+          {% if e.reminder_sent %}<br><span class="small muted" title="Rappel email envoyé">{{ ui.ic('enveloppe') }} rappel envoyé</span>{% endif %}
+        </td>
+        <td class="small">{{ e.lieu or '—' }}</td>
+        <td><span class="badge status-{{ (e.statut or 'Planifié')|replace(' ', '_') }}">{{ e.statut }}</span></td>
+        <td class="actions">
+          <a href="/entretiens/{{ e.id }}/modifier" class="btn small">{{ ui.ic('crayon') }} Modifier</a>
+          {% if e.statut == 'Planifié' %}
+          <form method="post" action="/entretiens/{{ e.id }}/statut" style="display:inline">
+            <input type="hidden" name="statut" value="Terminé">
+            <button type="submit" class="btn small">{{ ui.ic('coche') }} Terminé</button>
+          </form>
+          <form method="post" action="/entretiens/{{ e.id }}/statut" style="display:inline">
+            <input type="hidden" name="statut" value="Annulé">
+            <button type="submit" class="btn small ghost">{{ ui.ic('interdit') }} Annuler</button>
+          </form>
+          {% endif %}
+          <form method="post" action="/entretiens/{{ e.id }}/delete" style="display:inline"
+                onsubmit="return confirm('Supprimer cet entretien ?');">
+            <button type="submit" class="btn small ghost">{{ ui.ic('corbeille') }}</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="empty">Aucun entretien planifié. Cliquez « Planifier un entretien ».</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 {% endblock %}

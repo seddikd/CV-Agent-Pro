@@ -1,9 +1,9 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Utilisateurs{% endblock %}
 {% block content %}
 
 {% set role_labels = {'admin': 'Admin', 'manager': 'Manager', 'rh': 'RH', 'lecture': 'Lecture seule'} %}
-{% set palette = ['#2563eb', '#7c3aed', '#0891b2', '#059669', '#d97706', '#db2777', '#4f46e5', '#0d9488'] %}
 
 <div class="users-head">
   <h1>Gestion des utilisateurs</h1>
@@ -14,6 +14,7 @@
 
 <div class="users-toolbar">
   <div class="search">
+    {{ ui.ic('recherche', 'search-ic') }}
     <input type="text" id="u-search" placeholder="Rechercher un nom ou un email…"
            autocomplete="off" aria-label="Rechercher un utilisateur">
   </div>
@@ -29,8 +30,8 @@
     <option value="0">Désactivé</option>
   </select>
   <span class="grow"></span>
-  <button type="button" class="btn" onclick="exportUsersCsv()">⬆️ Exporter</button>
-  <button type="button" class="btn primary" onclick="openModal('modal-create')">➕ Ajouter un utilisateur</button>
+  <button type="button" class="btn" onclick="exportUsersCsv()">{{ ui.ic('televerser') }} Exporter</button>
+  <button type="button" class="btn primary" onclick="openModal('modal-create')">{{ ui.ic('plus') }} Ajouter un utilisateur</button>
 </div>
 
 <!-- Barre d'action de masse : les cases à cocher lui sont rattachées via form="bulk-form". -->
@@ -39,73 +40,75 @@
   <span class="bulk-info"><strong id="bulk-count">0</strong> utilisateur(s) sélectionné(s)</span>
   <span class="grow"></span>
   <button type="button" class="btn ghost" onclick="clearSelection()">Tout désélectionner</button>
-  <button type="submit" class="btn danger">🗑️ Supprimer la sélection</button>
+  <button type="submit" class="btn danger">{{ ui.ic('corbeille') }} Supprimer la sélection</button>
 </form>
 
-<table class="table users" id="users-table">
-  <thead>
-    <tr>
-      <th class="col-check"><input type="checkbox" id="check-all" aria-label="Tout sélectionner sur cette page"></th>
-      <th>Nom complet</th>
-      <th>Email</th>
-      <th>Statut</th>
-      <th>Rôle</th>
-      <th>Date d'ajout</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for u in users %}
-    {% set nm = u.name or u.email %}
-    {% set parts = nm.split() %}
-    {% set initials = (parts[0][0] ~ (parts[1][0] if parts|length > 1 else ''))|upper %}
-    <tr class="u-row"
-        data-name="{{ u.name|lower }}"
-        data-email="{{ u.email|lower }}"
-        data-role="{{ u.role }}"
-        data-active="{{ 1 if u.active else 0 }}">
-      <td class="col-check">
-        {% if u.id == user.id %}
-        <input type="checkbox" disabled title="Vous ne pouvez pas supprimer votre propre compte">
-        {% else %}
-        <input type="checkbox" class="row-check" name="ids" value="{{ u.id }}" form="bulk-form"
-               aria-label="Sélectionner {{ u.email }}">
-        {% endif %}
-      </td>
-      <td>
-        <div class="user-cell">
-          <span class="avatar" style="background: {{ palette[u.id % 8] }}">{{ initials }}</span>
-          <span class="u-name">{{ u.name }}{% if u.id == user.id %}<span class="u-you">(vous)</span>{% endif %}</span>
-        </div>
-      </td>
-      <td>{{ u.email }}</td>
-      <td>
-        {% if u.active %}<span class="ustatus active">Actif</span>
-        {% else %}<span class="ustatus inactive">Désactivé</span>{% endif %}
-      </td>
-      <td><span class="role-badge role-{{ u.role }}">{{ role_labels.get(u.role, u.role) }}</span></td>
-      <td class="small muted">{{ (u.created_at or '')[:10] }}</td>
-      <td>
-        <div class="row-actions">
-          <button type="button" class="icon-btn edit" title="Modifier"
-                  data-id="{{ u.id }}" data-name="{{ u.name }}" data-email="{{ u.email }}"
-                  data-role="{{ u.role }}" data-active="{{ 1 if u.active else 0 }}"
-                  onclick="openEdit(this)">✏️</button>
+<div class="table-wrap">
+  <table class="table users" id="users-table">
+    <thead>
+      <tr>
+        <th class="col-check"><input type="checkbox" id="check-all" aria-label="Tout sélectionner sur cette page"></th>
+        <th>Nom complet</th>
+        <th>Email</th>
+        <th>Statut</th>
+        <th>Rôle</th>
+        <th>Date d'ajout</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for u in users %}
+      {% set nm = u.name or u.email %}
+      {% set parts = nm.split() %}
+      {% set initials = (parts[0][0] ~ (parts[1][0] if parts|length > 1 else ''))|upper %}
+      <tr class="u-row"
+          data-name="{{ u.name|lower }}"
+          data-email="{{ u.email|lower }}"
+          data-role="{{ u.role }}"
+          data-active="{{ 1 if u.active else 0 }}">
+        <td class="col-check">
           {% if u.id == user.id %}
-          <button type="button" class="icon-btn del" disabled
-                  title="Vous ne pouvez pas supprimer votre propre compte">🗑️</button>
+          <input type="checkbox" disabled title="Vous ne pouvez pas supprimer votre propre compte">
           {% else %}
-          <form method="post" action="/admin/users/{{ u.id }}/delete" style="display:inline"
-                onsubmit="return confirm('Supprimer définitivement {{ u.email }} ?');">
-            <button type="submit" class="icon-btn del" title="Supprimer">🗑️</button>
-          </form>
+          <input type="checkbox" class="row-check" name="ids" value="{{ u.id }}" form="bulk-form"
+                 aria-label="Sélectionner {{ u.email }}">
           {% endif %}
-        </div>
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+        </td>
+        <td>
+          <div class="user-cell">
+            <span class="avatar" style="{{ ui.av(u.id) }}">{{ initials }}</span>
+            <span class="u-name">{{ u.name }}{% if u.id == user.id %}<span class="u-you">(vous)</span>{% endif %}</span>
+          </div>
+        </td>
+        <td>{{ u.email }}</td>
+        <td>
+          {% if u.active %}<span class="ustatus active">Actif</span>
+          {% else %}<span class="ustatus inactive">Désactivé</span>{% endif %}
+        </td>
+        <td><span class="role-badge role-{{ u.role }}">{{ role_labels.get(u.role, u.role) }}</span></td>
+        <td class="small muted">{{ (u.created_at or '')[:10] }}</td>
+        <td>
+          <div class="row-actions">
+            <button type="button" class="icon-btn edit" title="Modifier"
+                    data-id="{{ u.id }}" data-name="{{ u.name }}" data-email="{{ u.email }}"
+                    data-role="{{ u.role }}" data-active="{{ 1 if u.active else 0 }}"
+                    onclick="openEdit(this)">{{ ui.ic('crayon') }}</button>
+            {% if u.id == user.id %}
+            <button type="button" class="icon-btn del" disabled
+                    title="Vous ne pouvez pas supprimer votre propre compte">{{ ui.ic('corbeille') }}</button>
+            {% else %}
+            <form method="post" action="/admin/users/{{ u.id }}/delete" style="display:inline"
+                  onsubmit="return confirm('Supprimer définitivement {{ u.email }} ?');">
+              <button type="submit" class="icon-btn del" title="Supprimer">{{ ui.ic('corbeille') }}</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 <div class="users-foot">
   <div class="foot-left">
@@ -124,7 +127,7 @@
 <div class="modal-overlay" id="modal-create" hidden onclick="if(event.target===this)closeModal(this)">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mc-title">
     <div class="modal-head">
-      <h3 id="mc-title">➕ Nouvel utilisateur</h3>
+      <h3 id="mc-title">{{ ui.ic('plus') }} Nouvel utilisateur</h3>
       <button type="button" class="modal-close" onclick="closeModal(this)" aria-label="Fermer">×</button>
     </div>
     <form method="post" action="/admin/users/create">
@@ -159,7 +162,7 @@
 <div class="modal-overlay" id="modal-edit" hidden onclick="if(event.target===this)closeModal(this)">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="me-title">
     <div class="modal-head">
-      <h3 id="me-title">✏️ Modifier l'utilisateur</h3>
+      <h3 id="me-title">{{ ui.ic('crayon') }} Modifier l'utilisateur</h3>
       <button type="button" class="modal-close" onclick="closeModal(this)" aria-label="Fermer">×</button>
     </div>
     <form method="post" id="edit-form">
@@ -191,7 +194,7 @@
       </div>
       <div class="modal-foot">
         <button type="button" class="btn ghost" onclick="closeModal(this)">Annuler</button>
-        <button type="submit" class="btn primary">💾 Enregistrer</button>
+        <button type="submit" class="btn primary">{{ ui.ic('enregistrer') }} Enregistrer</button>
       </div>
     </form>
   </div>

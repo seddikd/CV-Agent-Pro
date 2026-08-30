@@ -1,3 +1,4 @@
+{% import "_ui_macros.html" as ui %}
 <h3>Activité</h3>
 
 <style scoped>
@@ -26,7 +27,7 @@
   <ul class="tl">
     {% for e in events %}
     <li class="tl-item">
-      <span class="tl-dot" aria-hidden="true">{{ e.icone }}</span>
+      <span class="tl-dot">{{ ui.ic(e.icone) }}</span>
       <div class="tl-titre">{{ e.titre or e.type }}</div>
       {% if e.detail %}<div class="tl-detail">{{ e.detail }}</div>{% endif %}
       <div class="tl-date small muted">

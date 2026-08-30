@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}{% if entretien %}Modifier l'entretien{% else %}Planifier un entretien{% endif %}{% endblock %}
 {% block content %}
 
-<a href="/entretiens" class="back">← Retour aux entretiens</a>
+<a href="/entretiens" class="back">{{ ui.ic('fleche-gauche') }}Retour aux entretiens</a>
 
 <div class="page-head">
-  <h1>{% if entretien %}✏️ Modifier l'entretien{% else %}📅 Planifier un entretien{% endif %}</h1>
+  <h1>{% if entretien %}{{ ui.ic('crayon') }} Modifier l'entretien{% else %}{{ ui.ic('calendrier') }} Planifier un entretien{% endif %}</h1>
 </div>
 
 <form method="post"
@@ -69,7 +70,7 @@
 
   <div class="form-actions">
     <a href="/entretiens" class="btn ghost">Annuler</a>
-    <button type="submit" class="btn primary">💾 Enregistrer</button>
+    <button type="submit" class="btn primary">{{ ui.ic('enregistrer') }} Enregistrer</button>
   </div>
 </form>
 

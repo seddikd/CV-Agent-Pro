@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Matching IA{% endblock %}
 {% block content %}
 
@@ -9,38 +10,40 @@
 
 <div class="kpi-cards">
   <div class="kpi-card kpi-mint">
-    <span class="kpi-ic">💼</span>
+    <span class="kpi-ic">{{ ui.ic('mallette') }}</span>
     <div><div class="kpi-num">{{ total_offres }}</div><div class="kpi-lbl">Offres</div></div>
   </div>
   <div class="kpi-card kpi-lavender">
-    <span class="kpi-ic">📢</span>
+    <span class="kpi-ic">{{ ui.ic('megaphone') }}</span>
     <div><div class="kpi-num">{{ n_publiees }}</div><div class="kpi-lbl">Offres publiées</div></div>
   </div>
   <div class="kpi-card kpi-amber">
-    <span class="kpi-ic">👤</span>
+    <span class="kpi-ic">{{ ui.ic('personne') }}</span>
     <div><div class="kpi-num">{{ total_cands }}</div><div class="kpi-lbl">Candidats évalués</div></div>
   </div>
 </div>
 
-<table class="table">
-  <thead>
-    <tr>
-      <th>Offre</th>
-      <th>Statut</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for o in offres %}
-    <tr>
-      <td><strong>{{ o.titre }}</strong></td>
-      <td><span class="badge status-{{ (o.statut or 'Brouillon')|replace(' ', '_') }}">{{ o.statut }}</span></td>
-      <td><a href="/matching/{{ o.id }}" class="btn small">Voir le matching</a></td>
-    </tr>
-  {% else %}
-    <tr><td colspan="3" class="empty">Aucune offre. Créez d'abord une offre d'emploi.</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Offre</th>
+        <th>Statut</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for o in offres %}
+      <tr>
+        <td><strong>{{ o.titre }}</strong></td>
+        <td><span class="badge status-{{ (o.statut or 'Brouillon')|replace(' ', '_') }}">{{ o.statut }}</span></td>
+        <td><a href="/matching/{{ o.id }}" class="btn small">Voir le matching</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="3" class="empty">Aucune offre. Créez d'abord une offre d'emploi.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 {% endblock %}

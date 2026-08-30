@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Candidats{% endblock %}
 {% block content %}
 
@@ -11,28 +12,28 @@
       <label style="font-size:.85em;margin-right:.4rem">
         <input type="checkbox" name="reset_all" value="on"> à zéro
       </label>
-      <button type="submit" class="btn">▶ Lancer un cycle</button>
+      <button type="submit" class="btn">{{ ui.ic('lecture') }} Lancer un cycle</button>
     </form>
     {% endif %}
-    <a href="/export.xlsx" class="btn">📥 Exporter Excel</a>
+    <a href="/export.xlsx" class="btn">{{ ui.ic('boite-entree') }} Exporter Excel</a>
   </div>
 </div>
 
 <div class="kpi-cards">
   <div class="kpi-card kpi-mint">
-    <span class="kpi-ic">📥</span>
+    <span class="kpi-ic">{{ ui.ic('boite-entree') }}</span>
     <div><div class="kpi-num">{{ stats.total }}</div><div class="kpi-lbl">Candidats au total</div></div>
   </div>
   <div class="kpi-card kpi-lavender">
-    <span class="kpi-ic">✨</span>
+    <span class="kpi-ic">{{ ui.ic('etincelles') }}</span>
     <div><div class="kpi-num">{{ stats.by_statut.get('Nouveau', 0) }}</div><div class="kpi-lbl">Nouveaux</div></div>
   </div>
   <div class="kpi-card kpi-pink">
-    <span class="kpi-ic">📅</span>
+    <span class="kpi-ic">{{ ui.ic('calendrier') }}</span>
     <div><div class="kpi-num">{{ stats.by_statut.get('Entretien planifié', 0) }}</div><div class="kpi-lbl">Entretiens planifiés</div></div>
   </div>
   <div class="kpi-card kpi-amber">
-    <span class="kpi-ic">🎉</span>
+    <span class="kpi-ic">{{ ui.ic('trophee') }}</span>
     <div><div class="kpi-num">{{ stats.by_statut.get('Embauché', 0) }}</div><div class="kpi-lbl">Embauchés</div></div>
   </div>
 </div>
@@ -42,7 +43,7 @@
   <span class="stat-badge">{{ s }} <strong>{{ c }}</strong></span>
   {% endfor %}
   {% if last_run %}
-  <span class="stat-badge muted">🔄 Dernier cycle : {{ last_run.finished_at }} · {{ last_run.cvs_detected }} CV</span>
+  <span class="stat-badge muted">{{ ui.ic('cycle') }} Dernier cycle : {{ last_run.finished_at }} · {{ last_run.cvs_detected }} CV</span>
   {% endif %}
 </div>
 
@@ -99,42 +100,44 @@
    changer le tri ramène à la page 1 en omettant le paramètre page). #}
 {% set base_qs = 'search=' ~ (search | urlencode) ~ '&statut=' ~ (statut | urlencode) ~ '&poste=' ~ (poste | urlencode) ~ '&per_page=' ~ per_page %}
 
-<table class="table people">
-  <thead>
-    <tr>
-      <th>Candidat</th>
-      <th>Poste</th>
-      <th>Compétences</th>
-      <th>Statut</th>
-      <th>Reçu</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for c in rows %}
-    {% set full = ((c.prenom or '') ~ ' ' ~ (c.nom or '')) | trim %}
-    {% set inits = ((c.prenom or ' ')[0] ~ (c.nom or ' ')[0]) | upper | trim %}
-    <tr>
-      <td>
-        <div class="person">
-          <span class="avatar" style="background:hsl({{ (c.id * 47) % 360 }} 52% 52%)">{{ inits or '?' }}</span>
-          <div class="person-meta">
-            <a href="/candidate/{{ c.id }}" class="p-name">{{ full or 'Sans nom' }}</a>
-            <span class="p-sub">{{ c.email or '—' }}</span>
+<div class="table-wrap">
+  <table class="table people">
+    <thead>
+      <tr>
+        <th>Candidat</th>
+        <th>Poste</th>
+        <th>Compétences</th>
+        <th>Statut</th>
+        <th>Reçu</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in rows %}
+      {% set full = ((c.prenom or '') ~ ' ' ~ (c.nom or '')) | trim %}
+      {% set inits = ((c.prenom or ' ')[0] ~ (c.nom or ' ')[0]) | upper | trim %}
+      <tr>
+        <td>
+          <div class="person">
+            <span class="avatar" style="{{ ui.av(c.id) }}">{{ inits or '?' }}</span>
+            <div class="person-meta">
+              <a href="/candidate/{{ c.id }}" class="p-name">{{ full or 'Sans nom' }}</a>
+              <span class="p-sub">{{ c.email or '—' }}</span>
+            </div>
           </div>
-        </div>
-      </td>
-      <td>{% if c.poste_recherche %}<span class="poste-pill">{{ c.poste_recherche }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
-      <td class="small muted">{{ (c.competences or '')[:70] }}{% if c.competences and c.competences|length > 70 %}…{% endif %}</td>
-      <td>{% include "_status_cell.html" %}</td>
-      <td class="small muted">{{ c.received_at[:10] }}</td>
-      <td class="ta-right"><a href="/candidate/{{ c.id }}" class="details-link">Voir détails ›</a></td>
-    </tr>
-  {% else %}
-    <tr><td colspan="6" class="empty">Aucun candidat pour ces filtres.</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+        </td>
+        <td>{% if c.poste_recherche %}<span class="poste-pill">{{ c.poste_recherche }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td class="small muted">{{ (c.competences or '')[:70] }}{% if c.competences and c.competences|length > 70 %}…{% endif %}</td>
+        <td>{% include "_status_cell.html" %}</td>
+        <td class="small muted">{{ c.received_at[:10] }}</td>
+        <td class="ta-right"><a href="/candidate/{{ c.id }}" class="details-link">Voir détails ›</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="empty">Aucun candidat pour ces filtres.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 {# ─── Pagination ─────────────────────────────────────────────────────────── #}
 {% if total > 0 %}

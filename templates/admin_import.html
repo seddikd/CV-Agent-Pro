@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}Import Outlook{% endblock %}
 {% block content %}
 
@@ -10,7 +11,7 @@
 
 {% if not backends %}
 <div class="alert warning">
-  ⚠️ Aucun lecteur Outlook disponible sur ce serveur. Installez
+  {{ ui.ic('alerte') }} Aucun lecteur Outlook disponible sur ce serveur. Installez
   <code>libpff-python</code> (pypff, multiplateforme) ou, sous Windows,
   <code>pywin32</code> avec Outlook installé.
 </div>
@@ -19,7 +20,7 @@
 {% endif %}
 
 {% if running %}
-<div class="alert warning">⏳ Un traitement est déjà en cours — attendez sa fin avant d'importer.</div>
+<div class="alert warning">{{ ui.ic('sablier') }} Un traitement est déjà en cours — attendez sa fin avant d'importer.</div>
 {% endif %}
 
 <p class="small">
@@ -29,7 +30,7 @@
   crée pas de doublons. Suivi et résultats dans <a href="/admin/runs">Cycles</a>.
 </p>
 <p class="small">
-  💡 Après un import, le bouton <strong>« 📁 Ranger les traités »</strong> déplace les
+  {{ ui.ic('ampoule') }} Après un import, le bouton <strong>« {{ ui.ic('dossier') }} Ranger les traités »</strong> déplace les
   mails porteurs d'un CV vers un dossier (par défaut <em>Traités</em>) pour garder la
   boîte propre. Cette écriture nécessite <strong>Outlook installé</strong>
   (backend <code>win32com</code>) ; indisponible avec le seul lecteur <code>pypff</code>
@@ -45,16 +46,21 @@
 <form method="post" action="/admin/import/upload" enctype="multipart/form-data"
       id="upload-form" style="margin-bottom:1.5rem">
   <input type="file" name="file" id="upload-file" accept=".pst,.ost" required>
-  <button type="submit" class="btn" id="upload-btn">⬆ Téléverser</button>
+  <button type="submit" class="btn" id="upload-btn">{{ ui.ic('televerser') }} Téléverser</button>
   <div id="upload-progress" style="display:none;margin-top:.6rem">
-    <div style="background:var(--border,#e5e7eb);border-radius:6px;height:16px;
+    {# Les replis (#e5e7eb, #f26a21) étaient morts : les deux variables existent.
+       La barre est pleine largeur et se révèle par mise à l'échelle — animer
+       `width` déclenchait un recalcul de mise en page à chaque événement de
+       progression, plusieurs fois par seconde pendant tout le téléversement. #}
+    <div style="background:var(--border);border-radius:6px;height:16px;
                 overflow:hidden;max-width:480px">
-      <div id="upload-bar" style="background:var(--primary,#f26a21);height:100%;width:0%;
-                                  transition:width .15s"></div>
+      <div id="upload-bar" style="background:var(--primary);height:100%;width:100%;
+                                  transform:scaleX(0);transform-origin:left center;
+                                  transition:transform .15s"></div>
     </div>
     <div id="upload-pct" class="small" style="margin-top:.35rem">0 %</div>
   </div>
-  <div class="small" style="margin-top:.4rem;color:#666">
+  <div class="small muted" style="margin-top:.4rem">
     Les gros fichiers (plusieurs Go) : préférez le dépôt direct dans le dossier
     serveur <code>{{ import_dir }}</code> (volume monté), puis utilisez la section 3.
   </div>
@@ -88,13 +94,13 @@
     box.style.display = 'block';
     btn.disabled = true;
     input.disabled = true;
-    bar.style.width = '0%';
+    bar.style.transform = 'scaleX(0)';
     pct.textContent = '0 %';
 
     xhr.upload.addEventListener('progress', function (ev) {
       if (!ev.lengthComputable) return;
       var p = Math.round(ev.loaded / ev.total * 100);
-      bar.style.width = p + '%';
+      bar.style.transform = 'scaleX(' + (p / 100) + ')';
       pct.textContent = p < 100
         ? p + ' % (' + fmt(ev.loaded) + ' / ' + fmt(ev.total) + ')'
         : 'Finalisation côté serveur…';
@@ -122,41 +128,43 @@
 
 <h2>2. Fichiers présents dans le dossier serveur</h2>
 {% if files %}
-<table class="table">
-  <thead><tr><th>Fichier</th><th>Taille</th><th>Actions</th></tr></thead>
-  <tbody>
-  {% for f in files %}
-    <tr>
-      <td>{{ f.name }}</td>
-      <td class="small">{{ f.size_mb }} Mo</td>
-      <td>
-        <form method="post" action="/admin/import/test" style="display:inline">
-          <input type="hidden" name="filename" value="{{ f.name }}">
-          <button type="submit" class="btn">🔍 Tester</button>
-        </form>
-        <form method="post" action="/admin/import/run" style="display:inline"
-              onsubmit="return confirm('Importer les CV de {{ f.name }} ?');">
-          <input type="hidden" name="filename" value="{{ f.name }}">
-          <button type="submit" class="btn primary" {% if running or not backends %}disabled{% endif %}>
-            ▶ Importer
-          </button>
-        </form>
-        <form method="post" action="/admin/import/move" style="display:inline"
-              data-nom="{{ f.name }}" onsubmit="return rangerTraites(this);">
-          <input type="hidden" name="filename" value="{{ f.name }}">
-          <input type="hidden" name="target_folder" value="Traités">
-          <input type="hidden" name="non_cv_folder" value="">
-          <button type="submit" class="btn"
-                  {% if running or not can_move %}disabled{% endif %}
-                  title="{% if not can_move %}Indisponible : ce serveur n'est pas un poste Windows avec Outlook (cas d'un déploiement Docker/Linux). Peu importe qu'Outlook soit installé sur VOTRE machine : le déplacement est piloté depuis le serveur. Lancez l'application sur un poste Windows pourvu d'Outlook.{% elif f.name.lower().endswith('.ost') %}OST : opère sur la boîte réelle du compte (synchronisé vers le serveur){% else %}Range les mails porteurs d'un CV dans un dossier du PST{% endif %}">
-            📁 Ranger les traités
-          </button>
-        </form>
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Fichier</th><th>Taille</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for f in files %}
+      <tr>
+        <td>{{ f.name }}</td>
+        <td class="small">{{ f.size_mb }} Mo</td>
+        <td>
+          <form method="post" action="/admin/import/test" style="display:inline">
+            <input type="hidden" name="filename" value="{{ f.name }}">
+            <button type="submit" class="btn">{{ ui.ic('recherche') }} Tester</button>
+          </form>
+          <form method="post" action="/admin/import/run" style="display:inline"
+                onsubmit="return confirm('Importer les CV de {{ f.name }} ?');">
+            <input type="hidden" name="filename" value="{{ f.name }}">
+            <button type="submit" class="btn primary" {% if running or not backends %}disabled{% endif %}>
+              {{ ui.ic('lecture') }} Importer
+            </button>
+          </form>
+          <form method="post" action="/admin/import/move" style="display:inline"
+                data-nom="{{ f.name }}" onsubmit="return rangerTraites(this);">
+            <input type="hidden" name="filename" value="{{ f.name }}">
+            <input type="hidden" name="target_folder" value="Traités">
+            <input type="hidden" name="non_cv_folder" value="">
+            <button type="submit" class="btn"
+                    {% if running or not can_move %}disabled{% endif %}
+                    title="{% if not can_move %}Indisponible : ce serveur n'est pas un poste Windows avec Outlook (cas d'un déploiement Docker/Linux). Peu importe qu'Outlook soit installé sur VOTRE machine : le déplacement est piloté depuis le serveur. Lancez l'application sur un poste Windows pourvu d'Outlook.{% elif f.name.lower().endswith('.ost') %}OST : opère sur la boîte réelle du compte (synchronisé vers le serveur){% else %}Range les mails porteurs d'un CV dans un dossier du PST{% endif %}">
+              {{ ui.ic('dossier') }} Ranger les traités
+            </button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
 <p class="small">Aucun fichier .pst/.ost dans <code>{{ import_dir }}</code>.</p>
 {% endif %}
@@ -166,11 +174,11 @@
       onsubmit="return confirm('Lancer l\'import de ce fichier ?');">
   <input type="text" name="server_path" placeholder="/data/import/archive.pst"
          style="width:min(480px,100%)">
-  <button type="submit" class="btn" formaction="/admin/import/test">🔍 Tester</button>
+  <button type="submit" class="btn" formaction="/admin/import/test">{{ ui.ic('recherche') }} Tester</button>
   <button type="submit" class="btn primary" {% if running or not backends %}disabled{% endif %}>
-    ▶ Importer
+    {{ ui.ic('lecture') }} Importer
   </button>
-  <div class="small" style="margin-top:.4rem;color:#666">
+  <div class="small muted" style="margin-top:.4rem">
     Chemin absolu d'un fichier accessible par le serveur (utile pour un fichier
     volumineux déposé via un partage réseau ou un volume Docker monté).
   </div>

@@ -1,32 +1,33 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}RGPD — Purge & conformité{% endblock %}
 {% block content %}
 
 <div class="page-head">
-  <h1>🛡️ RGPD — Conservation & purge</h1>
+  <h1>{{ ui.ic('bouclier') }} RGPD — Conservation & purge</h1>
 </div>
 
 {% if msg %}
-<div class="card" style="border-left:4px solid #8b5cf6">{{ msg }}</div>
+<div class="alert info">{{ ui.ic('coche-cercle') }}{{ msg }}</div>
 {% endif %}
 
 <div class="kpi-cards">
   <div class="kpi-card kpi-lavender">
-    <span class="kpi-ic">🗓️</span>
+    <span class="kpi-ic">{{ ui.ic('calendrier') }}</span>
     <div>
       <div class="kpi-num">{% if retention_mois > 0 %}{{ retention_mois }}{% else %}—{% endif %}</div>
       <div class="kpi-lbl">Rétention (mois)</div>
     </div>
   </div>
   <div class="kpi-card kpi-mint">
-    <span class="kpi-ic">⚙️</span>
+    <span class="kpi-ic">{{ ui.ic('engrenage') }}</span>
     <div>
       <div class="kpi-num">{% if purge_auto_active %}Oui{% else %}Non{% endif %}</div>
       <div class="kpi-lbl">Purge automatique</div>
     </div>
   </div>
   <div class="kpi-card kpi-amber">
-    <span class="kpi-ic">🧹</span>
+    <span class="kpi-ic">{{ ui.ic('nettoyer') }}</span>
     <div>
       <div class="kpi-num">{{ eligibles }}</div>
       <div class="kpi-lbl">Candidats éligibles à la purge</div>
@@ -68,7 +69,7 @@
   <form method="post" action="/admin/rgpd/purge"
         onsubmit="return confirm('Supprimer définitivement {{ eligibles }} candidat(s) dépassant {{ retention_mois }} mois de rétention ? Cette action est irréversible.');">
     <button type="submit" class="btn danger" {% if eligibles == 0 %}disabled{% endif %}>
-      🧹 Purger les candidats éligibles
+      {{ ui.ic('nettoyer') }} Purger les candidats éligibles
     </button>
   </form>
   {% else %}

@@ -24,14 +24,23 @@
   --border-strong: #dde0e6;
 
   --text: #1b1f27;
-  --muted: #7a828f;
+  /* --muted porte des libelles et des metadonnees : il lui faut >= 4,5:1 sur les
+     trois fonds clairs qu'il rencontre. L'ancien #7a828f n'etait qu'a 3,88:1 sur
+     --surface. Meme teinte, clarte redescendue : 5,22:1 sur #ffffff,
+     4,87:1 sur --surface-2 et 4,58:1 sur --primary-soft (lignes survolees). */
+  --muted: #646d7d;
   --heading: #12151b;
 
-  --success: #12813f;
+  /* Chaque couleur sémantique doit rester lisible sur SON fond apparié, qui est
+     son usage principal (alertes, badges, pastilles). Les trois teintes claires
+     y tombaient juste sous le seuil — success 4,46:1, danger 4,48:1,
+     warning 4,43:1 — et sont redescendues d'un cran. Ratios sur fond apparié
+     puis sur --surface. */
+  --success: #0f7136;      /* 5,51:1 · 6,11:1 */
   --success-bg: #e7f7ec;
-  --danger: #d12a3a;
+  --danger: #c62431;       /* 4,97:1 · 5,68:1 */
   --danger-bg: #fdecec;
-  --warning: #a66300;
+  --warning: #9a5c00;      /* 5,00:1 · 5,38:1 */
   --warning-bg: #fff6e0;
   --info: #0b5cad;
   --info-bg: #e7f1fd;
@@ -42,6 +51,29 @@
   --shadow-md: 0 4px 14px rgba(17, 24, 39, .07);
   --shadow-lg: 0 12px 34px rgba(17, 24, 39, .10);
   --ring: 0 0 0 3px rgba(41, 88, 148, .18);
+
+  /* Couleur du texte posé SUR un aplat --primary (bouton principal, onglet de
+     pagination actif, puce de filtre sélectionnée). L'échelle de marque
+     s'inversant en thème sombre, un « color: #fff » codé en dur y tombait à
+     3,12:1 sur --primary et à 1,57:1 sur --primary-strong. */
+  --on-primary: #ffffff;
+
+  /* Surlignage du champ ayant declenche un rapprochement (doublons). */
+  --mark-bg: #fff6d6;
+  --mark-tx: #7a5a00;   /* 5,90:1 sur --mark-bg */
+
+  /* Rampe de tons de marque : huit teintes deterministes, toutes mesurees a
+     >= 4,80:1 avec du texte blanc et >= 3,19:1 sur le fond sombre. Elles ne
+     s'inversent pas entre les themes : ce sont des couleurs porteuses de sens
+     (identite d'un candidat, etape du pipeline), pas des roles de surface.
+     Une seule rampe pour toute l'application : le meme candidat garde la meme
+     couleur en recherche, en comparaison et sur le tableau de bord. */
+  --tone-1: #4c6ebd; --tone-2: #3c77a2; --tone-3: #327c88; --tone-4: #2f7f61;
+  --tone-5: #30803a; --tone-6: #956937; --tone-7: #bd4c5f; --tone-8: #8e4cbd;
+
+  /* Hauteur des en-tetes colles : redefinie par chaque coquille (voir plus bas).
+     Toute barre collante du contenu s'y adosse au lieu de passer dessous. */
+  --sticky-top: 0px;
 }
 
 /* Palette sombre — réutilisée par la préférence OS (sauf si l'utilisateur a
@@ -72,6 +104,8 @@
     --shadow-md: 0 6px 18px rgba(0, 0, 0, .45);
     --shadow-lg: 0 16px 40px rgba(0, 0, 0, .55);
     --ring: 0 0 0 3px rgba(89, 152, 198, .28);
+    --mark-bg: #3a3210; --mark-tx: #f0d88a;   /* 9,06:1 */
+    --on-primary: #0b1020;   /* 6,07:1 sur --primary · 11,13:1 sur --primary-strong */
   }
 }
 :root[data-theme="dark"] {
@@ -97,9 +131,23 @@
   --shadow-md: 0 6px 18px rgba(0, 0, 0, .45);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, .55);
   --ring: 0 0 0 3px rgba(89, 152, 198, .28);
+  --mark-bg: #3a3210; --mark-tx: #f0d88a;   /* 9,06:1 */
+  --on-primary: #0b1020;   /* 6,07:1 sur --primary · 11,13:1 sur --primary-strong */
 }
 
 * { box-sizing: border-box; }
+
+/* Contenu réservé aux lecteurs d'écran : intitulé d'une colonne sans en-tête
+   visible, annonce d'un changement d'état.
+   Volontairement DANS le flux : la variante classique en position absolue,
+   placée dans un <th> d'un tableau à défilement horizontal, se positionnait par
+   rapport à la page et portait la largeur du document à 640 px sur un écran de
+   390 — la page entière défilait latéralement. 1 px rogné ne coûte rien ici. */
+.sr-only {
+  display: inline-block; width: 1px; height: 1px;
+  padding: 0; margin: 0; border: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
 
 html, body {
   margin: 0; padding: 0;
@@ -113,6 +161,30 @@ html, body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+
+/* ============================================================
+   Icônes — jeu de symboles SVG (templates/_icones.html)
+   ============================================================ */
+/* Dimension en `em` : l'icône suit la taille du texte qu'elle accompagne, donc
+   un bouton `.small` reçoit une icône plus petite sans règle supplémentaire.
+   `stroke: currentColor` dans le sprite fait le reste : couleur du texte,
+   thème clair/sombre et états (survol, danger, actif) sans code en plus. */
+/* Icône placée APRÈS son libellé (lien externe, « tout voir ») : petite marge
+   de séparation, l'espace du balisage ne suffit pas visuellement. */
+.icone:last-child:not(:first-child) { margin-left: 5px; }
+.icone {
+  width: 1.15em; height: 1.15em;
+  flex: 0 0 auto;
+  display: inline-block;
+  vertical-align: -0.19em;
+  overflow: visible;   /* les tracés arrondis dépassent légèrement la boîte */
+}
+/* Emplacements à taille fixe, où l'icône ne suit pas la taille du texte. */
+.side-link .icone, .menu-item .icone, .tab .icone { width: 18px; height: 18px; vertical-align: -0.2em; }
+.top-icon .icone { width: 19px; height: 19px; }
+.icon-btn .icone { width: 17px; height: 17px; }
+.kpi-ic .icone { width: 22px; height: 22px; }
+.brand-logo .icone { width: 20px; height: 20px; }
 
 a { color: var(--primary); text-decoration: none; }
 a:hover { color: var(--primary-strong); text-decoration: none; }
@@ -145,7 +217,8 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   --side-border: #232c48; --side-group: rgba(170,180,207,.55);
 }
 
-.app-shell { display: flex; min-height: 100vh; align-items: stretch; }
+/* Coquille laterale : un seul bandeau colle, de 66 px. */
+.app-shell { display: flex; min-height: 100vh; align-items: stretch; --sticky-top: 66px; }
 
 /* ---- Barre latérale --------------------------------------------------- */
 .sidebar {
@@ -182,7 +255,6 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   color: var(--side-text); font-weight: 600; font-size: 13.5px;
   transition: background .12s, color .12s;
 }
-.side-link .ic { width: 20px; text-align: center; font-size: 15px; flex-shrink: 0; }
 .side-link .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-link:hover { background: var(--side-bg-2); color: var(--side-heading); }
 .side-link.active {
@@ -229,10 +301,23 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   padding: 1px 7px; border-radius: 999px; text-transform: uppercase; letter-spacing: .4px;
   background: var(--surface-2); color: var(--muted);
 }
-.role-admin { background: #ffe8a3; color: #7a5200; }
-.role-manager { background: #e2ecff; color: #1e5fbf; }
+/* Même correctif que pour les KPI : la variante sombre ne couvrait ni le mode
+   système, ni le rôle « manager ». */
+:root { --role-admin-bg: #ffe8a3; --role-admin-tx: #7a5200;
+        --role-manager-bg: #e2ecff; --role-manager-tx: #1e5fbf; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --role-admin-bg: #3a2c0e; --role-admin-tx: #f0b34e;
+    --role-manager-bg: #16264a; --role-manager-tx: #7db4f5;
+  }
+}
+:root[data-theme="dark"] {
+  --role-admin-bg: #3a2c0e; --role-admin-tx: #f0b34e;
+  --role-manager-bg: #16264a; --role-manager-tx: #7db4f5;
+}
+.role-admin { background: var(--role-admin-bg); color: var(--role-admin-tx); }
+.role-manager { background: var(--role-manager-bg); color: var(--role-manager-tx); }
 .role-rh { background: var(--primary-soft); color: var(--primary); }
-:root[data-theme="dark"] .role-admin { background: #3a2c0e; color: #f0b34e; }
 /* .tu-logout et .theme-toggle (bouton autonome du bandeau v1) ont été retirés
    le jour où les deux coquilles ont adopté le même menu utilisateur :
    déconnexion et bascule de thème y sont des .menu-item. */
@@ -263,7 +348,8 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
    Navigation supérieure par onglets (façon maquette Talentfly) :
    bandeau logo + actions, puis barre d'onglets horizontale.
    ============================================================ */
-.topnav-shell { display: flex; flex-direction: column; min-height: 100vh; }
+/* Coquille a onglets : bandeau de 62 px + barre d'onglets de 46 px. */
+.topnav-shell { display: flex; flex-direction: column; min-height: 100vh; --sticky-top: 108px; }
 
 .topbar {
   display: flex; align-items: center; gap: 12px;
@@ -311,6 +397,9 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 }
 .tabscroll[hidden] { display: none; }   /* sinon display:inline-flex l'emporte */
 .tabscroll:hover { color: var(--heading); }
+.tabscroll .icone { width: 20px; height: 20px; }
+/* Le chevron du menu utilisateur : ancien caractère « ▾ », devenu un symbole. */
+.tu-caret.icone { width: 15px; height: 15px; color: var(--muted); }
 .tabscroll:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 8px; }
 .tabscroll-prev {
   left: 0; justify-content: flex-start; padding-left: 6px;
@@ -346,7 +435,6 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   font-size: 13.5px; font-weight: 600; color: var(--text);
 }
 .nav-menu button.menu-item { border: 0; background: transparent; width: 100%; text-align: left; font: inherit; cursor: pointer; }
-.nav-menu .menu-item .ic { width: 18px; text-align: center; flex-shrink: 0; }
 .nav-menu .menu-item:hover { background: var(--surface-2); }
 .nav-menu button.menu-item:focus-visible { outline: none; box-shadow: var(--ring); }
 .nav-menu .menu-item.active { color: var(--primary); background: var(--primary-soft); }
@@ -358,7 +446,7 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   transition: background .12s;
 }
 .user-menu .dropdown-toggle.top-user:hover { background: var(--surface-2); }
-.user-menu .tu-caret { color: var(--muted); font-size: 11px; margin-left: 2px; }
+.user-menu .tu-caret { color: var(--muted); margin-left: 2px; }
 .user-menu .um-panel { min-width: 232px; }
 
 .topnav-shell .content { max-width: 1440px; width: 100%; margin: 0 auto; padding: 24px 24px 60px; }
@@ -370,6 +458,12 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   .topbar-cta { display: none; }
   .topnav-shell .content { padding: 18px 14px 48px; }
 }
+
+/* ---- Barre d'outils collante (doublons, comparaison...) ---------------- */
+/* « top: 0 » collait ces barres au haut de la fenetre, c'est-a-dire sous le
+   bandeau de navigation (z-index 60), ou elles disparaissaient. Elles
+   s'adossent desormais a la hauteur d'en-tete de la coquille courante. */
+.sticky-bar { position: sticky; top: calc(var(--sticky-top) + 10px); z-index: 20; }
 
 .page-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .page-head h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.4px; color: var(--heading); }
@@ -389,7 +483,7 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .btn:focus-visible { outline: none; box-shadow: var(--ring); }
 .btn.primary {
   background: linear-gradient(180deg, var(--primary), var(--primary-strong));
-  color: #fff; border-color: transparent;
+  color: var(--on-primary); border-color: transparent;
   box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 45%, transparent);
 }
 .btn.primary:hover { filter: brightness(1.05); box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 55%, transparent); }
@@ -436,6 +530,28 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .filters input[type="search"] { min-width: 300px; }
 
 /* ---- Table ------------------------------------------------------------ */
+/* Conteneur de défilement des tableaux denses. Une table ne peut pas rétrécir
+   en dessous de la largeur minimale de son contenu : sans ce conteneur, c'est
+   la PAGE entière qui défilait latéralement sur mobile, entraînant l'en-tête et
+   le reste du contenu avec elle. Ici, seul le tableau défile.
+   Pas de `min-width` sur la table : `width: 100%` la fait occuper le conteneur
+   quand elle y tient, et déborder — donc faire défiler — quand elle n'y tient
+   pas. C'est exactement le comportement voulu aux deux bouts. */
+.table-wrap {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: var(--radius);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.table-wrap::-webkit-scrollbar { height: 10px; }
+.table-wrap::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+.table-wrap::-webkit-scrollbar-track { background: transparent; }
+/* `overflow-x: auto` rend aussi l'axe vertical découpant : l'ombre portée de la
+   table serait rognée par son propre conteneur. Elle passe donc sur celui-ci. */
+.table-wrap { box-shadow: var(--shadow-sm); }
+.table-wrap > .table { box-shadow: none; }
+
 .table {
   width: 100%; border-collapse: separate; border-spacing: 0;
   background: var(--surface); border: 1px solid var(--border);
@@ -463,12 +579,50 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   padding: 5px 9px; border: 1px solid var(--border-strong); border-radius: 999px;
   font-size: 12px; font-weight: 600; background: var(--surface); color: var(--text); cursor: pointer;
 }
-.status-Nouveau { background: #e6f1ff; color: #1e5fbf; border-color: #bcd8ff; }
-.status-À_contacter { background: #fff5cc; color: #8a6300; border-color: #f2dd88; }
-.status-Entretien_planifié { background: #e2f7e9; color: #1a7f43; border-color: #b6ead0; }
-.status-Refusé { background: #fde8e8; color: #c0303a; border-color: #f6c4c4; }
-.status-Embauché { background: #d6f5df; color: #12813f; border-color: #a4e6ba; }
-.status-Doublon { background: #f0e6ff; color: #6b3fb0; border-color: #ddc9f7; }
+/* Les six statuts candidat passent par des variables : une seule declaration de
+   regles, et une variante sombre qui se contente de reecrire les tokens. Chaque
+   couple fond / texte est mesure (rapport en commentaire). Deux valeurs claires
+   ont ete corrigees : « Entretien planifie » etait a 4,50:1 et « Embauche » a
+   4,24:1, sous le seuil de 4,5:1 pour du texte de 11 px. */
+:root {
+  --st-nouveau-bg:   #e6f1ff; --st-nouveau-tx:   #1e5fbf; --st-nouveau-bd:   #bcd8ff; /* 5,34:1 */
+  --st-contacter-bg: #fff5cc; --st-contacter-tx: #8a6300; --st-contacter-bd: #f2dd88; /* 4,96:1 */
+  --st-entretien-bg: #e2f7e9; --st-entretien-tx: #16733c; --st-entretien-bd: #b6ead0; /* 5,27:1 */
+  --st-refuse-bg:    #fde8e8; --st-refuse-tx:    #c0303a; --st-refuse-bd:    #f6c4c4; /* 4,80:1 */
+  --st-embauche-bg:  #d6f5df; --st-embauche-tx:  #0f7136; --st-embauche-bd:  #a4e6ba; /* 5,24:1 */
+  --st-doublon-bg:   #f0e6ff; --st-doublon-tx:   #6b3fb0; --st-doublon-bd:   #ddc9f7; /* 5,90:1 */
+}
+/* Variante sombre : ces pastilles gardaient leurs fonds pastel clairs sur les
+   surfaces sombres. Memes roles semantiques, echelle inversee comme le reste
+   de la palette. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --st-nouveau-bg:   #12233c; --st-nouveau-tx:   #7db4f5; --st-nouveau-bd:   #24406b; /* 7,30:1 */
+    --st-contacter-bg: #33280f; --st-contacter-tx: #f0b34e; --st-contacter-bd: #4a3a17; /* 7,76:1 */
+    --st-entretien-bg: #123024; --st-entretien-tx: #4cd07d; --st-entretien-bd: #1c4735; /* 7,21:1 */
+    --st-refuse-bg:    #331a1f; --st-refuse-tx:    #ff7a85; --st-refuse-bd:    #4d272e; /* 6,40:1 */
+    --st-embauche-bg:  #0f3527; --st-embauche-tx:  #5ee08c; --st-embauche-bd:  #1a4d38; /* 8,03:1 */
+    --st-doublon-bg:   #241a3d; --st-doublon-tx:   #c3a6f5; --st-doublon-bd:   #3a2c5e; /* 7,82:1 */
+  }
+}
+:root[data-theme="dark"] {
+  --st-nouveau-bg:   #12233c; --st-nouveau-tx:   #7db4f5; --st-nouveau-bd:   #24406b;
+  --st-contacter-bg: #33280f; --st-contacter-tx: #f0b34e; --st-contacter-bd: #4a3a17;
+  --st-entretien-bg: #123024; --st-entretien-tx: #4cd07d; --st-entretien-bd: #1c4735;
+  --st-refuse-bg:    #331a1f; --st-refuse-tx:    #ff7a85; --st-refuse-bd:    #4d272e;
+  --st-embauche-bg:  #0f3527; --st-embauche-tx:  #5ee08c; --st-embauche-bd:  #1a4d38;
+  --st-doublon-bg:   #241a3d; --st-doublon-tx:   #c3a6f5; --st-doublon-bd:   #3a2c5e;
+}
+
+.status-Nouveau { background: var(--st-nouveau-bg); color: var(--st-nouveau-tx); border-color: var(--st-nouveau-bd); }
+.status-À_contacter { background: var(--st-contacter-bg); color: var(--st-contacter-tx); border-color: var(--st-contacter-bd); }
+.status-Entretien_planifié { background: var(--st-entretien-bg); color: var(--st-entretien-tx); border-color: var(--st-entretien-bd); }
+.status-Refusé { background: var(--st-refuse-bg); color: var(--st-refuse-tx); border-color: var(--st-refuse-bd); }
+.status-Embauché { background: var(--st-embauche-bg); color: var(--st-embauche-tx); border-color: var(--st-embauche-bd); }
+.status-Doublon { background: var(--st-doublon-bg); color: var(--st-doublon-tx); border-color: var(--st-doublon-bd); }
+/* Le badge de statut porte la meme bordure que le select : sans elle, la
+   pastille flottait sans contour sur les fonds sombres. */
+.badge[class*="status-"] { border: 1px solid; }
 
 /* ---- Badges (run status) ---------------------------------------------- */
 .badge {
@@ -477,6 +631,14 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   text-transform: capitalize; letter-spacing: .2px;
 }
 .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .9; }
+/* Variante « decompte » : un nombre n'est pas un statut, il ne prend pas la
+   pastille de tete ni la capitalisation. */
+.badge.count { text-transform: none; justify-content: center; }
+/* Les statuts candidat/offre/entretien portent des libellés français déjà
+   composés : « À contacter » devenait « À Contacter ». Et un statut sur deux
+   lignes fait respirer la ligne du tableau pour rien. */
+.badge[class*="status-"] { text-transform: none; white-space: nowrap; }
+.badge.count::before { display: none; }
 .run-success { background: var(--success-bg); color: var(--success); }
 .run-failed { background: var(--danger-bg); color: var(--danger); }
 .run-running { background: var(--info-bg); color: var(--info); }
@@ -485,7 +647,7 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .cand-link strong { color: var(--heading); font-weight: 700; }
 .cand-link:hover strong { color: var(--primary); }
 
-.back { display: inline-block; margin-bottom: 14px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.back { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 14px; color: var(--muted); font-size: 13px; font-weight: 600; }
 .back:hover { color: var(--primary); }
 
 /* ---- Fiche candidat --------------------------------------------------- */
@@ -521,7 +683,7 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .candidate-followup-form select, .candidate-followup-form textarea { width: 100%; box-sizing: border-box; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 9px; background: var(--surface); color: var(--text); font: inherit; font-weight: 400; resize: vertical; }
 .candidate-followup-form select:focus, .candidate-followup-form textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
 .candidate-followup-form button { justify-self: start; }
-.pdf-pane { position: sticky; top: 86px; height: calc(100vh - 108px); min-height: 580px; overflow: hidden; display: flex; flex-direction: column; }
+.pdf-pane { position: sticky; top: calc(var(--sticky-top) + 20px); height: calc(100vh - var(--sticky-top) - 42px); min-height: 580px; overflow: hidden; display: flex; flex-direction: column; }
 .pdf-pane-head { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--heading); font-size: 12px; font-weight: 800; }
 .pdf-pane-head a { font-size: 12px; font-weight: 700; }
 .pdf-pane iframe { width: 100%; flex: 1; border: 0; }
@@ -587,7 +749,17 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .status-Annulé   { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border-strong); }
 
 /* ---- Alerts ----------------------------------------------------------- */
-.alert { padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 13.5px; font-weight: 500; border: 1px solid transparent; display: flex; align-items: center; gap: 8px; }
+/* `align-items: center` centrait l'icône sur un bloc de plusieurs lignes ; et
+   sans `overflow-wrap`, un mot insécable (un nom de paquet dans un <code>)
+   empêchait le texte de se replier, ce qui faisait déborder la page sur mobile
+   depuis que l'icône occupe sa propre colonne. */
+.alert {
+  padding: 12px 16px; border-radius: 10px; margin-bottom: 16px;
+  font-size: 13.5px; font-weight: 500; border: 1px solid transparent;
+  display: flex; align-items: flex-start; gap: 8px;
+  overflow-wrap: anywhere; min-width: 0;
+}
+.alert > .icone { margin-top: 1px; }
 .alert.info { background: var(--info-bg); color: var(--info); border-color: color-mix(in srgb, var(--info) 25%, transparent); }
 .alert.error { background: var(--danger-bg); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 25%, transparent); }
 .alert.warning { background: var(--warning-bg); color: var(--warning); border-color: color-mix(in srgb, var(--warning) 25%, transparent); }
@@ -617,6 +789,9 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 
 /* ---- htmx : petit fondu sur les échanges ------------------------------ */
 .htmx-indicator { opacity: 0; transition: opacity .2s; }
+
+/* Résultat d'un test de connexion (fragment renvoyé par webapp._test_result_html). */
+.test-result { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
 
 /* ============================================================
@@ -644,9 +819,12 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   transition: border-color .12s, box-shadow .12s;
 }
 .users-toolbar .search input:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
-.users-toolbar .search::before {
-  content: "🔍"; position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
-  font-size: 13px; opacity: .6; pointer-events: none;
+/* La loupe était un emoji en `content:` — donc ni redimensionnable, ni
+   colorable, ni cohérente avec le reste du jeu. C'est désormais un vrai
+   symbole SVG posé dans le balisage (voir la classe .search-ic). */
+.users-toolbar .search .search-ic {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; color: var(--muted); pointer-events: none;
 }
 .users-toolbar .tb-filter {
   padding: 9px 14px; border: 1px solid var(--border-strong); border-radius: 999px;
@@ -675,6 +853,12 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   color: #fff; font-weight: 700; font-size: 13px; letter-spacing: .3px;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.15);
 }
+/* Couleur d'identite : --av porte l'un des huit tons de la rampe, choisi de
+   facon deterministe d'apres l'identifiant (macro Jinja `avatar_style`). Une
+   seule rampe partagee : le meme candidat garde la meme couleur d'un ecran a
+   l'autre, et les initiales blanches restent lisibles sur les huit tons. */
+.avatar, .cmp-av, .rech-av { background: var(--av, var(--tone-1)); }
+
 .user-cell .u-name { font-weight: 700; color: var(--heading); }
 .user-cell .u-you { font-size: 10.5px; font-weight: 700; color: var(--primary); margin-left: 4px; }
 
@@ -683,13 +867,10 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   display: inline-flex; align-items: center; padding: 4px 11px; border-radius: 999px;
   font-size: 11.5px; font-weight: 700; letter-spacing: .2px;
 }
-.role-badge.role-admin   { background: #fff0d0; color: #9a5b00; }
-.role-badge.role-manager { background: #e2ecff; color: #1e5fbf; }
+.role-badge.role-admin   { background: var(--role-admin-bg); color: var(--role-admin-tx); }
+.role-badge.role-manager { background: var(--role-manager-bg); color: var(--role-manager-tx); }
 .role-badge.role-rh      { background: var(--primary-soft); color: var(--primary); }
 .role-badge.role-lecture { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border-strong); }
-:root[data-theme="dark"] .role-badge.role-admin { background: #3a2c0e; color: #f0b34e; }
-:root[data-theme="dark"] .role-badge.role-manager { background: #16264a; color: #7db4f5; }
-
 /* Pastilles de statut (actif / inactif) */
 .ustatus {
   display: inline-flex; align-items: center; gap: 6px;
@@ -781,26 +962,56 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 :root[data-theme="dark"] .hero-cta .btn.ghost { background: rgba(255, 255, 255, .08); color: #b2c9e2; }
 
 .kpi-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 22px; }
+/* En dessous de 200 px par carte, la grille repassait à une colonne : quatre
+   cartes pleine largeur repoussaient le contenu de ~400 px sur un téléphone. */
+@media (max-width: 560px) {
+  .kpi-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kpi-card { flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px; }
+  .kpi-card .kpi-ic { width: 34px; height: 34px; font-size: 17px; border-radius: 10px; }
+  .kpi-card .kpi-num { font-size: 22px; }
+}
 .kpi-card {
   display: flex; align-items: center; gap: 14px;
   border-radius: 16px; padding: 18px 20px; border: 1px solid transparent;
 }
 .kpi-card .kpi-ic {
   width: 46px; height: 46px; flex-shrink: 0; border-radius: 12px;
-  display: inline-flex; align-items: center; justify-content: center; font-size: 21px;
-  background: rgba(0, 0, 0, .12);
+  display: inline-flex; align-items: center; justify-content: center;
+  /* Teinte prise sur la couleur de la carte, et non un gris neutre : ce dernier
+     avait été choisi pour des emoji en couleur et ternissait une icône
+     monochrome, qui reprend elle aussi cette couleur. */
+  background: color-mix(in srgb, currentColor 13%, transparent);
 }
 .kpi-card .kpi-num { font-size: 26px; font-weight: 800; line-height: 1; letter-spacing: -.5px; }
 .kpi-card .kpi-unit { font-size: 15px; font-weight: 700; opacity: .75; margin-left: 2px; }
 .kpi-card .kpi-lbl { font-size: 12.5px; font-weight: 600; opacity: .8; margin-top: 3px; }
-.kpi-mint     { background: #d9f2ec; color: #10514a; }
-.kpi-lavender { background: #e6e4fb; color: #3d3080; }
-.kpi-pink     { background: #fbe0ea; color: #93325a; }
-.kpi-amber    { background: #fdeecb; color: #7a5200; }
-:root[data-theme="dark"] .kpi-mint     { background: #12352f; color: #7fe0cf; }
-:root[data-theme="dark"] .kpi-lavender { background: #211d44; color: #b8b0ff; }
-:root[data-theme="dark"] .kpi-pink     { background: #3a1a28; color: #f5a8c6; }
-:root[data-theme="dark"] .kpi-amber    { background: #33280f; color: #f0b34e; }
+/* Les quatre teintes passent par des variables : la variante sombre ne visait
+   que data-theme="dark", si bien qu'un poste réglé en sombre au niveau du
+   système gardait ces pastels clairs posés sur un fond sombre. */
+:root {
+  --kpi-mint-bg:     #d9f2ec; --kpi-mint-tx:     #10514a;
+  --kpi-lavender-bg: #e6e4fb; --kpi-lavender-tx: #3d3080;
+  --kpi-pink-bg:     #fbe0ea; --kpi-pink-tx:     #93325a;
+  --kpi-amber-bg:    #fdeecb; --kpi-amber-tx:    #7a5200;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --kpi-mint-bg:     #12352f; --kpi-mint-tx:     #7fe0cf;
+    --kpi-lavender-bg: #211d44; --kpi-lavender-tx: #b8b0ff;
+    --kpi-pink-bg:     #3a1a28; --kpi-pink-tx:     #f5a8c6;
+    --kpi-amber-bg:    #33280f; --kpi-amber-tx:    #f0b34e;
+  }
+}
+:root[data-theme="dark"] {
+  --kpi-mint-bg:     #12352f; --kpi-mint-tx:     #7fe0cf;
+  --kpi-lavender-bg: #211d44; --kpi-lavender-tx: #b8b0ff;
+  --kpi-pink-bg:     #3a1a28; --kpi-pink-tx:     #f5a8c6;
+  --kpi-amber-bg:    #33280f; --kpi-amber-tx:    #f0b34e;
+}
+.kpi-mint     { background: var(--kpi-mint-bg);     color: var(--kpi-mint-tx); }
+.kpi-lavender { background: var(--kpi-lavender-bg); color: var(--kpi-lavender-tx); }
+.kpi-pink     { background: var(--kpi-pink-bg);     color: var(--kpi-pink-tx); }
+.kpi-amber    { background: var(--kpi-amber-bg);    color: var(--kpi-amber-tx); }
 
 /* Pastilles de répartition par statut (dashboard + page candidats) */
 .stat-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
@@ -877,7 +1088,7 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
   transition: background .12s, border-color .12s, color .12s;
 }
 .pager button:hover:not(:disabled):not(.active) { background: var(--surface-2); border-color: var(--border-strong); }
-.pager button.active { background: var(--primary); color: #fff; border-color: var(--primary); cursor: default; }
+.pager button.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); cursor: default; }
 .pager button:disabled { opacity: .4; cursor: not-allowed; }
 .pager .ellipsis { padding: 0 4px; color: var(--muted); align-self: flex-end; }
 
@@ -890,7 +1101,7 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 
 .filter-rail {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 16px; box-shadow: var(--shadow-sm); position: sticky; top: 122px;
+  padding: 16px; box-shadow: var(--shadow-sm); position: sticky; top: calc(var(--sticky-top) + 14px);
 }
 .filter-rail .rail-title { font-size: 13px; font-weight: 800; color: var(--heading); margin-bottom: 12px; }
 .rail-form { display: flex; flex-direction: column; gap: 12px; }
@@ -927,3 +1138,16 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .ta-right { text-align: right; }
 .details-link { font-size: 12.5px; font-weight: 700; color: var(--primary); white-space: nowrap; }
 .details-link:hover { color: var(--primary-strong); }
+
+/* ============================================================
+   Preference systeme « mouvement reduit » : on neutralise les
+   transitions et animations sans desactiver les changements d'etat.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

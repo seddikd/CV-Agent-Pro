@@ -1,0 +1,22 @@
+{# Macros d'interface partagées (hors navigation, qui vit dans _nav_macros.html).
+   À importer sans contexte : ces macros ne lisent aucune variable de page. #}
+
+{# Couleur d'identité d'un avatar, dérivée de l'identifiant.
+
+   Renvoie la déclaration `--av` à poser en style inline ; la rampe --tone-1..8 et
+   la règle qui la consomme sont dans static/style.css. Les huit tons sont
+   mesurés à ≥ 4,80:1 avec des initiales blanches — contrairement aux trois
+   schémas ad hoc qu'elle remplace, dont les teintes claires descendaient à
+   1,85:1. Un même identifiant donne toujours le même ton, sur tous les écrans. #}
+{% macro av(id) %}--av: var(--tone-{{ (id | int) % 8 + 1 }}){% endmacro %}
+
+{# Icône du jeu partagé (voir _icones.html pour le sprite et le système de dessin).
+
+   Les icônes sont TOUJOURS décoratives ici : chacune accompagne un libellé, un
+   `aria-label` ou un `title` qui porte le sens. D'où `aria-hidden`, pour ne pas
+   faire annoncer deux fois la même chose. Une icône seule sans libellé doit
+   donc porter un `aria-label` sur son bouton ou son lien, pas sur le SVG.
+
+   `focusable="false"` neutralise le comportement d'Internet Explorer / vieux
+   Edge qui insérait les SVG dans l'ordre de tabulation. #}
+{% macro ic(nom, classe='') %}<svg class="icone{% if classe %} {{ classe }}{% endif %}" aria-hidden="true" focusable="false"><use href="#i-{{ nom }}"></use></svg>{% endmacro %}

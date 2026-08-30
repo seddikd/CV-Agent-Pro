@@ -100,13 +100,15 @@ def doublons(request: Request, msg: str = ""):
         if c["id"] != g["original_id"] and not c["duplicate_of"]
     })
 
-    # Onglets de filtre par critère (clé, libellé, emoji, nb de groupes).
-    icone = {"email": "✉️", "telephone": "📞", "nom": "🪪"}
+    # Onglets de filtre par critère (clé, libellé, nom d'icône, nb de groupes).
+    # Les valeurs sont des noms du jeu d'icônes (templates/_icones.html) : le
+    # gabarit les passe à `ui.ic`, qui produit le SVG.
+    icone = {"email": "enveloppe", "telephone": "telephone", "nom": "carte"}
     filtres = [
         {
             "cle": cle,
             "libelle": libelle,
-            "icone": icone.get(cle, "🔎"),
+            "icone": icone.get(cle, "recherche"),
             "nb": sum(1 for g in groupes if g["cle"] == cle),
         }
         for cle, libelle, _ in CRITERES

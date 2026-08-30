@@ -13,31 +13,32 @@
    de base.html (aucun script propre à cette coquille) ; il n'est pas découpé car
    .app-topbar n'a pas d'overflow, contrairement à la .tabbar. #}
 {% import "_nav_macros.html" as nav with context %}
+{% import "_ui_macros.html" as ui %}
 
 <div class="app-shell">
   <aside class="sidebar">
     <a href="/dashboard" class="brand">
-      <span class="brand-logo">📨</span>
+      <span class="brand-logo">{{ ui.ic('enveloppe') }}</span>
       <span class="brand-name">CV&nbsp;Agent</span>
     </a>
 
     <nav class="side-nav" aria-label="Navigation principale">
       <div class="side-group">Principal</div>
-      {{ nav.lien_lateral('/dashboard', '📊', 'Tableau de bord') }}
-      {{ nav.lien_lateral('/', '👤', 'Candidats') }}
-      {{ nav.lien_lateral('/recherche', '🔎', 'Recherche') }}
-      {{ nav.lien_lateral('/recherche-ia', '🤖', 'Recherche IA') }}
+      {{ nav.lien_lateral('/dashboard', 'tableau-de-bord', 'Tableau de bord') }}
+      {{ nav.lien_lateral('/', 'personne', 'Candidats') }}
+      {{ nav.lien_lateral('/recherche', 'recherche', 'Recherche') }}
+      {{ nav.lien_lateral('/recherche-ia', 'etincelles', 'Recherche IA') }}
 
       <div class="side-group">Recrutement</div>
-      {{ nav.lien_lateral('/offres', '💼', 'Offres') }}
-      {{ nav.lien_lateral('/entretiens', '📅', 'Entretiens') }}
-      {{ nav.lien_lateral('/pipeline', '📋', 'Pipeline') }}
-      {{ nav.lien_lateral('/matching', '🎯', 'Matching') }}
-      {{ nav.lien_lateral('/comparer', '⚖️', 'Comparer') }}
-      {{ nav.lien_lateral('/doublons', '🧬', 'Doublons') }}
-      {{ nav.lien_lateral('/alertes', '🔔', 'Alertes') }}
-      {{ nav.lien_lateral('/statistiques', '📈', 'Statistiques') }}
-      {{ nav.lien_lateral('/reporting', '📑', 'Reporting') }}
+      {{ nav.lien_lateral('/offres', 'mallette', 'Offres') }}
+      {{ nav.lien_lateral('/entretiens', 'calendrier', 'Entretiens') }}
+      {{ nav.lien_lateral('/pipeline', 'pipeline', 'Pipeline') }}
+      {{ nav.lien_lateral('/matching', 'cible', 'Matching') }}
+      {{ nav.lien_lateral('/comparer', 'balance', 'Comparer') }}
+      {{ nav.lien_lateral('/doublons', 'doublons', 'Doublons') }}
+      {{ nav.lien_lateral('/alertes', 'cloche', 'Alertes') }}
+      {{ nav.lien_lateral('/statistiques', 'courbe', 'Statistiques') }}
+      {{ nav.lien_lateral('/reporting', 'rapport', 'Reporting') }}
     </nav>
 
     <div class="side-foot">Version 2.0</div>
@@ -50,7 +51,7 @@
                aria-label="Rechercher un candidat">
       </form>
       <span class="spacer"></span>
-      <a href="/alertes" class="top-icon" title="Alertes" aria-label="Alertes">🔔</a>
+      <a href="/alertes" class="top-icon" title="Alertes" aria-label="Alertes">{{ ui.ic('cloche') }}</a>
       <div class="dropdown user-menu">
         <button type="button" class="dropdown-toggle top-user" aria-haspopup="true" aria-expanded="false">
           <span class="tu-avatar">{{ (user.name or '?')[0]|upper }}</span>
@@ -58,28 +59,28 @@
             <span class="tu-name">{{ user.name }}</span>
             <span class="role role-{{ user.role }}">{{ user.role }}</span>
           </span>
-          <span class="tu-caret" aria-hidden="true">▾</span>
+          {{ ui.ic('chevron-bas', 'tu-caret') }}
         </button>
         <div class="dropdown-menu nav-menu um-panel">
           <div class="menu-sep">Administration</div>
-          {{ nav.entree_menu('/admin/runs', '🔄', 'Cycles') }}
-          {{ nav.entree_menu('/admin/import', '📥', 'Import Outlook') }}
+          {{ nav.entree_menu('/admin/runs', 'cycle', 'Cycles') }}
+          {{ nav.entree_menu('/admin/import', 'boite-entree', 'Import Outlook') }}
           {% if user.role == 'admin' %}
-          {{ nav.entree_menu('/admin/users', '👥', 'Utilisateurs') }}
-          {{ nav.entree_menu('/admin/emails-modeles', '✉️', 'Modèles d\'email') }}
-          {{ nav.entree_menu('/admin/rgpd', '🛡️', 'RGPD') }}
-          {{ nav.entree_menu('/admin/settings/mail', '✉️', 'Param. Mail') }}
-          {{ nav.entree_menu('/admin/settings/llm', '⚙️', 'Param. LLM') }}
+          {{ nav.entree_menu('/admin/users', 'personnes', 'Utilisateurs') }}
+          {{ nav.entree_menu('/admin/emails-modeles', 'enveloppe', 'Modèles d\'email') }}
+          {{ nav.entree_menu('/admin/rgpd', 'bouclier', 'RGPD') }}
+          {{ nav.entree_menu('/admin/settings/mail', 'enveloppe', 'Param. Mail') }}
+          {{ nav.entree_menu('/admin/settings/llm', 'engrenage', 'Param. LLM') }}
           {% endif %}
           <div class="menu-sep">Apparence</div>
           <button type="button" class="menu-item" id="theme-toggle">
-            <span class="ic" id="theme-ic" aria-hidden="true">🌗</span><span id="theme-label">Thème clair / sombre</span>
+            <span id="theme-ic" aria-hidden="true">{{ ui.ic('lune') }}</span><span id="theme-label">Thème clair / sombre</span>
           </button>
           <a href="/preferences/vue?v=onglets&amp;suite={{ path|urlencode }}" class="menu-item">
-            <span class="ic" aria-hidden="true">▤</span>Vue par onglets
+            {{ ui.ic('vue-onglets') }}Vue par onglets
           </a>
           <div class="menu-sep">Compte</div>
-          <a href="/logout" class="menu-item"><span class="ic">⏻</span>Se déconnecter</a>
+          <a href="/logout" class="menu-item">{{ ui.ic('deconnexion') }}Se déconnecter</a>
         </div>
       </div>
     </header>

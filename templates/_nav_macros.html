@@ -1,6 +1,10 @@
+{% import "_ui_macros.html" as ui %}
 {# Macros de navigation partagées par les deux coquilles (_coquille_onglets.html
    et _coquille_laterale.html). À importer avec « with context » : elles lisent
    la variable `path` posée par base.html, sans qu'on ait à la passer en argument.
+
+   Le paramètre `icon` est un NOM du jeu d'icônes (voir _icones.html), pas un
+   emoji : c'est la macro qui produit le SVG.
 
    Le calcul d'`active` est volontairement identique aux trois : `path == href`,
    ou `path` sous l'arborescence de `href`. Le test `href != '/'` évite que
@@ -15,13 +19,13 @@
 {# Entrée d'un menu déroulant (menu utilisateur / administration). #}
 {% macro entree_menu(href, icon, label) %}
   {% set active = (path == href) or (href != '/' and path.startswith(href ~ '/')) %}
-  <a href="{{ href }}" class="menu-item{% if active %} active{% endif %}"><span class="ic">{{ icon }}</span>{{ label }}</a>
+  <a href="{{ href }}" class="menu-item{% if active %} active{% endif %}">{{ ui.ic(icon) }}{{ label }}</a>
 {% endmacro %}
 
 {# Lien de la barre latérale (coquille « lateral »). #}
 {% macro lien_lateral(href, icon, label) %}
   {% set active = (path == href) or (href != '/' and path.startswith(href ~ '/')) %}
   <a href="{{ href }}" class="side-link{% if active %} active{% endif %}">
-    <span class="ic">{{ icon }}</span><span class="lbl">{{ label }}</span>
+    {{ ui.ic(icon) }}<span class="lbl">{{ label }}</span>
   </a>
 {% endmacro %}

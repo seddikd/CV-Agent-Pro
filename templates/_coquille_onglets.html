@@ -2,11 +2,12 @@
    horizontale. Vue par défaut de la v2.0. Incluse par base.html, qui a déjà posé
    `content_body`, `path` et `user`. #}
 {% import "_nav_macros.html" as nav with context %}
+{% import "_ui_macros.html" as ui %}
 
 <div class="topnav-shell">
   <header class="topbar">
     <a href="/dashboard" class="brand">
-      <span class="brand-logo">📨</span>
+      <span class="brand-logo">{{ ui.ic('enveloppe') }}</span>
       <span class="brand-name">CV&nbsp;Agent</span>
     </a>
     <span class="spacer"></span>
@@ -14,7 +15,7 @@
       <input type="search" name="search" placeholder="Rechercher un candidat…"
              aria-label="Rechercher un candidat">
     </form>
-    <a href="/alertes" class="top-icon" title="Alertes" aria-label="Alertes">🔔</a>
+    <a href="/alertes" class="top-icon" title="Alertes" aria-label="Alertes">{{ ui.ic('cloche') }}</a>
     <div class="dropdown user-menu">
       <button type="button" class="dropdown-toggle top-user" aria-haspopup="true" aria-expanded="false">
         <span class="tu-avatar">{{ (user.name or '?')[0]|upper }}</span>
@@ -22,28 +23,28 @@
           <span class="tu-name">{{ user.name }}</span>
           <span class="role role-{{ user.role }}">{{ user.role }}</span>
         </span>
-        <span class="tu-caret" aria-hidden="true">▾</span>
+        {{ ui.ic('chevron-bas', 'tu-caret') }}
       </button>
       <div class="dropdown-menu nav-menu um-panel">
         <div class="menu-sep">Administration</div>
-        {{ nav.entree_menu('/admin/runs', '🔄', 'Cycles') }}
-        {{ nav.entree_menu('/admin/import', '📥', 'Import Outlook') }}
+        {{ nav.entree_menu('/admin/runs', 'cycle', 'Cycles') }}
+        {{ nav.entree_menu('/admin/import', 'boite-entree', 'Import Outlook') }}
         {% if user.role == 'admin' %}
-        {{ nav.entree_menu('/admin/users', '👥', 'Utilisateurs') }}
-        {{ nav.entree_menu('/admin/emails-modeles', '✉️', 'Modèles d\'email') }}
-        {{ nav.entree_menu('/admin/rgpd', '🛡️', 'RGPD') }}
-        {{ nav.entree_menu('/admin/settings/mail', '✉️', 'Param. Mail') }}
-        {{ nav.entree_menu('/admin/settings/llm', '⚙️', 'Param. LLM') }}
+        {{ nav.entree_menu('/admin/users', 'personnes', 'Utilisateurs') }}
+        {{ nav.entree_menu('/admin/emails-modeles', 'enveloppe', 'Modèles d\'email') }}
+        {{ nav.entree_menu('/admin/rgpd', 'bouclier', 'RGPD') }}
+        {{ nav.entree_menu('/admin/settings/mail', 'enveloppe', 'Param. Mail') }}
+        {{ nav.entree_menu('/admin/settings/llm', 'engrenage', 'Param. LLM') }}
         {% endif %}
         <div class="menu-sep">Apparence</div>
         <button type="button" class="menu-item" id="theme-toggle">
-          <span class="ic" id="theme-ic" aria-hidden="true">🌗</span><span id="theme-label">Thème clair / sombre</span>
+          <span id="theme-ic" aria-hidden="true">{{ ui.ic('lune') }}</span><span id="theme-label">Thème clair / sombre</span>
         </button>
         <a href="/preferences/vue?v=lateral&amp;suite={{ path|urlencode }}" class="menu-item">
-          <span class="ic" aria-hidden="true">◧</span>Vue barre latérale
+          {{ ui.ic('vue-laterale') }}Vue barre latérale
         </a>
         <div class="menu-sep">Compte</div>
-        <a href="/logout" class="menu-item"><span class="ic">⏻</span>Se déconnecter</a>
+        <a href="/logout" class="menu-item">{{ ui.ic('deconnexion') }}Se déconnecter</a>
       </div>
     </div>
   </header>
@@ -52,7 +53,7 @@
      l'overflow de .tabbar les découperait) et le survolent en absolu, pour que
      leur apparition ne décale jamais les onglets. Pilotées en JS. #}
   <div class="tabbar-wrap">
-    <button type="button" class="tabscroll tabscroll-prev" aria-label="Défiler les onglets vers la gauche" hidden>‹</button>
+    <button type="button" class="tabscroll tabscroll-prev" aria-label="Défiler les onglets vers la gauche" hidden>{{ ui.ic('chevron-gauche') }}</button>
     <nav class="tabbar" aria-label="Navigation principale">
       {{ nav.onglet('/dashboard', 'Tableau de bord') }}
       {{ nav.onglet('/', 'Candidats') }}
@@ -68,7 +69,7 @@
       {{ nav.onglet('/alertes', 'Alertes') }}
       {{ nav.onglet('/reporting', 'Reporting') }}
     </nav>
-    <button type="button" class="tabscroll tabscroll-next" aria-label="Défiler les onglets vers la droite" hidden>›</button>
+    <button type="button" class="tabscroll tabscroll-next" aria-label="Défiler les onglets vers la droite" hidden>{{ ui.ic('chevron-droit') }}</button>
   </div>
 
   <main class="content">

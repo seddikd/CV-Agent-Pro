@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}{% if offre %}Modifier l'offre{% else %}Nouvelle offre{% endif %}{% endblock %}
 {% block content %}
 
-<a href="{% if offre %}/offres/{{ offre.id }}{% else %}/offres{% endif %}" class="back">← Retour</a>
+<a href="{% if offre %}/offres/{{ offre.id }}{% else %}/offres{% endif %}" class="back">{{ ui.ic('fleche-gauche') }}Retour</a>
 
 <div class="page-head">
-  <h1>{% if offre %}✏️ Modifier l'offre{% else %}➕ Nouvelle offre{% endif %}</h1>
+  <h1>{% if offre %}{{ ui.ic('crayon') }} Modifier l'offre{% else %}{{ ui.ic('plus') }} Nouvelle offre{% endif %}</h1>
 </div>
 
 <form method="post"
@@ -108,7 +109,7 @@
 
   <div class="form-actions">
     <a href="{% if offre %}/offres/{{ offre.id }}{% else %}/offres{% endif %}" class="btn ghost">Annuler</a>
-    <button type="submit" class="btn primary">💾 Enregistrer</button>
+    <button type="submit" class="btn primary">{{ ui.ic('enregistrer') }} Enregistrer</button>
   </div>
 </form>
 

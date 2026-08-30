@@ -1,8 +1,9 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}{{ c.prenom or '' }} {{ c.nom or '' }}{% endblock %}
 {% block content %}
 
-<a href="/" class="back">← Retour à la liste</a>
+<a href="/" class="back">{{ ui.ic('fleche-gauche') }}Retour à la liste</a>
 
 <div class="candidate-layout">
   <main class="candidate-main">
@@ -19,12 +20,12 @@
         <span class="candidate-received">Reçue le {{ c.received_at[:10] }} à {{ c.received_at[11:16] }}</span>
       </div>
       <div class="candidate-quick-actions">
-        <a href="/candidate/{{ c.id }}/pdf" target="_blank" class="btn ghost">📄 Ouvrir le CV</a>
+        <a href="/candidate/{{ c.id }}/pdf" target="_blank" class="btn ghost">{{ ui.ic('document') }} Ouvrir le CV</a>
         {% if can_write %}
         {% if whatsapp_url %}
         <a href="{{ whatsapp_url }}" target="_blank" rel="noopener" class="btn whatsapp">WhatsApp</a>
         {% endif %}
-        <a href="/entretiens/nouveau?candidate_id={{ c.id }}" class="btn primary">📅 Planifier un entretien</a>
+        <a href="/entretiens/nouveau?candidate_id={{ c.id }}" class="btn primary">{{ ui.ic('calendrier') }} Planifier un entretien</a>
         {% endif %}
       </div>
     </header>
@@ -98,7 +99,7 @@
         </label>
         <label>Commentaires RH<textarea name="commentaires" rows="5" placeholder="Vos notes internes…">{{ c.commentaires or '' }}</textarea></label>
         <label>Motif de refus<textarea name="motif_refus" rows="3" placeholder="À renseigner si le candidat est refusé.">{{ c.motif_refus or '' }}</textarea></label>
-        <button type="submit" class="btn primary">💾 Enregistrer le suivi</button>
+        <button type="submit" class="btn primary">{{ ui.ic('enregistrer') }} Enregistrer le suivi</button>
       </form>
       {% else %}
       <dl class="candidate-info-grid candidate-info-wide"><div><dt>Commentaires RH</dt><dd>{{ c.commentaires or '—' }}</dd></div></dl>
@@ -127,18 +128,18 @@
 
     <!-- Module RGPD : export des données (portabilité) et suppression définitive. -->
     <div class="rgpd-actions">
-      <a href="/candidate/{{ c.id }}/rgpd/export" class="btn small">⬇️ Exporter (RGPD)</a>
+      <a href="/candidate/{{ c.id }}/rgpd/export" class="btn small">{{ ui.ic('telecharger') }} Exporter (RGPD)</a>
       {% if user.role == 'admin' %}
       <form method="post" action="/candidate/{{ c.id }}/rgpd/supprimer"
             onsubmit="return confirm('Supprimer DÉFINITIVEMENT ce candidat et TOUTES ses données (notes, documents, entretiens, fichiers) ? Cette action est irréversible.');">
-        <button type="submit" class="btn small danger">🗑️ Supprimer (RGPD)</button>
+        <button type="submit" class="btn small danger">{{ ui.ic('corbeille') }} Supprimer (RGPD)</button>
       </form>
       {% endif %}
     </div>
   </main>
 
   <aside class="pdf-pane">
-    <div class="pdf-pane-head"><span>CV original</span><a href="/candidate/{{ c.id }}/pdf" target="_blank">Ouvrir ↗</a></div>
+    <div class="pdf-pane-head"><span>CV original</span><a href="/candidate/{{ c.id }}/pdf" target="_blank">Ouvrir{{ ui.ic('lien-externe') }}</a></div>
     <iframe src="/candidate/{{ c.id }}/pdf" title="CV"></iframe>
   </aside>
 </div>

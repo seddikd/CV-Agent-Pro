@@ -1,8 +1,9 @@
 {% extends "base.html" %}
+{% import "_ui_macros.html" as ui %}
 {% block title %}{{ offre.titre }}{% endblock %}
 {% block content %}
 
-<a href="/offres" class="back">← Retour aux offres</a>
+<a href="/offres" class="back">{{ ui.ic('fleche-gauche') }}Retour aux offres</a>
 
 <div class="card">
   <div class="page-head">
@@ -10,25 +11,25 @@
       <span class="badge status-{{ (offre.statut or 'Brouillon')|replace(' ', '_') }}">{{ offre.statut }}</span>
     </h2>
     <div class="actions">
-      <a href="/offres/{{ offre.id }}/modifier" class="btn">✏️ Modifier</a>
+      <a href="/offres/{{ offre.id }}/modifier" class="btn">{{ ui.ic('crayon') }} Modifier</a>
 
       {% if offre.statut != 'Publiée' %}
       <form method="post" action="/offres/{{ offre.id }}/statut" style="display:inline">
         <input type="hidden" name="statut" value="Publiée">
-        <button type="submit" class="btn primary">📢 Publier</button>
+        <button type="submit" class="btn primary">{{ ui.ic('megaphone') }} Publier</button>
       </form>
       {% endif %}
 
       {% if offre.statut != 'Archivée' %}
       <form method="post" action="/offres/{{ offre.id }}/statut" style="display:inline">
         <input type="hidden" name="statut" value="Archivée">
-        <button type="submit" class="btn ghost">🗄️ Archiver</button>
+        <button type="submit" class="btn ghost">{{ ui.ic('archive') }} Archiver</button>
       </form>
       {% endif %}
 
       <form method="post" action="/offres/{{ offre.id }}/delete" style="display:inline"
             onsubmit="return confirm('Supprimer définitivement cette offre ?');">
-        <button type="submit" class="btn ghost">🗑️ Supprimer</button>
+        <button type="submit" class="btn ghost">{{ ui.ic('corbeille') }} Supprimer</button>
       </form>
     </div>
   </div>
