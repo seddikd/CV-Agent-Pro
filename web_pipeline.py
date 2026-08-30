@@ -193,6 +193,9 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
         return {"skipped": True, "reason": "no_imap_credentials"}
 
     run_id = web_db.create_run(triggered_by=triggered_by)
+    # Phase « releve » : connexion IMAP et recherche des UID. Rien à décompter
+    # tant que le total n'est pas connu — l'interface montre un état indéterminé.
+    web_db.update_run(run_id, phase="releve")
     log.info("=== Run %d started (triggered_by=%s) ===", run_id, triggered_by)
     _cancel_event.clear()  # repartir d'un état non-annulé
     _active_event.set()
@@ -215,10 +218,16 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
                 uid, cfg["imap"]["folder"]
             ),
             should_stop=_cancel_event.is_set,
+            # Appelé une fois, avant le premier lot : c'est le passage de l'état
+            # indéterminé à un avancement chiffré côté interface.
+            on_total=lambda n: web_db.update_run(
+                run_id, emails_total=n, phase="traitement"
+            ),
         )
 
         cvs = 0
         emails_fetched = 0
+        emails_processed = 0
         new_candidates = []
         cancelled = False
         try:
@@ -253,6 +262,18 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
                             )
                         except Exception as e2:
                             log.warning("[%s] marquage 'traité' impossible : %s", email.uid, e2)
+                    finally:
+                        # Incrémenté même si le traitement a levé : l'email est
+                        # consommé, il compte dans l'avancement. Une écriture par
+                        # email est négligeable devant la latence d'un appel LLM,
+                        # et c'est ce qui rend l'avancement fluide plutôt que
+                        # sautant d'un lot de dix à l'autre.
+                        emails_processed += 1
+                        web_db.update_run(
+                            run_id,
+                            emails_processed=emails_processed,
+                            cvs_detected=cvs,
+                        )
                 if cancelled:
                     break
         finally:
@@ -261,6 +282,11 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
             # ou qu'un traitement ait levé.
             batches.close()
         log.info("Run %d: %d email(s) relevé(s) et traité(s)", run_id, emails_fetched)
+
+        # Plus rien à décompter : alertes, notifications et rangement IMAP ne se
+        # comptent pas en emails. L'interface repasse en état indéterminé plutôt
+        # que d'afficher 100 % pendant une étape qui peut durer.
+        web_db.update_run(run_id, phase="finalisation")
 
         # Alertes : les nouveaux CV correspondent-ils à des offres publiées ? Calcul
         # groupé (une seule connexion, offres chargées une fois) après la boucle.
@@ -304,7 +330,7 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
 
         web_db.update_run(
             run_id, status="cancelled" if cancelled else "success",
-            cvs_detected=cvs, finished=True,
+            cvs_detected=cvs, phase="termine", finished=True,
         )
         log.info(
             "=== Run %d %s (CVs detected=%d) ===",
@@ -356,6 +382,10 @@ def _run_outlook_import_locked(path: str, backend: str | None, triggered_by: str
     label = outlook_fetcher.folder_label(path)
 
     run_id = web_db.create_run(triggered_by=triggered_by)
+    # Un import passe par la même table `runs` : il alimente donc le même suivi
+    # d'avancement. Ici la lecture du fichier précède le traitement, d'où une
+    # phase « releve » distincte.
+    web_db.update_run(run_id, phase="releve")
     log.info("=== Import %d démarré (%s) ===", run_id, path)
     _cancel_event.clear()
     _active_event.set()
@@ -367,10 +397,15 @@ def _run_outlook_import_locked(path: str, backend: str | None, triggered_by: str
             already_processed=lambda uid: state_db.is_processed(uid, label),
             backend=backend or cfg["outlook"]["backend"],
         )
-        web_db.update_run(run_id, emails_fetched=len(emails))
+        # Ici le total est connu d'emblée : fetch_emails a déjà tout lu.
+        web_db.update_run(
+            run_id, emails_fetched=len(emails), emails_total=len(emails),
+            phase="traitement",
+        )
         log.info("Import %d : %d message(s) à traiter", run_id, len(emails))
 
         cvs = 0
+        emails_processed = 0
         new_candidates = []
         cancelled = False
         for email in emails:
@@ -394,6 +429,13 @@ def _run_outlook_import_locked(path: str, backend: str | None, triggered_by: str
                     )
                 except Exception as e2:
                     log.warning("[%s] marquage 'traité' impossible : %s", email.uid, e2)
+            finally:
+                emails_processed += 1
+                web_db.update_run(
+                    run_id, emails_processed=emails_processed, cvs_detected=cvs,
+                )
+
+        web_db.update_run(run_id, phase="finalisation")
 
         new_alerts = []
         try:
@@ -414,7 +456,7 @@ def _run_outlook_import_locked(path: str, backend: str | None, triggered_by: str
 
         web_db.update_run(
             run_id, status="cancelled" if cancelled else "success",
-            cvs_detected=cvs, finished=True,
+            cvs_detected=cvs, phase="termine", finished=True,
         )
         log.info("=== Import %d %s (CVs détectés=%d) ===",
                  run_id, "annulé" if cancelled else "terminé", cvs)

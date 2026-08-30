@@ -41,6 +41,35 @@ except OSError:
 templates.env.globals["asset_v"] = str(_css_mtime)
 
 
+def _horodatage(valeur) -> str:
+    """Horodatage ISO -> formulation courte et française.
+
+    « aujourd'hui à 08:14 », « hier à 18:40 », « 27/08 à 09:12 ». Un opérateur RH
+    lit une date pour situer un événement par rapport à maintenant, pas pour en
+    relever l'instant exact : un « 2026-08-30T08:14:22 » brut lui demande de faire
+    ce calcul lui-même. La valeur exacte reste dans l'attribut title.
+    """
+    from datetime import datetime, date, timedelta
+    if not valeur:
+        return "—"
+    try:
+        d = datetime.fromisoformat(str(valeur))
+    except (ValueError, TypeError):
+        return str(valeur)
+    jour, heure = d.date(), d.strftime("%H:%M")
+    aujourdhui = date.today()
+    if jour == aujourdhui:
+        return f"aujourd'hui à {heure}"
+    if jour == aujourdhui - timedelta(days=1):
+        return f"hier à {heure}"
+    if jour.year == aujourdhui.year:
+        return f"{d.strftime('%d/%m')} à {heure}"
+    return f"{d.strftime('%d/%m/%Y')} à {heure}"
+
+
+templates.env.filters["horodatage"] = _horodatage
+
+
 # ─── Vue (coquille) de l'interface ────────────────────────────────────────────
 # Deux interfaces cohabitent, choisies par utilisateur (en fait par navigateur)
 # via le cookie `cvagent-vue` que pose /preferences/vue :

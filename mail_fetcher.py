@@ -214,6 +214,7 @@ def iter_new_email_batches(
     already_processed: callable,
     security: str = "SSL",
     should_stop: callable = None,
+    on_total: callable = None,
 ):
     """Relève les emails non traités par lots de IMAP_FETCH_BATCH_SIZE.
 
@@ -228,6 +229,11 @@ def iter_new_email_batches(
     `should_stop` (optionnel) est consulté entre deux lots : renvoyer True arrête la
     relève sans erreur, ce qui rend l'annulation utilisateur réactive pendant la
     relève et pas seulement pendant le traitement.
+
+    `on_total` (optionnel) est appelé UNE fois, avec le nombre d'emails retenus,
+    juste après la sélection des UID et avant le premier lot. C'est le seul moment
+    où ce total est connu sans avoir déjà tout relevé : il rend possible une barre
+    de progression déterminée côté interface. Appelé avec 0 s'il n'y a rien à faire.
 
     Important : on lit explicitement ALL (lus + non lus). Le filtre "déjà traité"
     reste géré par la table processed_emails, pas par le statut lu/non lu IMAP.
@@ -260,12 +266,18 @@ def iter_new_email_batches(
 
         if not selected_uids:
             log.info("Aucun email non traité à récupérer depuis %s", folder)
+            if on_total is not None:
+                on_total(0)
             return
 
         log.info(
             "%d UID non traité(s) retenu(s) ; récupération par lots de %d",
             len(selected_uids), IMAP_FETCH_BATCH_SIZE,
         )
+        # Le total est annoncé ici, avant le premier lot : c'est ce qui permet à
+        # l'interface d'afficher un avancement chiffré plutôt qu'un sablier.
+        if on_total is not None:
+            on_total(len(selected_uids))
         for start, uid_batch in _chunks(selected_uids, IMAP_FETCH_BATCH_SIZE):
             if should_stop is not None and should_stop():
                 log.info(

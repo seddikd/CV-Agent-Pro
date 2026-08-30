@@ -243,6 +243,15 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     # retrouver dans la boîte Outlook vivante un mail traité depuis une copie OST
     # (« Ranger les traités »). Peut être vide : rien ne garantit sa présence.
     ("processed_emails", "message_id", "TEXT"),
+    # Avancement d'un cycle (module « Cycles »). `emails_total` est connu dès la
+    # recherche UID IMAP, AVANT le premier lot : c'est ce qui permet une barre de
+    # progression déterminée plutôt qu'un simple sablier. `emails_processed` est
+    # incrémenté email par email (le traitement, pas la relève, est le temps long).
+    # `phase` distingue les moments où il n'y a rien à décompter (connexion IMAP,
+    # puis alertes/notifications/rangement après la boucle).
+    ("runs", "emails_total", "INTEGER DEFAULT 0"),
+    ("runs", "emails_processed", "INTEGER DEFAULT 0"),
+    ("runs", "phase", "TEXT"),
     # Localisation (référentiel Algérie) + type de contrat + nb de postes (module « Offres »).
     ("jobs", "wilaya", "TEXT"),
     ("jobs", "commune", "TEXT"),

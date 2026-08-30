@@ -599,6 +599,9 @@ def update_run(
     run_id: int,
     status: str | None = None,
     emails_fetched: int | None = None,
+    emails_total: int | None = None,
+    emails_processed: int | None = None,
+    phase: str | None = None,
     cvs_detected: int | None = None,
     error: str | None = None,
     finished: bool = False,
@@ -611,6 +614,15 @@ def update_run(
     if emails_fetched is not None:
         fields.append("emails_fetched = ?")
         values.append(emails_fetched)
+    if emails_total is not None:
+        fields.append("emails_total = ?")
+        values.append(emails_total)
+    if emails_processed is not None:
+        fields.append("emails_processed = ?")
+        values.append(emails_processed)
+    if phase is not None:
+        fields.append("phase = ?")
+        values.append(phase)
     if cvs_detected is not None:
         fields.append("cvs_detected = ?")
         values.append(cvs_detected)
@@ -639,6 +651,24 @@ def last_successful_run() -> dict | None:
     with connect() as conn:
         row = conn.execute(
             "SELECT * FROM runs WHERE status = 'success' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def current_run() -> dict | None:
+    """Ligne du cycle en cours, ou None. Sert au suivi d'avancement."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM runs WHERE status = 'running' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def last_run() -> dict | None:
+    """Dernier cycle terminé, quel qu'en soit le statut (succès, échec, annulé)."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM runs WHERE status <> 'running' ORDER BY id DESC LIMIT 1"
         ).fetchone()
         return dict(row) if row else None
 

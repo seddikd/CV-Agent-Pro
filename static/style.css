@@ -628,16 +628,17 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 .badge {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
-  text-transform: capitalize; letter-spacing: .2px;
+  letter-spacing: .2px;
 }
 .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .9; }
 /* Variante « decompte » : un nombre n'est pas un statut, il ne prend pas la
    pastille de tete ni la capitalisation. */
 .badge.count { text-transform: none; justify-content: center; }
-/* Les statuts candidat/offre/entretien portent des libellés français déjà
-   composés : « À contacter » devenait « À Contacter ». Et un statut sur deux
-   lignes fait respirer la ligne du tableau pour rien. */
-.badge[class*="status-"] { text-transform: none; white-space: nowrap; }
+/* Tous les libellés de statut sont désormais des formulations françaises déjà
+   composées : `text-transform: capitalize` produisait « À Contacter » et
+   « En Cours ». Il ne reste ici que l'insécable — un statut sur deux lignes fait
+   respirer la ligne du tableau pour rien. */
+.badge[class*="status-"], .badge[class*="run-"] { white-space: nowrap; }
 .badge.count::before { display: none; }
 .run-success { background: var(--success-bg); color: var(--success); }
 .run-failed { background: var(--danger-bg); color: var(--danger); }
@@ -786,6 +787,110 @@ a:hover { color: var(--primary-strong); text-decoration: none; }
 }
 .user-row-form input[type="text"] { min-width: 180px; }
 .user-row-form input[type="password"] { min-width: 200px; }
+
+/* ============================================================
+   Barre de progression — composant partagé
+   (avancement d'un cycle, téléversement d'un fichier Outlook)
+   ============================================================ */
+/* La barre est pleine largeur et se révèle par mise à l'échelle. Animer `width`
+   recalculerait la mise en page à chaque rafraîchissement — plusieurs fois par
+   seconde pendant tout un cycle. `transform` reste sur le compositeur. */
+.progress {
+  height: 8px; border-radius: 999px; overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.progress-fill {
+  display: block; width: 100%; height: 100%;
+  transform: scaleX(0); transform-origin: left center;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transition: transform .35s cubic-bezier(.2, .8, .3, 1);
+}
+/* État indéterminé : une bande qui traverse, pour les moments où il n'y a rien
+   à décompter (connexion à la boîte mail, finalisation d'un cycle). */
+.progress.indetermine .progress-fill {
+  width: 38%; transform: none;
+  animation: progress-va-et-vient 1.5s ease-in-out infinite;
+}
+@keyframes progress-va-et-vient {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(300%); }
+}
+/* Sans animation, la bande resterait figée à gauche et se lirait comme une barre
+   bloquée à 0 %. On la remplace par un aplat calme, qui dit « en cours » sans
+   prétendre chiffrer. */
+@media (prefers-reduced-motion: reduce) {
+  .progress.indetermine .progress-fill {
+    width: 100%; transform: none;
+    background: var(--primary-soft);
+  }
+}
+
+/* ============================================================
+   Avancement d'un cycle (fragment _run_progress.html)
+   ============================================================ */
+.run-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 18px; margin-bottom: 18px;
+  box-shadow: var(--shadow-sm);
+}
+.run-card-actif { border-color: color-mix(in srgb, var(--primary) 30%, var(--border)); }
+.run-card-ko { background: var(--danger-bg); border-color: color-mix(in srgb, var(--danger) 25%, transparent); }
+
+.run-head { display: flex; align-items: flex-start; gap: 12px; }
+.run-ic { width: 22px; height: 22px; flex: 0 0 auto; margin-top: 1px; }
+.run-ic.ok { color: var(--success); }
+.run-ic.ko { color: var(--danger); }
+.run-ic.neutre { color: var(--muted); }
+
+/* Pastille du cycle actif : un battement lent, seul mouvement de la carte. Sous
+   « mouvement réduit », elle devient un point plein — l'information « ça tourne »
+   est portée par la barre et par le texte, pas par l'animation. */
+.run-ic-actif {
+  width: 12px; height: 12px; flex: 0 0 auto; margin-top: 6px;
+  border-radius: 50%; background: var(--primary);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent);
+  animation: run-battement 1.8s ease-out infinite;
+}
+@keyframes run-battement {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent); }
+  70%  { box-shadow: 0 0 0 8px color-mix(in srgb, var(--primary) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 0%, transparent); }
+}
+
+.run-titre {
+  flex: 1; min-width: 0;
+  font-size: 15px; font-weight: 800; color: var(--heading); letter-spacing: -.2px;
+}
+.run-sous {
+  display: block; margin-top: 3px;
+  font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: normal;
+}
+.run-chiffres {
+  display: flex; align-items: baseline; gap: 14px; flex-shrink: 0;
+  font-size: 12.5px; color: var(--muted); white-space: nowrap;
+}
+.run-chiffres b { color: var(--heading); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.run-pct {
+  font-size: 20px; font-weight: 800; color: var(--primary);
+  letter-spacing: -.5px; font-variant-numeric: tabular-nums;
+}
+.run-bar { margin-top: 14px; }
+.run-pied {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  margin-top: 8px; font-size: 12px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.run-pied b { color: var(--text); font-weight: 700; }
+.run-erreur { margin: 10px 0 0; font-size: 12.5px; color: var(--danger); overflow-wrap: anywhere; }
+.run-stop { margin: 0 0 0 auto; }
+.run-titre .run-stop { margin: 10px 0 0; }
+
+@media (max-width: 640px) {
+  .run-head { flex-wrap: wrap; }
+  .run-chiffres { width: 100%; margin-left: 34px; }
+}
 
 /* ---- htmx : petit fondu sur les échanges ------------------------------ */
 .htmx-indicator { opacity: 0; transition: opacity .2s; }

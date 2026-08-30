@@ -1,0 +1,144 @@
+{% import "_ui_macros.html" as ui %}
+{# Avancement du cycle en cours — fragment rafraîchi par HTMX.
+
+   Le fragment porte SON PROPRE hx-trigger et se remplace lui-même
+   (hx-swap="outerHTML") : la cadence suit donc l'état réel. 2 s pendant un
+   cycle, 15 s au repos — de sorte qu'un cycle lancé par le planificateur
+   apparaisse sans rechargement, sans interroger le serveur en continu pour rien.
+
+   Tout le calcul (pourcentage, estimation, détection d'une ligne orpheline) est
+   fait par webapp._etat_avancement : ce gabarit se contente d'afficher. #}
+{# `compact` : variante pour les pages qui ne sont pas dédiées aux cycles (le
+   tableau de bord). Au repos elle n'affiche rien du tout — mais continue de
+   veiller, pour qu'un cycle déclenché par le planificateur apparaisse là où
+   l'utilisateur se trouve, sans qu'il ait à recharger. #}
+{% set compact = compact | default(false) %}
+<div id="run-progress"
+     hx-get="/admin/runs/progress{{ '?compact=1' if compact }}"
+     hx-trigger="every {{ '2s' if en_cours else '15s' }}"
+     hx-swap="outerHTML">
+
+{% if compact and not en_cours %}
+  {# Rien à montrer : la page hôte a ses propres indicateurs de dernier cycle. #}
+{% elif not en_cours %}
+  {# ── Au repos : le dernier cycle terminé, quel qu'en soit le statut ────── #}
+  {% if dernier %}
+  <div class="run-card run-card-repos">
+    <div class="run-head">
+      {% if dernier.status == 'success' %}{{ ui.ic('coche-cercle', 'run-ic ok') }}
+      {% elif dernier.status == 'cancelled' %}{{ ui.ic('interdit', 'run-ic neutre') }}
+      {% else %}{{ ui.ic('alerte', 'run-ic ko') }}{% endif %}
+      <div class="run-titre">
+        {% if dernier.status == 'success' %}Dernier cycle terminé
+        {% elif dernier.status == 'cancelled' %}Dernier cycle arrêté
+        {% else %}Dernier cycle en échec{% endif %}
+        <span class="run-sous" title="{{ dernier.finished_at or dernier.started_at }}">
+          {{ (dernier.finished_at or dernier.started_at) | horodatage | capitalize }}
+        </span>
+      </div>
+      <div class="run-chiffres">
+        {% set n_mails = dernier.emails_processed or dernier.emails_fetched or 0 %}
+        <span><b>{{ n_mails }}</b> email{{ 's' if n_mails > 1 }}</span>
+        <span><b>{{ dernier.cvs_detected or 0 }}</b> CV</span>
+      </div>
+    </div>
+    {% if dernier.error %}<p class="run-erreur">{{ dernier.error[:200] }}</p>{% endif %}
+  </div>
+  {% else %}
+  <div class="run-card run-card-repos">
+    <div class="run-head">
+      {{ ui.ic('sablier', 'run-ic neutre') }}
+      <div class="run-titre">Aucun cycle à ce jour
+        <span class="run-sous">Lancez-en un, ou attendez le prochain déclenchement automatique.</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+{% elif orphelin %}
+  {# ── Ligne « running » sans cycle réel : l'application a redémarré ─────── #}
+  <div class="run-card run-card-ko">
+    <div class="run-head">
+      {{ ui.ic('alerte', 'run-ic ko') }}
+      <div class="run-titre">Cycle interrompu
+        <span class="run-sous">
+          Ce cycle est marqué en cours mais ne tourne plus — l'application a
+          probablement redémarré pendant son exécution. Le nettoyer libère la
+          place pour un nouveau cycle ; aucun email déjà traité n'est repris.
+        </span>
+        {% if can_run_cycle %}
+        <form method="post" action="/admin/runs/stop" class="run-stop">
+          <button type="submit" class="btn small">{{ ui.ic('nettoyer') }} Nettoyer ce cycle</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+{% else %}
+  {# ── Cycle en cours ────────────────────────────────────────────────────── #}
+  <div class="run-card run-card-actif">
+    <div class="run-head">
+      <span class="run-ic-actif" aria-hidden="true"></span>
+      <div class="run-titre">
+        {% if phase == 'releve' %}Relève en cours
+        {% elif phase == 'finalisation' %}Finalisation
+        {% elif determine %}Traitement des emails
+        {% else %}Cycle en cours{% endif %}
+        <span class="run-sous">
+          {% if phase == 'releve' %}
+            Connexion à la boîte mail et recherche des messages à traiter…
+          {% elif phase == 'finalisation' %}
+            Calcul des alertes, envoi des notifications et rangement de la boîte…
+          {% elif determine %}
+            {{ restants }} email{{ 's' if restants > 1 }} restant{{ 's' if restants > 1 }}
+            sur {{ total }}
+            {%- if estimation %} · encore {{ estimation }} environ{% endif %}
+          {% else %}
+            Aucun nouvel email à traiter dans la fenêtre de relève.
+          {% endif %}
+        </span>
+      </div>
+      <div class="run-chiffres">
+        {% if determine %}<span class="run-pct">{{ pourcent }} %</span>{% endif %}
+        <span><b>{{ cvs }}</b> CV détecté{{ 's' if cvs > 1 }}</span>
+      </div>
+    </div>
+
+    {# La barre se révèle par mise à l'échelle, jamais par `width` : animer une
+       propriété de mise en page recalculerait la page à chaque rafraîchissement. #}
+    <div class="progress run-bar{% if not determine %} indetermine{% endif %}"
+         role="progressbar"
+         {% if determine %}aria-valuenow="{{ pourcent }}" aria-valuemin="0" aria-valuemax="100"
+         aria-label="Avancement du cycle : {{ traites }} email(s) traité(s) sur {{ total }}"
+         {% else %}aria-label="Cycle en cours, avancement non chiffrable à cette étape"{% endif %}>
+      <span class="progress-fill"{% if determine %} style="transform: scaleX({{ '%.4f'|format(pourcent / 100) }})"{% endif %}></span>
+    </div>
+
+    <div class="run-pied">
+      {% if determine %}
+      <span><b>{{ traites }}</b> / {{ total }} traités</span>
+      {% endif %}
+      {% if ecoule %}<span>Depuis {{ ecoule }}</span>{% endif %}
+      {% if can_run_cycle and phase != 'finalisation' %}
+      {# L'arrêt vit ici, au contact de ce qu'il arrête, plutôt que dans l'en-tête
+         de page : le fragment étant rafraîchi, ce bouton ne peut pas être périmé.
+         Masqué en finalisation : la boucle est finie, l'annulation n'y est plus
+         consultée — un bouton qui ne fait rien vaut moins que pas de bouton. #}
+      <form method="post" action="/admin/runs/stop" class="run-stop">
+        <button type="submit" class="btn small ghost">
+          {{ ui.ic('arret') }} Arrêter le cycle
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+  {# Annonce lue par les lecteurs d'écran. Volontairement limitée aux jalons —
+     une annonce toutes les 2 secondes rendrait la page inutilisable. #}
+  <p class="sr-only" role="status" aria-live="polite">
+    {% if en_cours and determine %}Cycle en cours, {{ pourcent }} pour cent.
+    {% elif en_cours %}Cycle en cours.{% endif %}
+  </p>
+</div>

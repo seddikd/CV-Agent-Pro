@@ -47,18 +47,15 @@
       id="upload-form" style="margin-bottom:1.5rem">
   <input type="file" name="file" id="upload-file" accept=".pst,.ost" required>
   <button type="submit" class="btn" id="upload-btn">{{ ui.ic('televerser') }} Téléverser</button>
-  <div id="upload-progress" style="display:none;margin-top:.6rem">
-    {# Les replis (#e5e7eb, #f26a21) étaient morts : les deux variables existent.
-       La barre est pleine largeur et se révèle par mise à l'échelle — animer
-       `width` déclenchait un recalcul de mise en page à chaque événement de
-       progression, plusieurs fois par seconde pendant tout le téléversement. #}
-    <div style="background:var(--border);border-radius:6px;height:16px;
-                overflow:hidden;max-width:480px">
-      <div id="upload-bar" style="background:var(--primary);height:100%;width:100%;
-                                  transform:scaleX(0);transform-origin:left center;
-                                  transition:transform .15s"></div>
+  <div id="upload-progress" hidden style="margin-top:.6rem;max-width:480px">
+    {# Même composant .progress que l'avancement d'un cycle : un rôle, un
+       composant. La barre se révèle par mise à l'échelle, jamais par `width`. #}
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+         aria-valuenow="0" aria-label="Avancement du téléversement" id="upload-bar-box">
+      <span class="progress-fill" id="upload-bar"></span>
     </div>
-    <div id="upload-pct" class="small" style="margin-top:.35rem">0 %</div>
+    <div id="upload-pct" class="small muted" style="margin-top:.4rem" role="status"
+         aria-live="polite">0 %</div>
   </div>
   <div class="small muted" style="margin-top:.4rem">
     Les gros fichiers (plusieurs Go) : préférez le dépôt direct dans le dossier
@@ -74,6 +71,7 @@
   var btn = document.getElementById('upload-btn');
   var box = document.getElementById('upload-progress');
   var bar = document.getElementById('upload-bar');
+  var boite = document.getElementById('upload-bar-box');
   var pct = document.getElementById('upload-pct');
 
   function fmt(o) {
@@ -91,7 +89,7 @@
     var xhr = new XMLHttpRequest();
     xhr.open('POST', form.action, true);
 
-    box.style.display = 'block';
+    box.hidden = false;
     btn.disabled = true;
     input.disabled = true;
     bar.style.transform = 'scaleX(0)';
@@ -101,6 +99,7 @@
       if (!ev.lengthComputable) return;
       var p = Math.round(ev.loaded / ev.total * 100);
       bar.style.transform = 'scaleX(' + (p / 100) + ')';
+      boite.setAttribute('aria-valuenow', p);
       pct.textContent = p < 100
         ? p + ' % (' + fmt(ev.loaded) + ' / ' + fmt(ev.total) + ')'
         : 'Finalisation côté serveur…';

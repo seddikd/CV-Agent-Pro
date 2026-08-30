@@ -459,9 +459,12 @@ def dashboard(request: Request, search: str = "", statut: str = "", poste: str =
     )
     stats = web_db.candidate_stats()
     last = web_db.last_successful_run()
+    ctx_cycle = _etat_avancement()
+    ctx_cycle["compact"] = True
     return render(
         request, "dashboard.html",
         {
+            **ctx_cycle,
             "rows": rows,
             "stats": stats,
             "statuts": web_db.STATUTS,
@@ -1141,10 +1144,103 @@ def admin_runs(request: Request, msg: str = ""):
     runs = web_db.list_runs(limit=50)
     last = web_db.last_successful_run()
     running = web_db.running_run_exists()
-    return render(
-        request, "admin_runs.html",
-        {"runs": runs, "last": last, "running": running, "msg": msg},
-    )
+    # L'état d'avancement est calculé dès le premier rendu : la carte est juste
+    # à l'ouverture de la page, sans attendre le premier passage HTMX.
+    ctx = {"runs": runs, "last": last, "running": running, "msg": msg}
+    ctx.update(_etat_avancement())
+    return render(request, "admin_runs.html", ctx)
+
+
+def _duree_lisible(secondes: float) -> str:
+    """Durée arrondie, en français, pensée pour une estimation et non un chrono.
+
+    On ne montre jamais les secondes au-delà d'une minute : une estimation à la
+    seconde près donnerait une fausse impression de précision, et un compteur qui
+    saute de 4:59 à 5:12 se lit comme un bug.
+    """
+    s = max(0, int(secondes))
+    if s < 45:
+        return "moins d'une minute"
+    minutes = round(s / 60)
+    if minutes < 60:
+        return f"{minutes} min"
+    heures, reste = divmod(minutes, 60)
+    return f"{heures} h" if reste == 0 else f"{heures} h {reste:02d}"
+
+
+def _etat_avancement() -> dict:
+    """État d'avancement du cycle en cours, prêt pour le gabarit.
+
+    Quatre situations, et une seule d'entre elles se décompte en emails :
+      · releve       — connexion IMAP / lecture du fichier : total inconnu ;
+      · traitement   — total connu, avancement chiffré et estimation possible ;
+      · finalisation — alertes, notifications, rangement : plus rien à décompter ;
+      · repos        — aucun cycle : on montre le dernier terminé.
+
+    Le gabarit ne fait qu'afficher : tout le calcul (pourcentage, estimation,
+    détection d'une ligne orpheline) est fait ici.
+    """
+    run = web_db.current_run()
+    if not run:
+        return {"en_cours": False, "dernier": web_db.last_run()}
+
+    phase = run.get("phase") or "releve"
+    total = run.get("emails_total") or 0
+    traites = run.get("emails_processed") or 0
+
+    etat = {
+        "en_cours": True,
+        "run": run,
+        "phase": phase,
+        "total": total,
+        "traites": traites,
+        "restants": max(0, total - traites),
+        "cvs": run.get("cvs_detected") or 0,
+        # Un cycle ne se décompte qu'en phase de traitement, et seulement s'il y a
+        # quelque chose à traiter : sinon barre indéterminée.
+        "determine": phase == "traitement" and total > 0,
+        "pourcent": round(traites * 100 / total) if total else 0,
+        "orphelin": False,
+        "ecoule": None,
+        "estimation": None,
+    }
+
+    # Ligne « running » sans cycle réel dans ce process : l'application a été
+    # redémarrée pendant un cycle. Sans ce test, l'indicateur tournerait pour
+    # toujours sur un cycle qui n'existe plus.
+    etat["orphelin"] = not web_pipeline.is_active()
+
+    try:
+        debut = datetime.fromisoformat(run["started_at"])
+        ecoule = (datetime.now() - debut).total_seconds()
+        etat["ecoule"] = _duree_lisible(ecoule)
+        # Estimation seulement à partir de trois emails : en dessous, la moyenne
+        # est dominée par le temps de connexion et donne un chiffre absurde.
+        # Le temps de relève reste inclus dans la moyenne, ce qui rend
+        # l'estimation prudente plutôt qu'optimiste.
+        if etat["determine"] and traites >= 3 and etat["restants"] > 0:
+            etat["estimation"] = _duree_lisible(ecoule / traites * etat["restants"])
+    except (ValueError, TypeError):
+        pass
+
+    return etat
+
+
+@app.get("/admin/runs/progress", response_class=HTMLResponse)
+def admin_runs_progress(request: Request, compact: int = 0):
+    """Fragment d'avancement, rafraîchi par HTMX.
+
+    Le fragment porte lui-même son `hx-trigger` : il se réinterroge toutes les
+    2 s pendant un cycle et toutes les 15 s au repos. Un cycle lancé par le
+    planificateur apparaît donc sans que l'utilisateur recharge la page, sans
+    pour autant interroger le serveur en continu pour rien.
+    """
+    web_auth.require_user(request)
+    ctx = _etat_avancement()
+    # Le drapeau voyage avec la requête : sans lui, le premier rafraîchissement
+    # HTMX renverrait la variante pleine sur une page qui attend la compacte.
+    ctx["compact"] = bool(compact)
+    return render(request, "_run_progress.html", ctx)
 
 
 # ─── Health ───────────────────────────────────────────────────────────────────

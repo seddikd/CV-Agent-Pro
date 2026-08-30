@@ -19,6 +19,11 @@
   </div>
 </div>
 
+{# Avancement d'un cycle, variante compacte : invisible au repos, la carte
+   apparaît d'elle-même dès qu'un cycle démarre — y compris déclenché par le
+   planificateur pendant que cette page est ouverte. #}
+{% include "_run_progress.html" %}
+
 <div class="kpi-cards">
   <div class="kpi-card kpi-mint">
     <span class="kpi-ic">{{ ui.ic('boite-entree') }}</span>

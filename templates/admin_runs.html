@@ -15,17 +15,10 @@
         {{ ui.ic('lecture') }} Lancer un cycle maintenant
       </button>
     </form>
-    {% if running %}
-    <form method="post" action="/admin/runs/stop" style="display:inline">
-      <button type="submit" class="btn danger">
-        {{ ui.ic('arret') }} Arrêter le cycle
-      </button>
-    </form>
-    {% endif %}
     {% if user and user.role == 'admin' %}
     <form method="post" action="/admin/runs/clear" style="display:inline"
           onsubmit="return confirm('Vider TOUT l\'historique des cycles ET tous les candidats ?\n\nLes emails seront ré-analysés au prochain cycle. Action irréversible.');">
-      <button type="submit" class="btn" style="background:#8b0000;color:#fff">
+      <button type="submit" class="btn danger">
         {{ ui.ic('corbeille') }} Vider historique + candidats
       </button>
     </form>
@@ -35,33 +28,39 @@
 
 {% if msg %}<div class="alert info">{{ msg }}</div>{% endif %}
 
-{% if running %}
-<div class="alert warning">{{ ui.ic('sablier') }} Un cycle est en cours d'exécution…</div>
-{% elif last %}
-<div class="alert info">{{ ui.ic('coche') }} Dernier cycle réussi : {{ last.finished_at }} —
-  {{ last.emails_fetched }} email(s) lus, {{ last.cvs_detected }} CV détecté(s)</div>
-{% else %}
-<div class="alert warning">Aucun cycle réussi à ce jour.</div>
-{% endif %}
+{# Avancement du cycle : carte vivante, rafraîchie par HTMX (voir la route
+   /admin/runs/progress). Elle remplace les trois bandeaux statiques qui ne
+   disaient que « un cycle est en cours » sans jamais dire où il en était. #}
+{% include "_run_progress.html" %}
 
+{# Les statuts sont stockés en anglais (valeurs techniques, écrites par le
+   pipeline) mais s'affichent en français, comme le reste de l'interface. #}
+{% set libelle_statut = {'running': 'En cours', 'success': 'Réussi',
+                         'failed': 'Échec', 'cancelled': 'Arrêté'} %}
+{# Idem pour l'origine du déclenchement. #}
+{% set libelle_source = {'scheduler': 'Automatique', 'manual': 'Manuel',
+                         'cli': 'Ligne de commande',
+                         'import_outlook': 'Import Outlook'} %}
 <div class="table-wrap">
   <table class="table">
     <thead>
       <tr>
         <th>#</th><th>Démarré</th><th>Fini</th>
-        <th>Source</th><th>Emails</th><th>CV</th><th>Statut</th><th>Erreur</th>
+        <th>Source</th><th>Traités</th><th>CV</th><th>Statut</th><th>Erreur</th>
       </tr>
     </thead>
     <tbody>
     {% for r in runs %}
       <tr>
         <td>{{ r.id }}</td>
-        <td class="small">{{ r.started_at }}</td>
-        <td class="small">{{ r.finished_at or '—' }}</td>
-        <td class="small">{{ r.triggered_by }}</td>
-        <td>{{ r.emails_fetched }}</td>
+        <td class="small" title="{{ r.started_at }}">{{ r.started_at | horodatage }}</td>
+        <td class="small" title="{{ r.finished_at }}">{{ r.finished_at | horodatage }}</td>
+        <td class="small">{{ libelle_source.get(r.triggered_by, r.triggered_by) }}</td>
+        {# `emails_processed` n'existe que depuis le suivi d'avancement : on
+           retombe sur `emails_fetched` pour les cycles antérieurs. #}
+        <td>{{ r.emails_processed or r.emails_fetched or 0 }}</td>
         <td>{{ r.cvs_detected }}</td>
-        <td><span class="badge run-{{ r.status }}">{{ r.status }}</span></td>
+        <td><span class="badge run-{{ r.status }}">{{ libelle_statut.get(r.status, r.status) }}</span></td>
         <td class="small error-text">{{ (r.error or '')[:120] }}</td>
       </tr>
     {% endfor %}
