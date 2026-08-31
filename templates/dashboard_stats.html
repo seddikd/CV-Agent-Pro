@@ -4,64 +4,131 @@
 {% block content %}
 
 <style>
-  .kpi-row { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
-  .kpi {
-    flex: 1 1 160px; padding: 1rem 1.2rem; border-radius: 10px;
-    background: var(--card-bg, #fff); border: 1px solid var(--border, #e2e2e2);
-  }
-  .kpi .num { font-size: 2rem; font-weight: 700; line-height: 1.1; }
-  .kpi .lbl { font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; opacity: .7; }
-  .kpi.accent .num { color: var(--accent, #2563eb); }
-
-  .stat-badges { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 1.6rem; }
-  .stat-badge {
-    display: inline-flex; align-items: baseline; gap: .4rem;
-    padding: .35rem .7rem; border-radius: 999px; font-size: .85rem;
-    border: 1px solid var(--border, #e2e2e2);
-  }
-  .stat-badge strong { font-size: 1rem; }
+  /* Le bloc .kpi / .kpi-row qui vivait ici était mort : le gabarit utilise les
+     cartes partagées .kpi-cards / .kpi-card. .stat-badge l'était aussi, à ceci
+     près qu'il redéfinissait le composant partagé de style.css — deux
+     vocabulaires pour un seul rôle. Les deux sont supprimés.
+     Idem pour --card-bg, --accent2 et --track : ces variables n'ont jamais
+     existé, la feuille tombait donc systématiquement sur des replis codés en
+     dur (dont un dégradé Tailwind identique dans les deux thèmes). */
 
   .charts-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 1.2rem;
+    gap: 18px;
+    /* Sans cela, chaque carte s'étirait à la hauteur de la plus haute de sa
+       rangée : « CV par niveau d'étude » gagnait 250 px de vide sous ses cinq
+       lignes pour s'aligner sur le Top 15. */
+    align-items: start;
   }
-  .charts-grid .card h3 { margin: 0 0 .9rem; font-size: 1rem; }
+  .charts-grid .card { padding: 18px 20px; margin-bottom: 0; }
+  .charts-grid .card h3 { margin: 0 0 14px; font-size: 15px; font-weight: 800; letter-spacing: -.2px; }
 
-  .bars { display: flex; flex-direction: column; gap: .5rem; }
-  .bar-row { display: grid; grid-template-columns: 130px 1fr 2.5rem; align-items: center; gap: .5rem; }
+  .bars { display: flex; flex-direction: column; gap: 8px; }
+  .bar-row { display: grid; grid-template-columns: 132px minmax(0, 1fr) 44px; align-items: center; gap: 10px; }
   .bar-row .bar-lbl {
-    font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 12.5px; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .bar-track { background: var(--track, #eef0f4); border-radius: 6px; height: 16px; overflow: hidden; }
+  .bar-track {
+    /* `display: block` est indispensable : un <span> reste inline par défaut, et
+       un élément inline ignore width comme height. La barre de remplissage
+       mesurait donc 0 × 0 — les six graphiques n'affichaient que des pistes
+       grises identiques, quelle que soit la valeur. */
+    display: block; height: 14px; border-radius: 999px; overflow: hidden;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
   .bar-fill {
-    height: 100%; border-radius: 6px; min-width: 2px;
-    background: linear-gradient(90deg, var(--accent, #2563eb), var(--accent2, #60a5fa));
+    display: block; height: 100%; min-width: 3px; border-radius: 999px;
+    /* Teintes de marque, et non le dégradé Tailwind #2563eb → #60a5fa qui était
+       figé en dur, identique en thème clair et sombre. */
+    background: linear-gradient(90deg, var(--primary), var(--accent));
   }
-  .bar-row .bar-num { font-size: .82rem; font-weight: 600; text-align: right; }
-  .chart-empty { font-size: .85rem; opacity: .6; padding: .5rem 0; }
+  .bar-row .bar-num {
+    font-size: 12.5px; font-weight: 700; text-align: right; color: var(--heading);
+    font-variant-numeric: tabular-nums;
+  }
+  .chart-empty { font-size: 13px; color: var(--muted); padding: 6px 0 2px; margin: 0; }
 
-  html[data-theme="dark"] .kpi,
-  html[data-theme="dark"] .stat-badge { background: var(--card-bg, #1e2330); }
-  html[data-theme="dark"] .bar-track { background: var(--track, #2a3040); }
+  /* Répartition par statut : des repères cliquables, pas un simple affichage.
+     Chacun mène à la liste filtrée sur ce statut. */
+  .repartition { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+  .repartition a {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 6px 5px 12px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    font-size: 12.5px; font-weight: 600; color: var(--text);
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .repartition a:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); color: var(--text); }
+  .repartition a:focus-visible { outline: none; box-shadow: var(--ring); }
+  .repartition .n {
+    min-width: 26px; padding: 2px 8px; border-radius: 999px; text-align: center;
+    font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums;
+  }
+  .repartition .vide { opacity: .55; }
+
+  /* Colonne d'heure de l'agenda : 52 px suffisaient pour « 03:29 » mais pas pour
+     la date ISO qui suivait, qui se cassait sur trois lignes. Le jour est
+     désormais relatif (« demain », « 31/08 ») et tient dans 78 px. */
+  .agenda-item { grid-template-columns: 78px minmax(0, 1fr); }
+  .agenda-sub { flex-wrap: wrap; row-gap: 4px; }
+
+  /* État vide : centré, une action par voie d'entrée réelle. */
+  .dash-vide { text-align: center; padding: 40px 24px; }
+  .dash-vide-ic { width: 34px; height: 34px; color: var(--border-strong); display: block; margin: 0 auto 12px; }
+  .dash-vide-titre { margin: 0 0 6px; font-size: 16px; font-weight: 800; color: var(--heading); }
+  .dash-vide-texte { margin: 0 auto; max-width: 46ch; font-size: 13.5px; color: var(--muted); }
+  .dash-vide-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 18px 0 0; }
+  .dash-vide-aide { margin: 16px 0 0; font-size: 12.5px; color: var(--muted); }
 </style>
 
 {% set n_entretien = (par_statut | selectattr('cat', 'equalto', 'Entretien planifié') | map(attribute='n') | first) or 0 %}
 {% set n_embauche = (par_statut | selectattr('cat', 'equalto', 'Embauché') | map(attribute='n') | first) or 0 %}
 
+{# Le bandeau parle de l'état réel : promettre « l'activité de votre vivier »
+   et proposer d'aller voir une liste vide, quand rien n'a encore été analysé,
+   envoie l'utilisateur dans le mur dès son premier écran. #}
 <div class="hero">
   <div class="hero-text">
     <h1>Bonjour {{ (user.name or '').split(' ')[0] }} !</h1>
+    {% if total == 0 %}
+    <p>Votre vivier est encore vide. Dès qu'une candidature aura été relevée et
+      analysée, vous retrouverez ici les nouveaux CV, les entretiens à venir et la
+      répartition des profils.</p>
+    <div class="hero-cta">
+      <a href="/offres/nouveau" class="btn">{{ ui.ic('plus') }} Créer une première offre</a>
+    </div>
+    {% else %}
     <p>Voici l'activité de votre vivier de candidats. Suivez les nouveaux CV, faites avancer vos entretiens et repérez les meilleurs profils.</p>
     <div class="hero-cta">
-      <a href="/" class="btn">Voir les candidats</a>
+      <a href="/" class="btn">Voir les {{ total }} candidats</a>
       <a href="/offres/nouveau" class="btn ghost">{{ ui.ic('plus') }} Nouvelle offre</a>
     </div>
+    {% endif %}
   </div>
 </div>
 
 {% if total == 0 %}
-  <div class="card">
-    <p class="muted">Aucun candidat pour le moment. Les statistiques apparaîtront ici dès qu'un premier CV aura été analysé.</p>
+  {# L'état vide nommait le problème sans ouvrir de porte : il indique désormais
+     les deux façons réelles de faire entrer un premier CV. #}
+  <div class="card dash-vide">
+    {{ ui.ic('boite-entree', 'dash-vide-ic') }}
+    <p class="dash-vide-titre">Aucun candidat pour l'instant</p>
+    <p class="dash-vide-texte">
+      Les statistiques apparaîtront ici dès qu'un premier CV aura été analysé.
+      Deux façons de commencer :
+    </p>
+    <div class="dash-vide-actions">
+      {% if can_run_cycle %}
+      <a href="/admin/runs" class="btn primary">{{ ui.ic('cycle') }} Relever la boîte mail</a>
+      {% endif %}
+      <a href="/admin/import" class="btn">{{ ui.ic('dossier') }} Importer une archive Outlook</a>
+    </div>
+    <p class="dash-vide-aide">
+      Rien ne remonte ? Vérifiez les identifiants dans
+      <a href="/admin/settings/mail">Paramètres&nbsp;Mail</a>.
+    </p>
   </div>
 {% else %}
 
@@ -84,11 +151,20 @@
   </div>
 </div>
 
-<div class="stat-badges">
+{# Chaque statut mène à la liste filtrée : voir « Refusé 51 » sans pouvoir
+   ouvrir ces 51 fiches était une impasse. Les couleurs sont celles du
+   vocabulaire de statut partagé, comme partout ailleurs dans l'application. #}
+<nav class="repartition" aria-label="Répartition des candidats par statut">
   {% for s in par_statut %}
-  <span class="stat-badge">{{ s.cat }} <strong>{{ s.n }}</strong></span>
+  <a href="/?statut={{ s.cat | urlencode }}"{% if not s.n %} class="vide"{% endif %}
+     title="Voir les {{ s.n }} candidat{{ 's' if s.n > 1 }} au statut « {{ s.cat }} »">
+    {{ s.cat }}
+    {# Variante « count » : la pastille porte la couleur du statut mais pas son
+       point de tête — c'est un décompte, pas un statut. #}
+    <span class="n badge count status-{{ s.cat | replace(' ', '_') }}">{{ s.n }}</span>
+  </a>
   {% endfor %}
-</div>
+</nav>
 
 {% macro barchart(titre, items, vide) %}
 <div class="card">
@@ -98,7 +174,9 @@
     {% for it in items %}
     <div class="bar-row">
       <span class="bar-lbl" title="{{ it.cat }}">{{ it.cat }}</span>
-      <span class="bar-track"><span class="bar-fill" style="width: {{ it.pct }}%"></span></span>
+      {# La piste ne fait que redoubler visuellement le nombre affiché juste à
+         côté : l'annoncer une seconde fois n'apporterait rien. #}
+      <span class="bar-track" aria-hidden="true"><span class="bar-fill" style="width: {{ it.pct }}%"></span></span>
       <span class="bar-num">{{ it.n }}</span>
     </div>
     {% endfor %}
@@ -131,9 +209,9 @@
       <div class="agenda-list">
         {% for e in entretiens %}
         <div class="agenda-item">
-          <span class="agenda-time">
-            {{ (e.date_heure or '')[11:16] }}
-            <span class="ag-day">{{ (e.date_heure or '')[:10] }}</span>
+          <span class="agenda-time" title="{{ e.date_heure }}">
+            {{ e.date_heure | heure }}
+            <span class="ag-day">{{ e.date_heure | jour_court }}</span>
           </span>
           <div class="agenda-body">
             <a href="/candidate/{{ e.candidate_id }}">{{ (e.cand_prenom or '') }} {{ (e.cand_nom or '') }}</a>
@@ -161,16 +239,17 @@
         {% for c in recents %}
         {% set nom = ((c.prenom or '') ~ ' ' ~ (c.nom or '')).strip() or 'Candidat #' ~ c.id %}
         <div class="agenda-item">
-          <span class="agenda-time">
-            {{ (c.received_at or '')[11:16] or '—' }}
-            <span class="ag-day">{{ (c.received_at or '')[:10] }}</span>
+          <span class="agenda-time" title="{{ c.received_at }}">
+            {{ c.received_at | heure }}
+            <span class="ag-day">{{ c.received_at | jour_court }}</span>
           </span>
           <div class="agenda-body">
             <a href="/candidate/{{ c.id }}">{{ nom }}</a>
             <div class="agenda-sub">
               <span>{{ c.poste_recherche or 'Poste non précisé' }}</span>
               <span class="dot"></span>
-              <span>{{ c.statut or 'Nouveau' }}</span>
+              {% set st = c.statut or 'Nouveau' %}
+              <span class="badge status-{{ st | replace(' ', '_') }}">{{ st }}</span>
             </div>
           </div>
         </div>

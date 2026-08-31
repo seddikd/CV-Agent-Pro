@@ -67,7 +67,44 @@ def _horodatage(valeur) -> str:
     return f"{d.strftime('%d/%m/%Y')} à {heure}"
 
 
+def _jour_court(valeur) -> str:
+    """Jour seul, relatif à aujourd'hui : « demain », « hier », « 31/08 ».
+
+    Complète `horodatage` pour les colonnes d'agenda, qui empilent l'heure et le
+    jour sur deux lignes. Un « 2026-08-31 » y était à la fois illisible et trop
+    large : il se cassait sur trois lignes dans une colonne de 52 px.
+    """
+    from datetime import datetime, date, timedelta
+    if not valeur:
+        return ""
+    try:
+        jour = datetime.fromisoformat(str(valeur)).date()
+    except (ValueError, TypeError):
+        return str(valeur)[:10]
+    ecart = (jour - date.today()).days
+    if ecart == 0:
+        return "aujourd'hui"
+    if ecart == 1:
+        return "demain"
+    if ecart == -1:
+        return "hier"
+    return jour.strftime("%d/%m") if jour.year == date.today().year else jour.strftime("%d/%m/%y")
+
+
+def _heure(valeur) -> str:
+    """Heure seule au format 24 h, ou « — » si l'horodatage est absent."""
+    from datetime import datetime
+    if not valeur:
+        return "—"
+    try:
+        return datetime.fromisoformat(str(valeur)).strftime("%H:%M")
+    except (ValueError, TypeError):
+        return str(valeur)[11:16] or "—"
+
+
 templates.env.filters["horodatage"] = _horodatage
+templates.env.filters["jour_court"] = _jour_court
+templates.env.filters["heure"] = _heure
 
 
 # ─── Vue (coquille) de l'interface ────────────────────────────────────────────
