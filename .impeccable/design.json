@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-30T09:40:25+00:00",
+  "generatedAt": "2026-08-31T09:17:53+00:00",
   "title": "Design System: CV Agent Pro",
   "extensions": {
     "colorMeta": {
@@ -173,23 +173,51 @@
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "Titre d'écran de connexion et d'administration des utilisateurs."
+        "purpose": "Connexion, administration des utilisateurs (26 px)."
       },
       "headline": {
         "displayName": "Headline",
-        "purpose": "h1 de page, dans .page-head."
+        "purpose": "h1 de page, dans .page-head (24 px)."
+      },
+      "subhead": {
+        "displayName": "Subhead",
+        "purpose": "Marque du bandeau, titres de modale, valeur de statistique (17 px)."
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Titres de carte, en-têtes de section de fiche, panneaux."
+        "purpose": "Titres de carte, en-têtes de section, panneaux (15 px)."
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Texte courant, cellules de tableau, champs."
+        "purpose": "Texte courant, cellules, champs de saisie (14 px)."
+      },
+      "body-sm": {
+        "displayName": "Body small",
+        "purpose": "Navigation, entrées de menu, alertes, champs de bandeau (13,5 px)."
+      },
+      "action": {
+        "displayName": "Action",
+        "purpose": "Boutons, liens d'action, filtres (13 px) — le pas le plus employé."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Puces, pieds de carte, libellés de KPI (12,5 px)."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Cellules denses, texte secondaire de tableau (12 px)."
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "Sous-lignes d'agenda, puces de compétence, adresses (11,5 px)."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "En-têtes de colonne, groupes de navigation. Seul emploi de majuscules."
+        "purpose": "En-têtes de colonne, groupes de navigation (11 px, majuscules)."
+      },
+      "label-xs": {
+        "displayName": "Label xs",
+        "purpose": "Intitulés de définition, badges de rôle (10,5 px, majuscules)."
       }
     },
     "shadows": [
@@ -389,6 +417,11 @@
         "body": "Aucun clamp() typographique. Les postes de travail RH sont à densité de pixels constante."
       },
       {
+        "name": "La Règle du Pixel",
+        "section": "typography",
+        "body": "Les tailles s'expriment en px, jamais en rem. Le mélange des deux unités est la seule dérive typographique franche du projet : 24 déclarations en rem contre 174 en px, concentrées dans sept gabarits. Elles sont à convertir, pas à imiter."
+      },
+      {
         "name": "La Règle de l'En-tête Adossé",
         "section": "layout",
         "body": "Toute barre collante du contenu se pose à calc(var(--sticky-top) + N), jamais à top: 0."
@@ -414,9 +447,9 @@
         "body": "Quand un élément ombré entre dans un conteneur en overflow, l'ombre passe sur le conteneur."
       },
       {
-        "name": "La Règle du Rayon à Trois Crans",
+        "name": "La Règle des Huit Crans",
         "section": "shapes",
-        "body": "Bloc 12 px, commande 9 px, détail 8 px."
+        "body": "999 · 50 % · 16 · 12 · 10 · 9 · 8 · 6. Une valeur inventée pour un cas particulier casse la lecture de l'ensemble. Treize emplois sortent encore de l'échelle (18 px ×2, 11 px ×3, 7 px ×5, 5 px ×2, 4 px ×1) : ce sont des restes à ramener au cran voisin, pas des précédents."
       },
       {
         "name": "La Règle du Vocabulaire Unique",
@@ -444,7 +477,8 @@
       "Do passer par la macro ui.ic('nom') et le sprite pour toute icône.",
       "Do appliquer font-variant-numeric: tabular-nums à toute colonne numérique comparable.",
       "Do doubler chaque variante :root[data-theme=\"dark\"] d'une variante @media (prefers-color-scheme: dark).",
-      "Do écrire les états vides de façon à ouvrir une sortie."
+      "Do écrire les états vides de façon à ouvrir une sortie.",
+      "Do exprimer toute taille de police en px : 24 déclarations en rem subsistent, à convertir."
     ],
     "donts": [
       "Don't employer --accent (#1e8dcc) pour du texte sous 24 px : 3,66:1 sur --surface.",

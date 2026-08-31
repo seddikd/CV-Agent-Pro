@@ -47,6 +47,12 @@ typography:
     fontWeight: 800
     lineHeight: 1.25
     letterSpacing: "-0.4px"
+  subhead:
+    fontFamily: "Segoe UI, -apple-system, BlinkMacSystemFont, Inter, Helvetica Neue, Arial, sans-serif"
+    fontSize: "17px"
+    fontWeight: 800
+    lineHeight: 1.3
+    letterSpacing: "-0.2px"
   title:
     fontFamily: "Segoe UI, -apple-system, BlinkMacSystemFont, Inter, Helvetica Neue, Arial, sans-serif"
     fontSize: "15px"
@@ -59,18 +65,57 @@ typography:
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "normal"
+  body-sm:
+    fontFamily: "Segoe UI, -apple-system, BlinkMacSystemFont, Inter, Helvetica Neue, Arial, sans-serif"
+    fontSize: "13.5px"
+    fontWeight: 600
+    lineHeight: 1.45
+    letterSpacing: "normal"
+  action:
+    fontFamily: "Segoe UI, -apple-system, BlinkMacSystemFont, Inter, Helvetica Neue, Arial, sans-serif"
+    fontSize: "13px"
+    fontWeight: 600
+    lineHeight: 1.4
+    letterSpacing: "normal"
+  meta:
+    fontFamily: "Segoe UI, -apple-system, BlinkMacSystemFont, Inter, Helvetica Neue, Arial, sans-serif"
+    fontSize: "12.5px"
+    fontWeight: 600
+    lineHeight: 1.4
+    letterSpacing: "normal"
+  caption:
+    fontFamily: "Segoe UI, -apple-system, BlinkMacSystemFont, Inter, Helvetica Neue, Arial, sans-serif"
+    fontSize: "12px"
+    fontWeight: 400
+    lineHeight: 1.45
+    letterSpacing: "normal"
+  micro:
+    fontFamily: "Segoe UI, -apple-system, BlinkMacSystemFont, Inter, Helvetica Neue, Arial, sans-serif"
+    fontSize: "11.5px"
+    fontWeight: 500
+    lineHeight: 1.4
+    letterSpacing: "normal"
   label:
     fontFamily: "Segoe UI, -apple-system, BlinkMacSystemFont, Inter, Helvetica Neue, Arial, sans-serif"
     fontSize: "11px"
     fontWeight: 700
     lineHeight: 1.4
     letterSpacing: "0.6px"
+  label-xs:
+    fontFamily: "Segoe UI, -apple-system, BlinkMacSystemFont, Inter, Helvetica Neue, Arial, sans-serif"
+    fontSize: "10.5px"
+    fontWeight: 800
+    lineHeight: 1.35
+    letterSpacing: "0.55px"
 rounded:
-  control: "9px"
+  xs: "6px"
   sm: "8px"
+  control: "9px"
+  nav: "10px"
   md: "12px"
   lg: "16px"
   pill: "999px"
+  circle: "50%"
 spacing:
   xs: "6px"
   sm: "10px"
@@ -207,17 +252,48 @@ Une famille bleue de marque, un neutre froid, et quatre couleurs sémantiques do
 **Character:** Une seule famille système, sans pairing display/body. C'est un choix, pas un renoncement : une interface de production n'a pas besoin d'une voix typographique, elle a besoin d'une échelle lisible à densité élevée et d'un rendu identique sur chaque poste client. Le caractère vient du poids (800 sur les titres, 700 sur les libellés) et du resserrement (`-0.4px` à `-0.5px` sur les grands titres), pas du dessin des lettres.
 
 ### Hierarchy
-- **Display** (800, 26 px, `-0.5px`) : titre d'écran de connexion et d'administration des utilisateurs.
-- **Headline** (800, 24 px, `-0.4px`) : `h1` de page, dans `.page-head`.
-- **Title** (700–800, 15 px, `-0.2px`) : titres de carte, en-têtes de section de fiche, titres de panneau latéral.
-- **Body** (400, 14 px, `1.5`) : texte courant, cellules de tableau, champs. La prose explicative reste sous 75 caractères ; les tableaux, eux, peuvent courir bien au-delà — c'est leur métier.
-- **Label** (700, 11 px, `0.6px`, majuscules) : en-têtes de colonne, groupes de navigation, intitulés de définition. Le seul emploi de majuscules du système.
+
+Douze pas, et c'est assumé : une interface de production dense empile beaucoup
+plus de rôles de texte qu'une page de marque. Le bas de l'échelle avance par
+demi-pixels parce que la différence entre un libellé de colonne et une
+métadonnée de cellule se joue à ce niveau-là. Les fréquences indiquées sont les
+occurrences réellement comptées dans la feuille et les gabarits.
+
+| Rôle | Taille | Graisse | Emploi | Occurrences |
+|---|---|---|---|---|
+| **Display** | 26 px, `-0.5px` | 800 | Connexion, administration des utilisateurs | 3 |
+| **Headline** | 24 px, `-0.4px` | 800 | `h1` de page (`.page-head`) | 2 |
+| **Subhead** | 17 px, `-0.2px` | 800 | Marque du bandeau, titres de modale, valeur de statistique | 6 |
+| **Title** | 15 px, `-0.2px` | 700–800 | Titres de carte, en-têtes de section, panneaux | 12 |
+| **Body** | 14 px, `1.5` | 400 | Texte courant, cellules, champs de saisie | 14 |
+| **Body-sm** | 13,5 px | 600 | Navigation, entrées de menu, alertes, champs de bandeau | 14 |
+| **Action** | 13 px | 600 | Boutons, liens d'action, filtres | 28 |
+| **Meta** | 12,5 px | 600 | Puces, pieds de carte, libellés de KPI | 22 |
+| **Caption** | 12 px | 400 | Cellules denses, texte secondaire de tableau | 32 |
+| **Micro** | 11,5 px | 500 | Sous-lignes d'agenda, puces de compétence, adresses | 15 |
+| **Label** | 11 px, `0.6px`, majuscules | 700 | En-têtes de colonne, groupes de navigation | 7 |
+| **Label-xs** | 10,5 px, `0.55px`, majuscules | 800 | Intitulés de définition, badges de rôle | 4 |
+
+La prose explicative reste sous 75 caractères ; les tableaux, eux, courent bien
+au-delà — c'est leur métier.
+
+Cette échelle couvre 159 des 174 déclarations en pixels. Les quinze restantes
+sortent du cadre et sont à ramener au pas voisin : 10 px ×4, 20 px ×3, 16 px ×3,
+puis 25, 22, 21, 19 et 18 px une fois chacune — toutes des tailles d'affichage
+isolées, apparues au cas par cas. Ce sont des restes, pas des précédents.
 
 ### Named Rules
 
 **La Règle des Chiffres Alignés.** Toute colonne numérique comparable — âge, années d'expérience, compteur d'étape, téléphone — porte `font-variant-numeric: tabular-nums`. Deux nombres qu'on lit l'un sous l'autre doivent s'aligner sur la virgule.
 
 **La Règle de l'Échelle Fixe.** Aucun `clamp()` typographique. Les postes de travail RH sont à densité de pixels constante ; un titre qui rétrécit dans un panneau étroit est moins lisible, pas plus.
+
+**La Règle du Pixel.** Les tailles s'expriment en `px`, jamais en `rem`. Le mélange
+des deux unités est la seule dérive typographique franche du projet : 24 déclarations
+en `rem` subsistent contre 174 en `px`, concentrées dans sept gabarits — `reporting`,
+`statistiques`, `_candidate_emails`, `_summary`, `_candidate_timeline`,
+`pipeline`, `emails_admin`. Elles sont à convertir, pas à imiter. Test : `grep -c
+'font-size:.*rem' templates/*.html` doit finir par ne rien renvoyer.
 
 ## Layout
 
@@ -257,13 +333,25 @@ En thème sombre, les trois niveaux passent à des ombres noires plus opaques (`
 
 ## Shapes
 
-Angles généreux et réguliers. **12 px** est le rayon de référence (`--radius`) : cartes, tableaux, conteneurs, barres d'outils. **9 px** pour les commandes (boutons, champs, sélecteurs) — un cran plus serré, pour que le contrôle se distingue du bloc qui le contient. **8 px** pour les petits éléments (entrées de menu, boutons-icônes, liens de navigation). **16–18 px** pour les blocs d'accueil (cartes KPI, carte de connexion). **999 px** pour tout ce qui est pastille : statuts, badges, puces de compétence, champ de recherche du bandeau.
+Angles généreux, sur une échelle à huit crans. **999 px** domine largement (26
+emplois) : tout ce qui est pastille — statuts, badges, puces de compétence,
+champs de recherche de bandeau, barres de progression. **50 %** pour les avatars.
+Puis, du bloc au détail : **16 px** pour les blocs d'accueil (cartes KPI, carte de
+connexion), **12 px** comme rayon de référence des conteneurs (`--radius` :
+cartes, tableaux, barres d'outils), **10 px** pour les éléments de navigation et
+les panneaux superposés, **9 px** pour les commandes (boutons, champs,
+sélecteurs — un cran plus serré, pour que le contrôle se distingue du bloc qui le
+contient), **8 px** pour les petits éléments (entrées de menu, boutons-icônes),
+**6 px** pour les détails intérieurs.
 
 Les bordures sont fines et uniformes : **1 px**, en `--border` au repos, `--border-strong` sur les champs et les séparations appuyées. Le système n'utilise pas de bordure épaisse comme accent — un liseré coloré de plus de 1 px sur une carte, une alerte ou un élément de liste n'appartient pas à ce vocabulaire. La seule exception est le filet de 3 px en tête de colonne de pipeline, où il porte la teinte d'étape, et le repère de 2 px en bord de ligne qui marque la fiche originale d'un groupe de doublons.
 
 ### Named Rules
 
-**La Règle du Rayon à Trois Crans.** Bloc 12 px, commande 9 px, détail 8 px. Une valeur intermédiaire inventée pour un cas particulier casse la lecture de l'ensemble.
+**La Règle des Huit Crans.** 999 · 50 % · 16 · 12 · 10 · 9 · 8 · 6. Une valeur
+inventée pour un cas particulier casse la lecture de l'ensemble. Treize emplois
+sortent encore de l'échelle (18 px ×2, 11 px ×3, 7 px ×5, 5 px ×2, 4 px ×1) :
+ce sont des restes à ramener au cran voisin, pas des précédents.
 
 ## Components
 
