@@ -70,7 +70,7 @@
         <td>
           <strong>{{ (e.date_heure or '')[:10] }}</strong>
           <span class="muted">{{ (e.date_heure or '')[11:16] }}</span>
-          {% if passe %}<span class="badge run-cancelled" title="Date passée, entretien non clôturé">en retard</span>{% endif %}
+          {% if passe %}<span class="badge run-cancelled" title="Date passée, entretien non clôturé">En retard</span>{% endif %}
         </td>
         <td>
           <a href="/candidate/{{ e.candidate_id }}" class="cand-link">

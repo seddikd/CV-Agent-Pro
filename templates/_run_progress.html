@@ -110,7 +110,8 @@
     <div class="progress run-bar{% if not determine %} indetermine{% endif %}"
          role="progressbar"
          {% if determine %}aria-valuenow="{{ pourcent }}" aria-valuemin="0" aria-valuemax="100"
-         aria-label="Avancement du cycle : {{ traites }} email(s) traité(s) sur {{ total }}"
+         aria-valuetext="{{ traites }} email{{ 's' if traites > 1 }} traité{{ 's' if traites > 1 }} sur {{ total }}"
+         aria-label="Avancement du cycle"
          {% else %}aria-label="Cycle en cours, avancement non chiffrable à cette étape"{% endif %}>
       <span class="progress-fill"{% if determine %} style="transform: scaleX({{ '%.4f'|format(pourcent / 100) }})"{% endif %}></span>
     </div>
@@ -135,10 +136,14 @@
   </div>
 {% endif %}
 
-  {# Annonce lue par les lecteurs d'écran. Volontairement limitée aux jalons —
-     une annonce toutes les 2 secondes rendrait la page inutilisable. #}
-  <p class="sr-only" role="status" aria-live="polite">
-    {% if en_cours and determine %}Cycle en cours, {{ pourcent }} pour cent.
-    {% elif en_cours %}Cycle en cours.{% endif %}
-  </p>
+  {# Pas de région aria-live ici. Il y en avait une, censée n'annoncer que des
+     jalons — mais aucun jalonnement n'était implémenté, et surtout le fragment
+     entier est remplacé toutes les 2 secondes : la région était détruite puis
+     recréée à chaque échange, donc réannoncée en boucle. Une annonce toutes les
+     deux secondes rend la page inutilisable au lecteur d'écran.
+
+     L'avancement reste exposé sans être vocalisé : le `role="progressbar"`
+     ci-dessus porte `aria-valuenow` et `aria-valuetext`, que la technologie
+     d'assistance lit à la demande. C'est le comportement attendu pour une
+     progression longue. #}
 </div>

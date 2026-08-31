@@ -619,7 +619,9 @@ def admin_runs_clear(request: Request):
 def admin_runs_stop(request: Request):
     web_auth.require_cycle(request)
     web_pipeline.request_cancel()
-    if web_pipeline.is_active():
+    # Élargi au démarrage : sur un cycle à peine lancé, `is_active()` est encore
+    # False et l'on serait parti nettoyer une ligne parfaitement légitime.
+    if web_pipeline.is_active_or_starting():
         # Un vrai cycle tourne : annulation coopérative (effet après l'email en cours).
         msg = "Arrêt+demandé+(l'email+en+cours+se+termine)"
     else:
@@ -1142,11 +1144,12 @@ def _test_result_html(ok: bool, message: str) -> HTMLResponse:
 def admin_runs(request: Request, msg: str = ""):
     web_auth.require_user(request)
     runs = web_db.list_runs(limit=50)
-    last = web_db.last_successful_run()
     running = web_db.running_run_exists()
-    # L'état d'avancement est calculé dès le premier rendu : la carte est juste
-    # à l'ouverture de la page, sans attendre le premier passage HTMX.
-    ctx = {"runs": runs, "last": last, "running": running, "msg": msg}
+    # `last` a disparu du contexte : les trois bandeaux statiques qui le lisaient
+    # ont été remplacés par la carte d'avancement, qui reçoit son propre
+    # `dernier` via _etat_avancement(). C'était une requête SQL par affichage
+    # pour une valeur que le gabarit n'ouvrait plus.
+    ctx = {"runs": runs, "running": running, "msg": msg}
     ctx.update(_etat_avancement())
     return render(request, "admin_runs.html", ctx)
 
@@ -1208,7 +1211,11 @@ def _etat_avancement() -> dict:
     # Ligne « running » sans cycle réel dans ce process : l'application a été
     # redémarrée pendant un cycle. Sans ce test, l'indicateur tournerait pour
     # toujours sur un cycle qui n'existe plus.
-    etat["orphelin"] = not web_pipeline.is_active()
+    # `is_active_or_starting` et non `is_active` : pendant les deux écritures qui
+    # séparent la création de la ligne et la pose du drapeau, un cycle tout juste
+    # lancé aurait été présenté comme interrompu — avec un bouton invitant à le
+    # nettoyer.
+    etat["orphelin"] = not web_pipeline.is_active_or_starting()
 
     try:
         debut = datetime.fromisoformat(run["started_at"])

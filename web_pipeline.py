@@ -46,6 +46,23 @@ def is_active() -> bool:
     return _active_event.is_set()
 
 
+def is_active_or_starting() -> bool:
+    """True si un cycle tourne OU est en train de démarrer dans ce process.
+
+    `_active_event` n'est posé qu'après l'insertion de la ligne « running » et
+    l'écriture de sa phase : entre les deux, une lecture concurrente voyait un
+    cycle en base sans cycle actif ici, et le prenait pour un orphelin laissé par
+    un redémarrage. La fenêtre est courte (deux écritures) mais elle est
+    systématiquement traversée par le rendu qui suit la redirection de
+    « Lancer un cycle », c'est-à-dire au pire moment.
+
+    Le verrou, lui, est pris avant tout le reste et tenu jusqu'à la fin du cycle,
+    démarrage compris : le tester ferme la fenêtre sans dépendre de l'ordre des
+    instructions de démarrage.
+    """
+    return _active_event.is_set() or _run_lock.locked()
+
+
 def _process_email(email, cfg: dict, folder: str | None = None) -> bool:
     """Retourne un dict-résumé du candidat si c'est un CV stocké, sinon None.
 
@@ -281,6 +298,12 @@ def _run_pipeline_locked(triggered_by: str) -> dict:
             # que la boucle soit allée au bout, ait été interrompue par une annulation,
             # ou qu'un traitement ait levé.
             batches.close()
+        # Une annulation demandée pendant la relève — avant que le premier lot
+        # soit cédé — ne passait par aucune des vérifications de la boucle :
+        # `cancelled` restait False et le cycle finissait enregistré « réussi »
+        # avec zéro email traité, ce qui masquait complètement l'interruption.
+        if _cancel_event.is_set():
+            cancelled = True
         log.info("Run %d: %d email(s) relevé(s) et traité(s)", run_id, emails_fetched)
 
         # Plus rien à décompter : alertes, notifications et rangement IMAP ne se
@@ -434,6 +457,11 @@ def _run_outlook_import_locked(path: str, backend: str | None, triggered_by: str
                 web_db.update_run(
                     run_id, emails_processed=emails_processed, cvs_detected=cvs,
                 )
+
+        # Même correctif que pour le cycle IMAP : une annulation tombée pendant
+        # la lecture du fichier n'atteignait aucune vérification de la boucle.
+        if _cancel_event.is_set():
+            cancelled = True
 
         web_db.update_run(run_id, phase="finalisation")
 
