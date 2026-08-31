@@ -55,6 +55,12 @@ iso/**/*.pdf
 # Installeurs des prérequis téléchargés dans le support (PostgreSQL, Ollama).
 iso/Prerequis/*.exe
 # Manuels PDF régénérés par build_pdf.py (les .md sources, eux, sont versionnés).
+# IMPORTANT : les sources des manuels vivent À LA RACINE — MANUEL_UTILISATION.md
+# et MANUEL_DEPLOIEMENT.md — et c'est là que build_pdf.py les cherche. Les copies
+# sous iso/Manuels/ sont produites au packaging et ignorées. Elles ont un jour été
+# prises pour les originales, après la suppression des sources racine : la
+# génération des PDF ne fonctionnait plus, et le seul exemplaire restant des
+# manuels n'était plus versionné. Ne pas déplacer les sources.
 MANUEL_*.pdf
 
 # Supports de présentation (assets lourds : .pptx, .msi, .pdf, captures) — non versionnés.
