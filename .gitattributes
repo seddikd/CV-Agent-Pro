@@ -14,6 +14,20 @@ Dockerfile  text eol=lf
 *.bat       text eol=crlf
 *.cmd       text eol=crlf
 
+# Le code applicatif est lui aussi lu sous Linux (l'image Docker), et surtout il
+# est stocké en LF dans le dépôt. Sans ces règles, aucun attribut ne le gouverne :
+# core.autocrlf restitue du CRLF dans l'arbre de travail, tandis que les outils
+# qui écrivent en LF le remettent en LF — d'où des différences fantômes, des
+# lignes qui apparaissent modifiées sans que leur contenu bouge, et un git blame
+# qui pointe sur le mauvais commit. On force donc LF de bout en bout.
+*.py        text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.js        text eol=lf
+*.md        text eol=lf
+*.json      text eol=lf
+*.txt       text eol=lf
+
 # Binaires : aucune conversion.
 *.png       binary
 *.jpg       binary
