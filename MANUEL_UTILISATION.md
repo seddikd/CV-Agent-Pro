@@ -7,7 +7,7 @@
 
 > ℹ️ **Ce manuel ne traite pas de l'installation ni du déploiement** (serveur, base de
 > données, réseau, exécutable). Ces aspects techniques sont couverts par le
-> **Manuel de déploiement** (`MANUEL_DEPLOIEMENT.md`), destiné à la personne qui installe
+> **Manuel de déploiement**, destiné à la personne qui installe
 > et maintient le serveur.
 
 ---
@@ -841,4 +841,4 @@ Les CV contiennent des **données personnelles**. Quelques règles simples :
 ---
 
 *Manuel utilisateur — CV Agent. Rédigé pour l'équipe RH. Pour l'installation, la configuration
-serveur et la maintenance, se reporter au Manuel de déploiement (`MANUEL_DEPLOIEMENT.md`).*
+serveur et la maintenance, se reporter au **Manuel de déploiement**.*

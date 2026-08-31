@@ -1,7 +1,7 @@
 # Manuel de déploiement — CV Agent Pro
 
 > Public : la personne **IT** qui installe, configure et exploite l'application.
-> Pour l'usage quotidien par l'équipe RH, voir `MANUEL_UTILISATION.md`.
+> Pour l'usage quotidien par l'équipe RH, voir le **Manuel utilisateur**.
 
 CV Agent Pro est un outil RH qui relève une **boîte mail (IMAP)**, détecte et extrait
 les CV par IA, stocke les candidats en base **PostgreSQL** et sert un tableau de bord
@@ -822,5 +822,5 @@ docker compose down
 
 ---
 
-*CV Agent Pro — manuel de déploiement. Pour l'utilisation quotidienne, voir
-`MANUEL_UTILISATION.md` ; pour les conventions de code, voir `CLAUDE.md`.*
+*CV Agent Pro — manuel de déploiement. Pour l'utilisation quotidienne, voir le
+**Manuel utilisateur**.*
