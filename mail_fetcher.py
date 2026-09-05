@@ -5,6 +5,8 @@ import imaplib
 import logging
 import re
 import socket
+import ssl
+import time
 
 from imap_tools import MailBox, MailBoxStartTls, MailBoxUnencrypted, AND
 from imap_tools.errors import (
@@ -138,10 +140,32 @@ def _chunks(items: list[str], size: int):
         yield start, items[start:start + size]
 
 
-# Erreurs qui signalent « ce fetch IMAP n'a pas abouti » : réponse refusée par le
-# serveur, protocole cassé, socket coupée ou en timeout (socket.timeout et
-# ConnectionError dérivent d'OSError).
-FETCH_ERRORS = (MailboxFetchError, imaplib.IMAP4.error, OSError)
+class _ConnectionLost(Exception):
+    """Signale que la connexion IMAP elle-même est morte (pas juste un message).
+
+    Levée en interne quand un fetch échoue pour une raison qui rend TOUS les fetchs
+    suivants sur la même `mailbox` voués à échouer (socket coupée, TLS cassé,
+    `imaplib.IMAP4.abort`). Distincte d'un simple refus du serveur sur un message
+    précis, qui n'affecte que ce message.
+    """
+
+
+# Erreurs « ce message précis n'a pas pu être lu » : le serveur répond mais refuse
+# ou échoue sur cet UID. La connexion reste utilisable pour les UID suivants.
+# (`imaplib.IMAP4.abort` est un sous-type d'`IMAP4.error` mais signale justement le
+# cas contraire — connexion à refermer — d'où l'ordre des `except` plus bas.)
+MESSAGE_FETCH_ERRORS = (MailboxFetchError, imaplib.IMAP4.error)
+
+# Erreurs « la connexion elle-même est morte » : socket coupée, TLS cassé
+# (`ssl.SSLError` et `ConnectionError` dérivent d'`OSError`, tout comme
+# `socket.timeout`), ou abort explicite d'imaplib. Rejouer un fetch sur la même
+# `mailbox` après une telle erreur échouera de la même façon pour tout le reste du
+# lot : il faut reconnecter avant de continuer.
+CONNECTION_LOST_ERRORS = (imaplib.IMAP4.abort, ssl.SSLError, OSError)
+
+# Conservé pour compatibilité : union des deux, au cas où du code appelant
+# importerait encore ce nom.
+FETCH_ERRORS = MESSAGE_FETCH_ERRORS + CONNECTION_LOST_ERRORS
 
 
 def _build_fetched_email(msg) -> FetchedEmail | None:
@@ -175,7 +199,17 @@ def _fetch_uids_one_by_one(mailbox, uid_batch: list[str]) -> list[FetchedEmail]:
                 email = _build_fetched_email(msg)
                 if email is not None:
                     out.append(email)
-        except FETCH_ERRORS as e:
+        except CONNECTION_LOST_ERRORS as e:
+            # La connexion est morte : rejouer les UID restants sur cette même
+            # `mailbox` échouerait pareil. On remonte ce qu'on a déjà et on
+            # laisse l'appelant reconnecter avant de reprendre là où on s'est
+            # arrêté (voir `iter_new_email_batches`).
+            log.warning("UID %s illisible, ignoré (connexion perdue) : %s", uid, e)
+            lost = _ConnectionLost(str(e))
+            lost.partial = out
+            lost.remaining_uids = uid_batch[uid_batch.index(uid) + 1:]
+            raise lost from e
+        except MESSAGE_FETCH_ERRORS as e:
             log.warning("UID %s illisible, ignoré : %s", uid, e)
     return out
 
@@ -196,7 +230,18 @@ def _fetch_uid_batch(mailbox, uid_batch: list[str]) -> list[FetchedEmail]:
             if email is not None:
                 emails.append(email)
         return emails
-    except FETCH_ERRORS as e:
+    except CONNECTION_LOST_ERRORS as e:
+        # Inutile de retenter message par message : la même socket morte ferait
+        # échouer chaque UID de la même façon. On remonte tout de suite pour que
+        # l'appelant reconnecte.
+        log.warning(
+            "Fetch groupé du lot échoué (connexion perdue) : %s", e,
+        )
+        lost = _ConnectionLost(str(e))
+        lost.partial = []
+        lost.remaining_uids = list(uid_batch)
+        raise lost from e
+    except MESSAGE_FETCH_ERRORS as e:
         log.warning(
             "Fetch groupé du lot échoué (%s) ; reprise message par message", e,
         )
@@ -215,6 +260,7 @@ def iter_new_email_batches(
     security: str = "SSL",
     should_stop: callable = None,
     on_total: callable = None,
+    max_reconnects: int = 2,
 ):
     """Relève les emails non traités par lots de IMAP_FETCH_BATCH_SIZE.
 
@@ -237,17 +283,28 @@ def iter_new_email_batches(
 
     Important : on lit explicitement ALL (lus + non lus). Le filtre "déjà traité"
     reste géré par la table processed_emails, pas par le statut lu/non lu IMAP.
+
+    `max_reconnects` (par défaut 2) : nombre de reconnexions IMAP tolérées sur toute
+    la relève quand la connexion meurt en cours de route (socket coupée, TLS cassé —
+    voir `_ConnectionLost`). Un lot dont la connexion meurt est repris là où il s'est
+    arrêté sur une connexion fraîche ; au-delà de `max_reconnects`, les UID restants
+    de ce lot sont abandonnés (loggés, pas d'exception) et la relève continue avec le
+    lot suivant.
     """
     since_date = (datetime.now() - timedelta(days=since_days)).date()
     total = 0
 
-    log.info(
-        "Connexion IMAP à %s:%s dossier=%s sécurité=%s depuis=%s",
-        host, port, folder, security, since_date,
-    )
-    with _open_mailbox(host, port, security, timeout=30).login(
-        user, password, initial_folder=folder
-    ) as mailbox:
+    def _login():
+        log.info(
+            "Connexion IMAP à %s:%s dossier=%s sécurité=%s depuis=%s",
+            host, port, folder, security, since_date,
+        )
+        return _open_mailbox(host, port, security, timeout=30).login(
+            user, password, initial_folder=folder
+        )
+
+    mailbox = _login()
+    try:
         criteria = AND(all=True, date_gte=since_date)
         log.info("Dossier IMAP sélectionné : %s ; recherche %s", folder, criteria)
         uids = mailbox.uids(criteria)
@@ -278,7 +335,15 @@ def iter_new_email_batches(
         # l'interface d'afficher un avancement chiffré plutôt qu'un sablier.
         if on_total is not None:
             on_total(len(selected_uids))
-        for start, uid_batch in _chunks(selected_uids, IMAP_FETCH_BATCH_SIZE):
+
+        # Liste mutable de (offset_dans_selected_uids, lot_d'UID) : un lot dont la
+        # connexion meurt en cours de fetch est remplacé, au même index, par ses UID
+        # restants — il sera rejoué sur la connexion reconnectée juste après.
+        pending = list(_chunks(selected_uids, IMAP_FETCH_BATCH_SIZE))
+        reconnects_used = 0
+        idx = 0
+        while idx < len(pending):
+            start, uid_batch = pending[idx]
             if should_stop is not None and should_stop():
                 log.info(
                     "Relève IMAP interrompue à la demande après %d email(s)", total,
@@ -289,7 +354,35 @@ def iter_new_email_batches(
                 "Récupération IMAP lot %d-%d/%d",
                 start + 1, end, len(selected_uids),
             )
-            batch = _fetch_uid_batch(mailbox, uid_batch)
+            try:
+                batch = _fetch_uid_batch(mailbox, uid_batch)
+            except _ConnectionLost as lost:
+                total += len(lost.partial)
+                if lost.partial:
+                    yield lost.partial
+                if not lost.remaining_uids or reconnects_used >= max_reconnects:
+                    log.warning(
+                        "Connexion IMAP perdue (%s) ; %d UID de ce lot abandonné(s) "
+                        "après %d reconnexion(s)",
+                        lost, len(lost.remaining_uids), reconnects_used,
+                    )
+                    idx += 1
+                    continue
+                reconnects_used += 1
+                log.warning(
+                    "Connexion IMAP perdue (%s) ; reconnexion %d/%d, reprise de "
+                    "%d UID restant(s) du lot",
+                    lost, reconnects_used, max_reconnects, len(lost.remaining_uids),
+                )
+                try:
+                    mailbox.logout()
+                except Exception:
+                    pass
+                time.sleep(2 * reconnects_used)  # petit backoff avant de retenter
+                mailbox = _login()
+                fetched_before_loss = len(uid_batch) - len(lost.remaining_uids)
+                pending[idx] = (start + fetched_before_loss, lost.remaining_uids)
+                continue
             total += len(batch)
             log.info(
                 "Lot IMAP %d-%d/%d terminé : %d email(s)",
@@ -297,6 +390,12 @@ def iter_new_email_batches(
             )
             if batch:
                 yield batch
+            idx += 1
+    finally:
+        try:
+            mailbox.logout()
+        except Exception:
+            pass
 
     log.info("%d emails non traités relevés depuis %s", total, folder)
 
